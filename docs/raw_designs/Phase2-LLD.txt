@@ -1,0 +1,296 @@
+Aproach:
+	Business Capability
+			|
+			V
+		Use Case
+			|
+			V
+		Domain Model
+			|
+			V
+	Aggregate Boundaries
+			|
+			V
+		Entities
+			|
+			V
+		Value Objects
+			|
+			V
+	Repository Interfaces
+			|
+			V
+		Domain Services
+			|
+			V
+	Application Services (Use Cases)
+			|
+			V
+		Sequence Diagram
+			|
+			V
+		Class Diagram
+			|
+			V
+		Implementation
+
+Step1 Domain Modelling (DDD):
+	A) We'll identify:
+		- Entities
+		- Value Objects
+		- Aggregates
+		- Aggregate Roots
+		- Domain Events
+		- Repository Interfaces
+		- Domain Services
+	B) We'll answer questions like:
+		- Is Reservation an Entity or Value Object?
+		- Is TimeInterval an Entity?
+		- Should Organization be an Aggregate?
+		- Is ApprovalPolicy embedded or separate?
+		- Where does optimistic locking live?
+
+Step2 Application Layer:
+	A) We'll design one complete use case:
+		- CreateReservation
+	B) We'll define:
+		- Input Command
+		- Output DTO
+		- Dependencies
+		- Transaction boundary
+		- Error flow
+		- Idempotency
+		- Event publishing
+
+Step3 Sequence Diagram
+
+Step4 Class Diagram
+
+Step5 Design Pattern
+	Instead of saying let's use this pattern or that pattern, let's introduce patterns only when Haven genuinely needs them.
+	
+Note: The most important rule of the entire project. Every class must earn its existence.
+
+------
+1. Functional modules:
+	Haven
+	|
+	|- Authentication
+	|
+	|- Organization
+	|
+	|- Resource Catalog
+	|
+	|- Reservation
+	|
+	|- Approval
+	|
+	|- Notification
+	|
+	|- Reporting
+	|
+	+- Shared Kernel
+	
+2. Folder Structure:
+	haven/
+	|- apps/
+	|   +- server/
+	|
+	|- domain/
+	|   |- reservation/
+	|   |- resource/
+	|   |- organization/
+	|   |- approval/
+	|   +- shared/
+	|
+	|- application/
+	|   |- commands/
+	|   |- queries/
+	|   |- handlers/
+	|   +- dto/
+	|
+	|- infrastructure/
+	|   |- persistence/
+	|   |      |- couchbase/
+	|   |      +- redis/
+	|   |- messaging/
+	|   |- logging/
+	|   |- auth/
+	|   +- config/
+	|
+	|- presentation/
+	|   |- controllers/
+	|   |- middleware/
+	|   |- mappers/
+	|   +- swagger/
+	|
+	|- tests/
+	|
+	|- benchmark/
+	|
+	|- docs/
+	|
+	+- scripts/
+	
+3. Domain Model:
+	|- Aggregates:
+	|	|- Reservation
+	|	|- Resource
+	|	+- Organization
+	|
+	|- Entities
+	|	|- Reservation
+	|	|- Resource
+	|	|- Organization
+	|	+- User
+	|
+	+- Value Objects
+		(ReservationId, ResourceId, OrganizationId, UserId, TimeInterval, Location, Capacity, Feature, Purpose, ApprovalInfo, AuditInfo, ReservationStatus, ResourceType)
+
+4. Aggregate Design
+	A) Reservation Aggregate owns:
+		ReservationId
+		ResourceId
+		TimeInterval
+		Status
+		Purpose
+		ApprovalInfo
+		AuditInfo
+
+		Behaviors:
+			confirm()
+			cancel()
+			reject()
+			extend()
+			expire()
+			complete()
+
+	B) Resource Aggregate owns:
+		ResourceId
+		Type
+		Features
+		Capacity
+		Location
+		Policies
+
+	C) Organization Aggregate owns:
+		Policies
+		Working Hours
+		Approval Rules
+		Reservation Limits
+		
+5. Repository contracts:
+	ReservationRepository
+	ResourceRepository
+	OrganizationRepository
+
+(Note: Each repository exposes behavior required by the domain.
+	   e.g. ReservationRepository, save(), findById(), findOverlapping(), findByUser(), findActiveReservations())
+
+6. Application layer:
+(This layer orchestrates.)
+	Usecases:
+		CreateReservation
+		SearchResources
+		CancelReservation
+		ApproveReservation
+		RejectReservation
+		ExtendReservation
+	(Each use case is one class.)
+
+7. Infrastructure Layer contains:
+		CouchbaseReservationRepository
+		RedisAvailabilityCache
+		KafkaEventPublisher
+		JwtAuthenticator
+		SpdLogger
+
+8. Presentation Layer:
+(Contains only HTTP concerns.)
+		ReservationController
+		ResourceController
+		ApprovalController
+		HealthController
+		JWT Middleware
+		Validation Middleware
+		Exception Mapper
+
+9. DTO Design:
+		CreateReservationRequest
+		ReservationResponse
+		ResourceResponse
+		ErrorResponse
+
+10. Domain Events:
+		ReservationCreated
+		ReservationConfirmed
+		ReservationCancelled
+		ReservationRejected
+		ReservationExpired
+
+11. State Machine:
+	CREATED
+		 |
+		 +------+
+		 |      |
+		 v      v
+	CONFIRMED  PENDING_APPROVAL
+		 |           |
+		 |           v
+		 |      APPROVED
+		 |           |
+		 +-----------+
+			   |
+			   v
+		   ACTIVE
+			   |
+		  +----+----+
+		  |         |
+		  v         v
+	COMPLETED   CANCELLED
+
+(Illegal transitions should throw domain exceptions.)
+
+12. Concurrency:
+	Create reservation flow:
+		Load overlapping reservations
+			|
+			v
+		Validate
+			|
+			v
+		Optimistic Lock
+			|
+			v
+		Persist
+			|
+			v
+		Publish Event
+		
+13. Testing strategy:
+		Domain
+			+- Unit Tests
+
+		Application
+			+- Use Case Tests
+
+		Infrastructure
+			+- Integration Tests
+
+		Presentation
+			+- API Tests
+
+		Benchmark
+			+- Performance Tests
+
+14. Coding standards:
+(Rules we'll enforce throughout the project.)
+	- Prefer composition over inheritance.
+	- Use std::unique_ptr by default; std::shared_ptr only with clear shared ownership.
+	- Avoid raw new/delete.
+	- Make value objects immutable.
+	- Favor constructor injection.
+	- Avoid singleton patterns except for stateless framework-managed components if truly necessary.
+	- Use std::optional instead of nullable pointers where appropriate.
+	- Keep exceptions for exceptional conditions, not control flow.
+	- Follow RAII consistently.

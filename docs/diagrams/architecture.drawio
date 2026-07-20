@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-07-20T06:49:19.156001+00:00" agent="ChatGPT" version="24.7.17" type="device">
+   <diagram id="haven-architecture" name="Haven Architecture">
+      <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+         <root>
+            <mxCell id="0" />
+            <mxCell id="1" parent="0" />
+            <mxCell id="title" value="Haven — Distributed Workspace Reservation Platform" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F2937;strokeColor=#111827;fontColor=#FFFFFF;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+               <mxGeometry x="250" y="20" width="1100" height="55" as="geometry" />
+            </mxCell>
+            <mxCell id="clients" value="Web / Mobile / Admin Clients" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1E88E5;fontColor=#0D47A1;fontSize=14;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="30" y="180" width="190" height="75" as="geometry" />
+            </mxCell>
+            <mxCell id="gateway" value="Load Balancer / API Gateway&lt;br&gt;&lt;font style='font-size:11px'&gt;TLS • Routing • Optional Edge Rate Limits&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FB8C00;fontColor=#E65100;fontSize=14;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="270" y="175" width="230" height="85" as="geometry" />
+            </mxCell>
+            <mxCell id="app-tier" value="Stateless Haven Application Tier" style="swimlane;rounded=1;html=1;startSize=34;horizontal=1;fillColor=#F8FAFC;strokeColor=#64748B;fontColor=#334155;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+               <mxGeometry x="550" y="95" width="480" height="430" as="geometry" />
+            </mxCell>
+            <mxCell id="api1" value="Haven API Instance 1&lt;br&gt;&lt;font style='font-size:10px'&gt;Drogon + Modern C++&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontColor=#1B5E20;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="585" y="150" width="190" height="65" as="geometry" />
+            </mxCell>
+            <mxCell id="api2" value="Haven API Instance N&lt;br&gt;&lt;font style='font-size:10px'&gt;Horizontal scaling&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontColor=#1B5E20;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="805" y="150" width="190" height="65" as="geometry" />
+            </mxCell>
+            <mxCell id="presentation" value="Presentation&lt;br&gt;&lt;font style='font-size:10px'&gt;Controllers • Middleware • DTOs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#7CB342;fontColor=#33691E;fontSize=12;" vertex="1" parent="1">
+               <mxGeometry x="585" y="245" width="190" height="60" as="geometry" />
+            </mxCell>
+            <mxCell id="application" value="Application&lt;br&gt;&lt;font style='font-size:10px'&gt;Use Cases • Authorization • Idempotency&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#7CB342;fontColor=#33691E;fontSize=12;" vertex="1" parent="1">
+               <mxGeometry x="805" y="245" width="190" height="60" as="geometry" />
+            </mxCell>
+            <mxCell id="domain" value="Domain&lt;br&gt;&lt;font style='font-size:10px'&gt;Reservation • Resource • Policy • Approval&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#7CB342;fontColor=#33691E;fontSize=12;" vertex="1" parent="1">
+               <mxGeometry x="585" y="335" width="190" height="60" as="geometry" />
+            </mxCell>
+            <mxCell id="infra" value="Infrastructure Adapters&lt;br&gt;&lt;font style='font-size:10px'&gt;Couchbase • Redis • Kafka • JWT&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#7CB342;fontColor=#33691E;fontSize=12;" vertex="1" parent="1">
+               <mxGeometry x="805" y="335" width="190" height="60" as="geometry" />
+            </mxCell>
+            <mxCell id="outbox-relay" value="Transactional Outbox Relay&lt;br&gt;&lt;font style='font-size:10px'&gt;In-process locally; separate worker in production&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F7FA;strokeColor=#00ACC1;fontColor=#006064;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="665" y="430" width="250" height="62" as="geometry" />
+            </mxCell>
+            <mxCell id="identity" value="External Identity Provider&lt;br&gt;&lt;font style='font-size:10px'&gt;OIDC • JWT • JWKS&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#D81B60;fontColor=#880E4F;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="270" y="320" width="230" height="75" as="geometry" />
+            </mxCell>
+            <mxCell id="couchbase" value="Couchbase&lt;br&gt;&lt;font style='font-size:10px'&gt;Authoritative Data&lt;br&gt;Reservations • Guards • Idempotency • Outbox&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#EDE7F6;strokeColor=#673AB7;fontColor=#311B92;fontSize=14;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="1090" y="110" width="230" height="105" as="geometry" />
+            </mxCell>
+            <mxCell id="redis" value="Redis&lt;br&gt;&lt;font style='font-size:10px'&gt;Non-authoritative Cache&lt;br&gt;Rate Limiting&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#FFEBEE;strokeColor=#E53935;fontColor=#B71C1C;fontSize=14;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="1090" y="260" width="230" height="90" as="geometry" />
+            </mxCell>
+            <mxCell id="kafka" value="Kafka&lt;br&gt;&lt;font style='font-size:10px'&gt;Reservation Event Stream&lt;/font&gt;" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#37474F;fontColor=#263238;fontSize=14;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="1090" y="410" width="230" height="85" as="geometry" />
+            </mxCell>
+            <mxCell id="workers" value="Event Worker Tier" style="swimlane;rounded=1;html=1;startSize=34;horizontal=1;fillColor=#F8FAFC;strokeColor=#64748B;fontColor=#334155;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+               <mxGeometry x="1015" y="560" width="380" height="180" as="geometry" />
+            </mxCell>
+            <mxCell id="notification" value="Notification Consumer&lt;br&gt;&lt;font style='font-size:10px'&gt;Email / Future Channels&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F7FA;strokeColor=#00ACC1;fontColor=#006064;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="1045" y="620" width="150" height="70" as="geometry" />
+            </mxCell>
+            <mxCell id="reporting" value="Reporting &amp; Audit Consumer&lt;br&gt;&lt;font style='font-size:10px'&gt;Derived Projections&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F7FA;strokeColor=#00ACC1;fontColor=#006064;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="1220" y="620" width="145" height="70" as="geometry" />
+            </mxCell>
+            <mxCell id="observability" value="Observability Stack&lt;br&gt;&lt;font style='font-size:10px'&gt;Logs • Metrics • Traces • Alerts&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDE7;strokeColor=#F9A825;fontColor=#F57F17;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="550" y="610" width="380" height="100" as="geometry" />
+            </mxCell>
+            <mxCell id="note" value="&lt;b&gt;Correctness boundary&lt;/b&gt;&lt;br&gt;Couchbase transactions + per-resource daily schedule guards prevent double booking. Redis and Kafka are never authoritative for reservation allocation." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#FFF8E1;strokeColor=#FFB300;fontColor=#5D4037;fontSize=11;" vertex="1" parent="1">
+               <mxGeometry x="30" y="555" width="450" height="135" as="geometry" />
+            </mxCell>
+            <mxCell id="e1" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="clients" target="gateway">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e2" value="REST / JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="gateway" target="api1">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e3" value="REST / JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="gateway" target="api2">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e4" value="JWT / JWKS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="identity" target="api1">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e5" value="JWT / JWKS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="identity" target="api2">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="api1" target="presentation">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="api2" target="presentation">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="presentation" target="application">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="application" target="domain">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="application" target="infra">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e11" value="Ports" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="domain" target="infra">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e12" value="KV • N1QL • Transactions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="infra" target="couchbase">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e13" value="Cache-aside / Rate limit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="infra" target="redis">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e14" value="Committed outbox records" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="application" target="outbox-relay">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e15" value="Poll / CAS claim" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="outbox-relay" target="couchbase">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e16" value="Publish events" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="outbox-relay" target="kafka">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e17" value="Consumer group" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="kafka" target="notification">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e18" value="Consumer group" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="kafka" target="reporting">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e19" value="Telemetry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1.5;strokeColor=#F9A825;" edge="1" parent="1" source="api1" target="observability">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e20" value="Telemetry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1.5;strokeColor=#F9A825;" edge="1" parent="1" source="api2" target="observability">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e21" value="Telemetry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1.5;strokeColor=#F9A825;" edge="1" parent="1" source="outbox-relay" target="observability">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e22" value="Telemetry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1.5;strokeColor=#F9A825;" edge="1" parent="1" source="notification" target="observability">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="e23" value="Telemetry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1.5;strokeColor=#F9A825;" edge="1" parent="1" source="reporting" target="observability">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+         </root>
+      </mxGraphModel>
+   </diagram>
+</mxfile>

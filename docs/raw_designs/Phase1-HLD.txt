@@ -1,0 +1,310 @@
+Objective:
+	We should be able to answer:
+		|- What are the major modules?
+		|- What does each module own?
+		|- Data (What data does each module own?)
+		|- How do modules communicate?
+		|- Where does a request flow?
+		|- Where do we enforce business rules?
+		+- Where do we handle concurrency?
+		
+Note: A good rule is, "If two modules can modify the same business concept, the boundary is wrong."
+
+So first, let's assign ownership:
+	|- Identity		[Owns: Authentication, JWT Validation, User Identity, Roles]
+	|- Organization [Owns: Organizations, Tenant, Settings, Policies]
+	|- Resource 	[Owns: Meeting Room, Desk, Parking, Metadata, Capacity, Features]
+	|- Reservation	[Owns: Reservation Lifecycle, Conflict Detection, Reservation Policies, Reservation Validation, Reservation State, Domain Events]
+	|- Approval		[Owns: Pending Requests, Approvals, Rejections, Escalations, Timeouts]
+	|- Notification	[Owns: Email, SMS, Push, Templates, Retries]
+	+- Audit		[Owns: Who, What, When, Old Value, New Value]
+	
+Lifecycle of a reservation request at a conceptual level:
+	Client
+		|
+		V
+	API Layer
+		|
+		V
+	Authentication
+		|
+		V
+	Reservation Application
+		|
+		|- Validate Request
+		|      |
+		|      V
+		|- Load Resource
+		|      |
+		|      V
+		|- Check Policies
+		|      |
+		|      V
+		|- Check Conflicts
+		|      |
+		|      V
+		|- Persist Reservation
+		|      |
+		|      V
+		|- Publish Domain Event
+		|
+		V
+	Response
+	
+Flow:
+	Client -> Authenticate -> Authorize -> Idempotency Check -> Request Validation
+																		|
+																		V
+	Create Reservation <- Conflict Detection <- Policy Evaluation <- Load Resource
+		|
+		V
+	Persist Reservation (single source of truth) -> Publish Domain Event -> Return Response
+	
+	(Then Event handles the rest things),
+	
+	ReservationCreated
+		|- Approval
+		|- Notification
+		|- Audit
+		|- Analytics
+		+- Calendar View
+		
+Architecture layers:
+	+----------------------+
+	|     Presentation     |
+	|  (REST, Drogon)      |
+	+----------------------+
+				|
+				V
+	+----------------------+
+	|     Application      |
+	| Use Cases            |
+	+----------------------+
+				|
+				V
+	+----------------------+
+	|       Domain         |
+	| Business Rules       |
+	+----------------------+
+				^
+				|
+	+----------------------+
+	|    Infrastructure    |
+	| DB, Kafka, Redis     |
+	+----------------------+
+
+Note: Don't Design REST Endpoints. Design Use Cases.
+
+Step 1 — Identifying Use Cases:
+	|
+	|- Authentication
+	|	|- Login
+	|	|- Refresh Token
+	|	+- Logout
+	|	
+	|- Resource Management
+	|	|- Create Resource
+	|	|- Update Resource
+	|	|- Disable Resource
+	|	|- Enable Resource
+	|	|- Search Resources
+	|	+- Get Resource Details
+	|
+	|- Resource Management
+	|	|- Create Reservation
+	|	|- Cancel Reservation
+	|	|- Get Reservation
+	| 	|- Search Reservations
+	|	|- Get My Reservations
+	|	|- Extend Reservation
+	|	+- Shorten Reservation
+	|
+	|- Approval
+	|	|- Approve Reservation
+	|	|- Reject Reservation
+	|	+- List Pending Approvals
+	|
+	+- Organization
+		|- Create Organization
+		|- Update Organization
+		+- Get Policies
+		
+Step 2 — API Resources
+(Now we translate those use cases into REST.)
+	e.g.	POST /reservations
+			POST /reservations/{id}/cancel
+			POST /reservations/{id}/extend
+			POST /reservations/{id}/approve
+			POST /reservations/{id}/reject
+			.
+			.
+			.
+			
+Step 3 — Search APIs
+Step 4 — Reservation Status:
+			
+		Requested
+			|
+			V
+	Pending Approval
+			|
+			V
+		Confirmed
+			|
+	  +-----+-----+
+	  |           |
+	Cancelled  Expired
+		|
+		V
+	Completed
+	
+List of APIs for HavenV1:
+Base URI			: /api/v1
+
+Login				: POST /auth/login (Purpose: Authenticate user, Return JWT Access Token)
+
+Refresh Token		: POST /auth/refresh (Purpose: Refresh expired access token)
+
+Search Resources	: GET  /resources (Purpose: To search available resources)
+					: Query Parameters (startTime, endTime, resourceType)
+					: Response ({"resources":[{"resourceId":"...","name":"...","type":"...","capacity":8,"building":"...","floor":3,"features":["PROJECTOR","WHITEBOARD"]}],"pagination":{}})
+
+Get Resource Details: GET  /resources/{resourceId} (Purpose: Returns metadata for 1 resource)
+
+Create Reservation	: POST /reservations
+					: Headers (Authorization, Idempotency-Key)
+					: Body ({"resourceId":"...","startTime":"...","endTime":"...","purpose":"Sprint Planning"})
+					: Returns (201 Created {"reservationId":"...","status":"CONFIRMED"} or {"reservationId":"...","status":"PENDING_APPROVAL"})
+
+Get Reservation		: GET  /reservations/{reservationId} (Purpose: To get reservation details)
+
+Get My Reservations	: GET  /reservations/me
+
+Cancel Reservation	: POST /reservations/{reservationId}/cancel (Purpose: Business action. Does not delete reservation.)
+					: Returns 200 OK
+					
+Extend Reservation	: POST /reservations/{reservationId}/extend
+					: Body {"newEndTime":"..."}
+					
+Pending Approvals	: GET  /approvals (Returns: Pending reservations requiring approval.)
+
+Approve Reservation	: POST /approvals/{reservationId}/approve (Returns: 200 OK)
+
+Reject Reservation	: POST /approvals/{reservationId}/reject
+					: Body {"reason":"Already allocated"}
+					
+Get Organization Policies : GET  /organization/policies
+						  : Returns {"maxReservationHours":12,"approvalRequiredResources":["Executive Meeting Room"]}
+						  
+Error Response Contract	:
+(Every API returns a common error format.)
+	{"code":"RESERVATION_CONFLICT","message":"Resource is already reserved.","details":[{"field":"startTime","reason":"OVERLAPS_EXISTING_RESERVATION"}],"traceId":"4d7a..."}
+
+HTTP Status Codes	:
+
+	| Code | Meaning                 |
+	| ---- | ----------------------- |
+	| 200  | Success                 |
+	| 201  | Resource Created        |
+	| 400  | Validation Error        |
+	| 401  | Authentication Failed   |
+	| 403  | Authorization Failed    |
+	| 404  | Resource Not Found      |
+	| 409  | Reservation Conflict    |
+	| 422  | Business Rule Violation |
+	| 429  | Rate Limited            |
+	| 500  | Internal Error          |
+	| 503  | Dependency Unavailable  |
+
+
+Component Diagram:
+
+                           +----------------------+
+                           |      Client          |
+                           | Web / Mobile / CLI   |
+                           +----------+-----------+
+                                      |
+                                      |
+                              HTTPS / REST
+                                      |
+                                      V
+                    +----------------------------------+
+                    |         Drogon Web Server         |
+                    |                                  |
+                    | Controllers                      |
+                    | JWT Middleware                   |
+                    | Request Validation               |
+                    +---------------+------------------+
+                                    |
+                                    V
+                    +----------------------------------+
+                    |        Application Layer         |
+                    |                                  |
+                    | CreateReservationUseCase         |
+                    | SearchResourcesUseCase           |
+                    | CancelReservationUseCase         |
+                    | ApproveReservationUseCase        |
+                    +---------------+------------------+
+                                    |
+                                    V
+                    +----------------------------------+
+                    |          Domain Layer            |
+                    |                                  |
+                    | Reservation                      |
+                    | Resource                         |
+                    | Organization                     |
+                    | Approval                         |
+                    | Policies                         |
+                    | Conflict Detector                |
+                    +---------------+------------------+
+                                    |
+                  +-----------------+------------------+
+                  |                 |                  |
+                  V                 V                  V
+         +---------------+   +---------------+   +----------------+
+         | Couchbase Repo|   | Redis Cache   |   | Event Publisher|
+         +-------+-------+   +-------+-------+   +-------+--------+
+                 |                   |                   |
+                 V                   V                   V
+          Couchbase Cluster      Redis Server        Kafka Broker
+
+Deployment Diagram:
+[Where does it run? Local Development (Docker Compose)]
+
+                    +----------------------------------+
+                    |           Developer              |
+                    |         VS Code / CLion          |
+                    +---------------+------------------+
+                                    |
+                                    |
+                             docker compose up
+                                    |
+        -----------------------------------------------------------------
+        |               |               |               |               |
+        V               V               V               V               V
++---------------+ +---------------+ +---------------+ +---------------+ +---------------+
+| Haven Backend | | Couchbase     | | Redis         | | Kafka         | | Kafka UI      |
+| (Drogon App)  | | Database      | | Cache         | | Broker        | | (Optional)    |
++-------+-------+ +-------+-------+ +-------+-------+ +-------+-------+ +---------------+
+        |                 |                 |                 |
+        +-----------------+-----------------+-----------------+
+                          |
+                    Docker Network
+
+Production Deployment (Future):
+                 Internet
+                     |
+              Load Balancer
+                     |
+        +------------+------------+
+        |                         |
++---------------+         +---------------+
+| Haven Instance|         | Haven Instance|
++-------+-------+         +-------+-------+
+        |                         |
+        +------------+------------+
+                     |
+          -------------------------
+          |          |            |
+          V          V            V
+    Couchbase    Redis       Kafka Cluster

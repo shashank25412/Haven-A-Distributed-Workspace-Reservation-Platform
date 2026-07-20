@@ -1,0 +1,134 @@
+Objective: 
+	To develop a distributed reservation platform that guarantees consistent reservation of scarce resources under concurrent access while remaining scalable, observable, and extensible.
+
+Problem it solves:
+	Multiple users competing for the same limited resource at the same time.
+
+Entities:
+	Organization
+	  +- Resources
+			|- Meeting room
+			|- Parking slot
+			|- Desk
+			|- Nap room (Hotel room)
+			+- Etc.
+	User
+	Reservation
+	Availability
+	Calendar
+	Notification
+	Authentication
+	Audit log
+
+Design idea:
+	Adding a new resource type should require configuration rather than changing reservation logic.
+
+Functional Requirements:
+	Must have (MVP)
+	 - Authentication [User login, JWT based authentication, Role authorization (Admin/User)]
+	 - Resource management [Create, Update, Delete, Enable/Disable, Categorize, Capacity metadata(s)]
+	 - Availability: Users should be able to query, Is resource X available between T1 and T2?
+	 - Reservation: Create reservation. System must reject overlapping reservations.
+	 - Reservation Lifecycle
+		   Created  -> Confirmed -> Cancelled -> Expired -> Completed
+	 - Reservation Lookup
+		 |- by user
+		 |- by resource
+		 |- by date
+		 +- upcoming reservations
+	 - Conflict Detection: The system should never allow two confirmed reservations for the same resource and overlapping time window.
+	 - Audit Trail: Every reservation should leave an immutable history.
+			Created    Modified    Cancelled    Expired
+
+	Should Have
+	 - Search resources
+	 - Pagination
+	 - Filtering
+	 - Reservation history
+	 - Reservation extension
+	 - Reservation shortening
+	 - Soft delete
+	 - Bulk resource import
+	 
+	Nice to Have
+	 - Recurring reservations
+	 - Waitlist
+	 - Reservation approval workflow
+	 - Resource maintenance windows
+	 - QR check-in
+	 - Auto release on no-show
+	 - Calendar integrations
+	 - Webhooks
+	 - Multi-region support
+
+Non-functional Requirements:
+	Consistency: If two users click "Reserve" at exactly the same millisecond...
+		- Only one succeeds.
+		- The other receives a deterministic failure.
+		- This implies we need to think about concurrency control from day one.
+		
+	Scalability: Should support, millions of reservations, thousands of resources, high concurrent booking attempts, horizontal scaling
+	
+	Availability:
+		- Reads should remain available during high traffic.
+		- Some write operations may fail gracefully under extreme contention rather than compromising correctness.
+		
+	Performance:
+		Tentative targets (we'll refine later):
+			Operation				Target
+			-------------------------------
+			Availability lookup	< 	50 ms
+			Reservation			< 	150 ms
+			Resource lookup		< 	30 ms
+			Authentication		< 	50 ms
+			
+	Extensibility:
+		- Adding Parking Spot should not require changing ReservationEngine.
+		- This is one of our core architectural goals.
+		
+	Observability:
+		- Every request should have:
+			|- request ID
+			|- trace ID
+			|- structured logging
+			|- latency metrics
+			+- error metrics
+		- From the beginning, we'll treat observability as a first-class feature, not an afterthought.
+		
+	Reliability:
+		- Operations should be:
+			|- idempotent where appropriate
+			|- retry-safe
+			|- resilient to partial failures
+			+- recoverable after crashes
+			
+	Security:
+			|- JWT
+			|- RBAC
+			|- input validation
+			|- rate limiting
+			+- audit logging
+			
+Scale Estimation:
+	Metric							Assumption
+	-------------------------------------------------------
+	Organizations					10,000
+	Resources per organization		100–10,000
+	Daily active users				500,000
+	Peak concurrent users			20,000
+	Reservations/day				5–10 million
+	Peak reservation requests/sec	500–2,000
+	Availability lookups/sec		10× reservation traffic
+	
+	- Reads will significantly outnumber writes.
+	- It justifies investing in caching and read optimization (later).
+
+Domains(Haven):
+	|- Identity
+	|- Organization
+	|- Resource
+	|- Reservation
+	|- Approval
+	|- Notification
+	|- Audit
+	+- Shared Kernel

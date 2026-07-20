@@ -1,75 +1,108 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="app.diagrams.net" modified="2026-07-20T07:17:05.320562+00:00" agent="ChatGPT" version="24.7.17" type="device">
-   <diagram id="sequence" name="Create Reservation Sequence">
+<mxfile host="app.diagrams.net" modified="2026-07-20T09:18:45.751969+00:00" agent="ChatGPT" version="24.7.17" type="device">
+   <diagram id="haven-sequence-polished" name="Create Reservation Sequence">
       <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
          <root>
             <mxCell id="0" />
             <mxCell id="1" parent="0" />
-            <mxCell id="t" value="Haven — Create Reservation Sequence" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F2937;strokeColor=#111827;fontColor=#FFFFFF;fontSize=21;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+            <mxCell id="title" value="Haven — Create Reservation Sequence" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F2937;strokeColor=#111827;fontColor=#FFFFFF;fontSize=21;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
                <mxGeometry x="250" y="20" width="1100" height="55" as="geometry" />
             </mxCell>
             <mxCell id="client" value="Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1E88E5;fontColor=#0D47A1;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="80" y="120" width="150" height="60" as="geometry" />
+               <mxGeometry x="80" y="110" width="170" height="70" as="geometry" />
+            </mxCell>
+            <mxCell id="client-line" value="" style="shape=line;html=1;strokeWidth=1;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
+               <mxGeometry x="165" y="180" width="1" height="610" as="geometry" />
             </mxCell>
             <mxCell id="api" value="Drogon API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontColor=#1B5E20;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="330" y="120" width="170" height="60" as="geometry" />
+               <mxGeometry x="350" y="110" width="170" height="70" as="geometry" />
             </mxCell>
-            <mxCell id="usecase" value="Create Reservation Use Case" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontColor=#1B5E20;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="610" y="120" width="230" height="60" as="geometry" />
+            <mxCell id="api-line" value="" style="shape=line;html=1;strokeWidth=1;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
+               <mxGeometry x="435" y="180" width="1" height="610" as="geometry" />
             </mxCell>
-            <mxCell id="cb" value="Couchbase Transaction" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#EDE7F6;strokeColor=#673AB7;fontColor=#311B92;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="960" y="120" width="220" height="60" as="geometry" />
+            <mxCell id="usecase" value="Create Reservation&lt;br&gt;Use Case" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontColor=#1B5E20;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="650" y="110" width="170" height="70" as="geometry" />
             </mxCell>
-            <mxCell id="outbox" value="Outbox Relay / Kafka" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#37474F;fontColor=#263238;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="1300" y="120" width="210" height="60" as="geometry" />
+            <mxCell id="usecase-line" value="" style="shape=line;html=1;strokeWidth=1;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
+               <mxGeometry x="735" y="180" width="1" height="610" as="geometry" />
             </mxCell>
-            <mxCell id="l1" value="" style="shape=line;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
-               <mxGeometry x="155" y="180" width="2" height="570" as="geometry" />
+            <mxCell id="couchbase" value="Couchbase&lt;br&gt;Transaction" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#EDE7F6;strokeColor=#673AB7;fontColor=#311B92;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="980" y="110" width="170" height="70" as="geometry" />
             </mxCell>
-            <mxCell id="l2" value="" style="shape=line;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
-               <mxGeometry x="415" y="180" width="2" height="570" as="geometry" />
+            <mxCell id="couchbase-line" value="" style="shape=line;html=1;strokeWidth=1;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
+               <mxGeometry x="1065" y="180" width="1" height="610" as="geometry" />
             </mxCell>
-            <mxCell id="l3" value="" style="shape=line;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
-               <mxGeometry x="725" y="180" width="2" height="570" as="geometry" />
+            <mxCell id="relay" value="Outbox Relay&lt;br&gt;and Kafka" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#37474F;fontColor=#263238;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+               <mxGeometry x="1300" y="110" width="170" height="70" as="geometry" />
             </mxCell>
-            <mxCell id="l4" value="" style="shape=line;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
-               <mxGeometry x="1070" y="180" width="2" height="570" as="geometry" />
+            <mxCell id="relay-line" value="" style="shape=line;html=1;strokeWidth=1;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
+               <mxGeometry x="1385" y="180" width="1" height="610" as="geometry" />
             </mxCell>
-            <mxCell id="l5" value="" style="shape=line;strokeColor=#94A3B8;dashed=1;" vertex="1" parent="1">
-               <mxGeometry x="1405" y="180" width="2" height="570" as="geometry" />
+            <mxCell id="m1s" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="165" y="225" width="1" height="1" as="geometry" />
             </mxCell>
-            <mxCell id="s1" value="1. PUT /reservations&lt;br&gt;JWT + Idempotency-Key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1E88E5;fontColor=#0D47A1;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="110" y="220" width="260" height="70" as="geometry" />
+            <mxCell id="m1t" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="435" y="225" width="1" height="1" as="geometry" />
             </mxCell>
-            <mxCell id="s2" value="2. Authenticate, validate, authorize" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontColor=#1B5E20;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="375" y="310" width="280" height="70" as="geometry" />
-            </mxCell>
-            <mxCell id="s3" value="3. Load resource and policy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontColor=#1B5E20;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="690" y="400" width="250" height="70" as="geometry" />
-            </mxCell>
-            <mxCell id="s4" value="4. Check schedule guard and persist&lt;br&gt;reservation + idempotency + outbox" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#EDE7F6;strokeColor=#673AB7;fontColor=#311B92;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="940" y="490" width="320" height="85" as="geometry" />
-            </mxCell>
-            <mxCell id="s5" value="5. Commit and return 201&lt;br&gt;CONFIRMED or PENDING_APPROVAL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontColor=#1B5E20;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="690" y="610" width="310" height="80" as="geometry" />
-            </mxCell>
-            <mxCell id="s6" value="6. Relay publishes event asynchronously" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#37474F;fontColor=#263238;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
-               <mxGeometry x="1130" y="700" width="330" height="70" as="geometry" />
-            </mxCell>
-            <mxCell id="q1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.6;strokeColor=#475569;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s1" target="s2">
+            <mxCell id="m1" value="1. PUT /reservations" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.7;strokeColor=#1E88E5;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="m1s" target="m1t">
                <mxGeometry relative="1" as="geometry" />
             </mxCell>
-            <mxCell id="q2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.6;strokeColor=#475569;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s2" target="s3">
+            <mxCell id="m2s" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="435" y="315" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m2t" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="735" y="315" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m2" value="2. Authenticate, validate, authorize" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.7;strokeColor=#43A047;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="m2s" target="m2t">
                <mxGeometry relative="1" as="geometry" />
             </mxCell>
-            <mxCell id="q3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.6;strokeColor=#475569;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s3" target="s4">
+            <mxCell id="m3s" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="735" y="405" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m3t" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="1065" y="405" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m3" value="3. Begin transaction" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.7;strokeColor=#673AB7;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="m3s" target="m3t">
                <mxGeometry relative="1" as="geometry" />
             </mxCell>
-            <mxCell id="q4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.6;strokeColor=#475569;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s4" target="s5">
+            <mxCell id="m4s" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="1065" y="515" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m4t" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="735" y="515" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m4" value="4. Commit reservation + guard + idempotency + outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.7;strokeColor=#2E7D32;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="m4s" target="m4t">
                <mxGeometry relative="1" as="geometry" />
             </mxCell>
-            <mxCell id="q5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.6;strokeColor=#475569;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s4" target="s6">
+            <mxCell id="m5s" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="735" y="620" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m5t" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="435" y="620" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m5" value="5. Return status and reservationId" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.7;strokeColor=#43A047;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="m5s" target="m5t">
                <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m6s" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="435" y="705" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m6t" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="165" y="705" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m6" value="6. HTTP 201" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.7;strokeColor=#1E88E5;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="m6s" target="m6t">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m7s" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="1065" y="775" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m7t" value="" style="opacity=0;" vertex="1" parent="1">
+               <mxGeometry x="1385" y="775" width="1" height="1" as="geometry" />
+            </mxCell>
+            <mxCell id="m7" value="7. Publish event asynchronously" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=1.7;strokeColor=#546E7A;fontSize=11;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="m7s" target="m7t">
+               <mxGeometry relative="1" as="geometry" />
+            </mxCell>
+            <mxCell id="note" value="Same Idempotency-Key + same payload returns the stored result instead of creating a duplicate." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontColor=#5D4037;fontSize=11;" vertex="1" parent="1">
+               <mxGeometry x="500" y="815" width="600" height="55" as="geometry" />
             </mxCell>
          </root>
       </mxGraphModel>

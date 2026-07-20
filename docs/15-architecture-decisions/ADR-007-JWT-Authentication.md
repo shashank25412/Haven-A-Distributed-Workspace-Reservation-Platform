@@ -5,7 +5,7 @@ date: 2026-07-20
 decision_owners:
   - Shashank Kumar
 reviewers:
-  - TBD
+  - Kumar Rahul
 supersedes: []
 superseded_by: null
 related_documents:

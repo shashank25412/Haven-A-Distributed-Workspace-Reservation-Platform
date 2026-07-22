@@ -1,0 +1,129 @@
+# -----------------------------------------------------------------------------
+# Haven Static Analysis Rules
+#
+# Applies correctness, safety, performance, modernization, and readability
+# checks to Haven-owned C++ code.
+#
+# Third-party dependencies and generated build output must not be analyzed.
+# -----------------------------------------------------------------------------
+
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-vararg,
+  -modernize-use-trailing-return-type,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-magic-numbers
+
+# Keep warnings visible during development.
+# CI may later promote selected checks to errors.
+WarningsAsErrors: ''
+
+# Analyze only Haven-owned headers.
+HeaderFilterRegex: '^(.*[/\\])?include[/\\]haven[/\\].*'
+
+# Use the repository's .clang-format file for suggested fixes.
+FormatStyle: file
+
+CheckOptions:
+  # ---------------------------------------------------------------------------
+  # Naming conventions
+  # ---------------------------------------------------------------------------
+
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+
+  - key: readability-identifier-naming.MethodCase
+    value: lower_case
+
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+
+  # Constants follow names such as:
+  #
+  #     kDefaultHttpPort
+  #
+  - key: readability-identifier-naming.ConstantCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.ConstantPrefix
+    value: k
+
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.ConstexprVariablePrefix
+    value: k
+
+  # ---------------------------------------------------------------------------
+  # Readability and maintainability thresholds
+  # ---------------------------------------------------------------------------
+
+  - key: readability-function-size.LineThreshold
+    value: '80'
+
+  - key: readability-function-size.StatementThreshold
+    value: '50'
+
+  - key: readability-function-size.ParameterThreshold
+    value: '6'
+
+  - key: readability-function-size.NestingThreshold
+    value: '4'
+
+  # ---------------------------------------------------------------------------
+  # Modern C++ behavior
+  # ---------------------------------------------------------------------------
+
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+
+  - key: modernize-pass-by-value.IncludeStyle
+    value: llvm
+
+  # ---------------------------------------------------------------------------
+  # Performance
+  # ---------------------------------------------------------------------------
+
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'std::string_view;std::span'

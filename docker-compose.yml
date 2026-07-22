@@ -1,0 +1,45 @@
+# -----------------------------------------------------------------------------
+# Haven Local Runtime
+#
+# Runs the current Haven API foundation service.
+#
+# Couchbase, Redis, and Kafka are intentionally excluded until the application
+# has real adapters and readiness policies for those dependencies.
+# -----------------------------------------------------------------------------
+
+services:
+  haven-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: haven-api:foundation
+
+    container_name: haven-api
+
+    environment:
+      HAVEN_HTTP_ADDRESS: "${HAVEN_HTTP_ADDRESS:-0.0.0.0}"
+      HAVEN_HTTP_PORT: "${HAVEN_HTTP_PORT:-8080}"
+
+    ports:
+      - "${HAVEN_HTTP_PORT:-8080}:${HAVEN_HTTP_PORT:-8080}"
+
+    init: true
+
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "--silent",
+          "http://127.0.0.1:8080/health/live"
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+    stop_grace_period: 10s

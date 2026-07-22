@@ -1,0 +1,121 @@
+{
+  "version": 8,
+
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+
+      "environment": {
+        "VCPKG_DOWNLOADS": "${sourceDir}/.build-tools/vcpkg-downloads"
+      },
+
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/.build-tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_MANIFEST_MODE": "ON",
+        "HAVEN_BUILD_TESTS": "ON"
+      }
+    },
+
+    {
+      "name": "dev",
+      "displayName": "Development",
+      "description": "Debug build with tests enabled",
+      "inherits": "base",
+
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "HAVEN_ENABLE_WARNINGS_AS_ERRORS": "OFF",
+        "HAVEN_ENABLE_SANITIZERS": "OFF"
+      }
+    },
+
+    {
+      "name": "dev-asan",
+      "displayName": "Development with sanitizers",
+      "description": "Debug build with AddressSanitizer and UndefinedBehaviorSanitizer",
+      "inherits": "base",
+
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "HAVEN_ENABLE_WARNINGS_AS_ERRORS": "ON",
+        "HAVEN_ENABLE_SANITIZERS": "ON"
+      }
+    },
+
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Optimized build with warnings treated as errors",
+      "inherits": "base",
+
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "HAVEN_ENABLE_WARNINGS_AS_ERRORS": "ON",
+        "HAVEN_ENABLE_SANITIZERS": "OFF"
+      }
+    }
+  ],
+
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "jobs": 0
+    },
+
+    {
+      "name": "dev-asan",
+      "configurePreset": "dev-asan",
+      "jobs": 0
+    },
+
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "jobs": 0
+    }
+  ],
+
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+
+    {
+      "name": "dev-asan",
+      "configurePreset": "dev-asan",
+
+      "output": {
+        "outputOnFailure": true
+      },
+
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+      }
+    },
+
+    {
+      "name": "release",
+      "configurePreset": "release",
+
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

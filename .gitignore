@@ -1,0 +1,73 @@
+# -----------------------------------------------------------------------------
+# Haven Git Ignore Rules
+#
+# Excludes generated build output, repository-local development tools,
+# dependency caches, editor metadata, logs, and local configuration.
+# -----------------------------------------------------------------------------
+
+# CMake build output
+/build/
+/cmake-build-*/
+
+# Generated CMake files
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+cmake_install.cmake
+compile_commands.json
+install_manifest.txt
+
+# Repository-local build tools and dependency downloads
+/.build-tools/
+
+# vcpkg generated dependencies
+/vcpkg_installed/
+
+# Local CMake user presets
+CMakeUserPresets.json
+
+# Local environment configuration
+.env
+.env.local
+.env.*.local
+
+# Logs and runtime output
+*.log
+logs/
+
+# Test and coverage output
+Testing/
+coverage/
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+
+# Sanitizer output
+asan.log*
+ubsan.log*
+lsan.log*
+tsan.log*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Visual Studio Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

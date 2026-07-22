@@ -599,6 +599,601 @@ Before contributing:
 
 ---
 
+# Development Setup
+
+## Prerequisites
+
+### macOS
+
+Install the required command-line tools:
+
+```bash
+xcode-select --install
+```
+
+Install the build utilities:
+
+```bash
+brew install cmake ninja pkgconf
+```
+
+Optional developer tooling:
+
+```bash
+brew install llvm
+```
+
+Docker-based development requires Docker Desktop.
+
+Verify the environment:
+
+```bash
+cmake --version
+ninja --version
+pkg-config --version
+clang++ --version
+docker version
+```
+
+Haven requires CMake 3.28 or newer.
+
+### Repository path
+
+Keep the repository in a tooling-safe path without semicolons or unusual punctuation.
+
+Recommended:
+
+```text
+~/Documents/haven
+```
+
+Avoid paths such as:
+
+```text
+Haven; A Distributed Workspace Reservation Platform
+```
+
+CMake treats semicolons as list separators.
+
+---
+
+## Bootstrap vcpkg
+
+Haven uses a repository-local, pinned vcpkg installation.
+
+Run:
+
+```bash
+chmod +x scripts/bootstrap-vcpkg.sh
+./scripts/bootstrap-vcpkg.sh
+```
+
+The script creates:
+
+```text
+.build-tools/
+├── vcpkg/
+└── vcpkg-downloads/
+```
+
+These directories are local development artifacts and must not be committed.
+
+The script is safe to run more than once.
+
+---
+
+## Native Debug Build
+
+Configure:
+
+```bash
+cmake --preset dev
+```
+
+Build:
+
+```bash
+cmake --build --preset dev
+```
+
+Run tests:
+
+```bash
+ctest --preset dev
+```
+
+Start Haven:
+
+```bash
+./build/dev/apps/server/haven-server
+```
+
+The process listens on:
+
+```text
+0.0.0.0:8080
+```
+
+unless overridden through environment variables.
+
+---
+
+## Sanitizer Build
+
+Configure with AddressSanitizer and UndefinedBehaviorSanitizer:
+
+```bash
+cmake --preset dev-asan
+```
+
+Build:
+
+```bash
+cmake --build --preset dev-asan
+```
+
+Run tests:
+
+```bash
+ctest --preset dev-asan
+```
+
+The sanitizer build also treats Haven compiler warnings as errors.
+
+---
+
+## Release Build
+
+Configure:
+
+```bash
+cmake --preset release
+```
+
+Build:
+
+```bash
+cmake --build --preset release
+```
+
+Run tests:
+
+```bash
+ctest --preset release
+```
+
+---
+
+# Runtime Configuration
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Currently supported variables:
+
+| Variable             |   Default | Description           |
+| -------------------- | --------: | --------------------- |
+| `HAVEN_HTTP_ADDRESS` | `0.0.0.0` | HTTP listener address |
+| `HAVEN_HTTP_PORT`    |    `8080` | HTTP listener port    |
+
+The port must be an integer between `1` and `65535`.
+
+Invalid configuration causes startup to fail with a non-zero exit status.
+
+## Native environment loading
+
+The native executable does not automatically parse `.env`.
+
+Load the variables into the current shell:
+
+```bash
+set -a
+source .env
+set +a
+```
+
+Then run:
+
+```bash
+./build/dev/apps/server/haven-server
+```
+
+Docker Compose reads the root `.env` file automatically.
+
+---
+
+# Health Endpoint
+
+## Liveness
+
+```http
+GET /health/live
+```
+
+Example:
+
+```bash
+curl --fail http://localhost:8080/health/live
+```
+
+Expected response:
+
+```json
+{
+  "service": "haven-api",
+  "status": "alive"
+}
+```
+
+Liveness represents only the health of the Haven process.
+
+It must not depend on:
+
+* Couchbase
+* Redis
+* Kafka
+* external network services
+
+Dependency health will later be exposed through a separate readiness endpoint.
+
+---
+
+# Testing
+
+Run all unit tests through CTest:
+
+```bash
+ctest --preset dev
+```
+
+Run the GoogleTest executable directly:
+
+```bash
+./build/dev/tests/unit/haven_unit_tests
+```
+
+Run tests matching a CTest name:
+
+```bash
+ctest --preset dev -R LiveResponse
+```
+
+Current tests intentionally avoid:
+
+* external services
+* Docker dependencies
+* network ports
+* Couchbase
+* Redis
+* Kafka
+
+Infrastructure integration tests will be introduced separately.
+
+---
+
+# Formatting
+
+Format one file:
+
+```bash
+clang-format -i apps/server/main.cpp
+```
+
+Format all C++ files:
+
+```bash
+find apps include src tests \
+  \( -name '*.cpp' -o -name '*.hpp' \) \
+  -print0 |
+xargs -0 clang-format -i
+```
+
+Check formatting without changing files:
+
+```bash
+find apps include src tests \
+  \( -name '*.cpp' -o -name '*.hpp' \) \
+  -print0 |
+xargs -0 clang-format --dry-run --Werror
+```
+
+When LLVM is installed through Homebrew, the executable may be located at:
+
+```text
+/opt/homebrew/opt/llvm/bin/clang-format
+```
+
+---
+
+# Static Analysis
+
+CMake generates:
+
+```text
+build/dev/compile_commands.json
+```
+
+after successful configuration.
+
+Analyze one file:
+
+```bash
+clang-tidy apps/server/main.cpp -p build/dev
+```
+
+Analyze all Haven source and test files:
+
+```bash
+find apps src tests \
+  -name '*.cpp' \
+  -print0 |
+xargs -0 -n1 clang-tidy -p build/dev
+```
+
+When LLVM is installed through Homebrew, the executable may be located at:
+
+```text
+/opt/homebrew/opt/llvm/bin/clang-tidy
+```
+
+---
+
+# Docker
+
+## Start Docker
+
+On macOS, start Docker Desktop:
+
+```bash
+open -a Docker
+```
+
+Verify that the Docker daemon is available:
+
+```bash
+docker info
+```
+
+The command must succeed before building or starting containers.
+
+## Build the image
+
+```bash
+docker buildx build \
+  --load \
+  --tag haven-api:foundation \
+  .
+```
+
+## Run the image directly
+
+```bash
+docker run \
+  --rm \
+  --name haven-api \
+  --publish 8080:8080 \
+  haven-api:foundation
+```
+
+Verify:
+
+```bash
+curl --fail http://localhost:8080/health/live
+```
+
+## Run with Docker Compose
+
+Start:
+
+```bash
+docker compose up --build --detach
+```
+
+Check service status:
+
+```bash
+docker compose ps
+```
+
+View logs:
+
+```bash
+docker compose logs --follow haven-api
+```
+
+Verify:
+
+```bash
+curl --fail http://localhost:8080/health/live
+```
+
+Stop:
+
+```bash
+docker compose down
+```
+
+The current Compose topology contains only:
+
+```text
+haven-api
+```
+
+Couchbase, Redis, and Kafka will be added when the corresponding infrastructure adapters exist.
+
+---
+
+# Troubleshooting
+
+## CMake cannot find Ninja
+
+Error:
+
+```text
+CMAKE_MAKE_PROGRAM is not set
+```
+
+Install and verify Ninja:
+
+```bash
+brew install ninja
+ninja --version
+```
+
+For Apple Silicon Homebrew:
+
+```bash
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+## vcpkg cannot find `pkg-config`
+
+Install:
+
+```bash
+brew install pkgconf
+```
+
+Verify:
+
+```bash
+pkg-config --version
+```
+
+## vcpkg reports an HTTP/2 framing error
+
+Example:
+
+```text
+curl operation failed with error code 16
+```
+
+This is a network transport failure while downloading dependency source archives.
+
+The repository uses:
+
+```text
+.build-tools/vcpkg-downloads/
+```
+
+as its vcpkg download cache.
+
+Verify that the directory exists:
+
+```bash
+mkdir -p .build-tools/vcpkg-downloads
+```
+
+Also check for unexpected proxy variables:
+
+```bash
+env | grep -i proxy
+```
+
+When no proxy is intentionally configured:
+
+```bash
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY
+unset http_proxy https_proxy all_proxy
+```
+
+## Docker cannot connect to the daemon
+
+Error:
+
+```text
+failed to connect to the docker API
+```
+
+Start Docker Desktop:
+
+```bash
+open -a Docker
+```
+
+Then verify:
+
+```bash
+docker info
+```
+
+## Build directory contains stale paths
+
+After renaming or moving the repository:
+
+```bash
+rm -rf build
+cmake --preset dev
+```
+
+CMake caches absolute paths, so an existing build directory should not be reused after moving the project.
+
+---
+
+# Current Development Phase
+
+Haven is currently inside:
+
+```text
+Phase 3–5:
+Environment setup, project skeleton, and first APIs
+```
+
+Current progress:
+
+```text
+Phase 3 — Environment setup     In progress
+Phase 4 — Project skeleton      In progress
+Phase 5 — First APIs            Liveness started
+```
+
+The liveness endpoint is treated as a foundation-level API because it proves that the process, HTTP framework, routing, tests, and container runtime are connected correctly.
+
+---
+
+# Next Milestone
+
+After the Foundation milestone is verified, the next work will introduce:
+
+1. validated bootstrap configuration;
+2. structured startup logging;
+3. graceful shutdown verification;
+4. readiness semantics;
+5. Couchbase connectivity;
+6. integration-test infrastructure.
+
+Business reservation logic will not be added until the runtime foundation is stable.
+
+---
+
+# Documentation Policy
+
+Haven documents:
+
+* public contracts;
+* invariants;
+* ownership and lifetime expectations;
+* failure behavior;
+* thread-safety guarantees;
+* architectural intent.
+
+Comments should explain **why**, not narrate obvious code.
+
+Broader decisions remain in:
+
+```text
+docs/
+docs/adr/
+AI_CONTEXT/
+```
+
+HTTP contracts will be documented through OpenAPI as APIs are implemented.
+
+---
+
 ## License
 
 A license will be added before the first public release.

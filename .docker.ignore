@@ -1,0 +1,69 @@
+# -----------------------------------------------------------------------------
+# Haven Docker Build Context Exclusions
+#
+# Keeps generated artifacts, local tooling, repository metadata, and local
+# configuration out of Docker's build context.
+# -----------------------------------------------------------------------------
+
+# Git metadata
+.git
+.gitignore
+.gitattributes
+
+# Local CMake build output
+build
+cmake-build-*
+CMakeCache.txt
+CMakeFiles
+compile_commands.json
+Testing
+
+# Repository-local dependency tooling and caches
+.build-tools
+vcpkg_installed
+
+# IDE and editor metadata
+.vscode
+.idea
+*.iml
+*.swp
+*.swo
+*~
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+
+# Local runtime configuration and secrets
+.env
+.env.local
+.env.*.local
+
+# Logs, coverage, and profiling output
+*.log
+logs
+coverage
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+
+# Sanitizer output
+asan.log*
+ubsan.log*
+lsan.log*
+tsan.log*
+
+# Temporary files
+.cache
+*.tmp
+*.temp
+
+# Documentation and repository-only material are not required to build
+# the runtime image.
+AI_CONTEXT
+docs
+
+# Local CMake developer overrides
+CMakeUserPresets.json

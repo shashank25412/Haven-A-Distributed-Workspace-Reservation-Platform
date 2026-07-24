@@ -18,11 +18,13 @@ services:
     container_name: haven-api
 
     environment:
-      HAVEN_HTTP_ADDRESS: "${HAVEN_HTTP_ADDRESS:-0.0.0.0}"
-      HAVEN_HTTP_PORT: "${HAVEN_HTTP_PORT:-8080}"
+      HVN_HTTP_ADDRESS: "${HVN_HTTP_ADDRESS:-0.0.0.0}"
+      HVN_HTTP_PORT: "${HVN_HTTP_PORT:-8080}"
+      HVN_HTTP_THREADS: "${HVN_HTTP_THREADS:-1}"
+      HVN_LOG_LEVEL: "${HVN_LOG_LEVEL:-info}"
 
     ports:
-      - "${HAVEN_HTTP_PORT:-8080}:${HAVEN_HTTP_PORT:-8080}"
+      - "${HVN_HTTP_PORT:-8080}:${HVN_HTTP_PORT:-8080}"
 
     init: true
 

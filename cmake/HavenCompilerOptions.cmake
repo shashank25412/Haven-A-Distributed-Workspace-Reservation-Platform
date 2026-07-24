@@ -36,7 +36,7 @@ function(haven_apply_project_options target_name)
                 /permissive-
                 /EHsc
 
-                $<$<BOOL:${HAVEN_ENABLE_WARNINGS_AS_ERRORS}>:/WX>
+                $<$<BOOL:${HVN_ENABLE_WARNINGS_AS_ERRORS}>:/WX>
         )
 
     else()
@@ -57,7 +57,7 @@ function(haven_apply_project_options target_name)
                 -Wnon-virtual-dtor
                 -Woverloaded-virtual
 
-                $<$<BOOL:${HAVEN_ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
+                $<$<BOOL:${HVN_ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
         )
 
     endif()
@@ -67,12 +67,12 @@ function(haven_apply_project_options target_name)
     #
     # Enabled only through the corresponding CMake option.
     #--------------------------------------------------------------------------
-    if(HAVEN_ENABLE_SANITIZERS)
+    if(HVN_ENABLE_SANITIZERS)
 
         if(MSVC)
 
             message(FATAL_ERROR
-                "HAVEN_ENABLE_SANITIZERS currently supports GCC and Clang only."
+                "HVN_ENABLE_SANITIZERS currently supports GCC and Clang only."
             )
 
         endif()

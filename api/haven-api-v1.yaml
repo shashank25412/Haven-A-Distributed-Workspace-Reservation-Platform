@@ -1,0 +1,1748 @@
+# Haven public API contract.
+#
+# This file is the canonical OpenAPI source of truth for Haven API v1.
+# Do not maintain a duplicate swagger.json unless a concrete tool requires it.
+# Organization and creator identity are derived from trusted JWT claims.
+#
+openapi: 3.1.1
+info:
+  title: Haven API
+  version: 1.0.0
+  description: 'Public HTTP contract for Haven, a multi-tenant platform for reserving fixed, time-bound resources.
+    Organization identity, creator identity, roles, and permissions are derived from trusted JWT claims rather than
+    accepted from request bodies.
+
+
+    Reservation intervals use half-open semantics: `[startTime, endTime)`. Search results are point-in-time availability
+    snapshots; reservation creation and approval repeat the authoritative conflict check.'
+  contact:
+    name: Haven Engineering
+servers:
+- url: http://localhost:8080
+  description: Local development server
+tags:
+- name: Health
+  description: Process liveness and dependency readiness.
+- name: Resources
+  description: Tenant-scoped resource discovery and details.
+- name: Reservations
+  description: Reservation creation, retrieval, cancellation, and extension.
+- name: Approvals
+  description: Single-step reservation approval workflow.
+- name: Organization
+  description: Effective tenant reservation policies.
+security:
+- bearerAuth: []
+paths:
+  /health/live:
+    get:
+      tags:
+      - Health
+      summary: Check process liveness
+      description: Reports whether the Haven process and HTTP server are running. This endpoint does not check Couchbase,
+        Redis, Kafka, or other external dependencies.
+      operationId: getLiveness
+      security: []
+      responses:
+        '200':
+          description: The process is alive.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: UP
+  /health/ready:
+    get:
+      tags:
+      - Health
+      summary: Check service readiness
+      description: Reports whether the instance can safely serve expected traffic. Couchbase is essential. Redis
+        may be `DEGRADED` without making the service unready when safe fallback is available. Kafka readiness depends
+        on durable outbox capacity and policy.
+      operationId: getReadiness
+      security: []
+      responses:
+        '200':
+          description: The instance is ready.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+              example:
+                status: UP
+                dependencies:
+                  couchbase: UP
+                  redis: DEGRADED
+                  kafka: UP
+        '503':
+          description: The instance is not ready to serve traffic.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+              example:
+                status: DOWN
+                dependencies:
+                  couchbase: DOWN
+                  redis: DEGRADED
+                  kafka: UP
+  /api/v1/resources:
+    get:
+      tags:
+      - Resources
+      summary: Search available resources
+      description: Returns tenant-scoped active resources available in the requested half-open interval. The result
+        is a point-in-time snapshot and does not lock or reserve a resource. Reservation creation repeats the authoritative
+        conflict check.
+      operationId: searchAvailableResources
+      parameters:
+      - $ref: '#/components/parameters/ResourceTypeQuery'
+      - $ref: '#/components/parameters/StartTimeQuery'
+      - $ref: '#/components/parameters/EndTimeQuery'
+      - name: minimumCapacity
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: building
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: floor
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: features
+        in: query
+        required: false
+        description: Comma-separated required feature names.
+        style: form
+        explode: false
+        schema:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          uniqueItems: true
+        example:
+        - PROJECTOR
+        - WHITEBOARD
+      - name: sort
+        in: query
+        required: false
+        description: Supported sort expression. Exact allowed values remain an implementation-level contract to
+          be finalized before route implementation.
+        schema:
+          type: string
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Available resource snapshot.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceSearchResponse'
+              example:
+                items:
+                - resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                  name: Orion
+                  description: Eight-seat meeting room near reception.
+                  resourceType: MEETING_ROOM
+                  capacity: 8
+                  location:
+                    building: Tower A
+                    floor: '5'
+                    zone: East
+                  features:
+                  - PROJECTOR
+                  - WHITEBOARD
+                searchContext:
+                  startTime: '2026-08-01T10:00:00Z'
+                  endTime: '2026-08-01T11:00:00Z'
+                pagination:
+                  page: 1
+                  pageSize: 20
+                  totalItems: 1
+                  totalPages: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/resources/{resourceId}:
+    get:
+      tags:
+      - Resources
+      summary: Get resource details
+      description: Returns tenant-scoped resource metadata. The response does not assert availability for any unspecified
+        interval.
+      operationId: getResource
+      parameters:
+      - $ref: '#/components/parameters/ResourceIdPath'
+      responses:
+        '200':
+          description: Resource details.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceDetails'
+              example:
+                resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                name: Orion
+                description: Eight-seat meeting room near reception.
+                resourceType: MEETING_ROOM
+                capacity: 8
+                status: ACTIVE
+                location:
+                  building: Tower A
+                  floor: '5'
+                  zone: East
+                features:
+                - PROJECTOR
+                - WHITEBOARD
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/reservations:
+    post:
+      tags:
+      - Reservations
+      summary: Create a reservation
+      description: Creates a reservation for one resource and interval. Ordinary resources are created as `CONFIRMED`;
+        selected priority resources are created as `PENDING_APPROVAL`. The operation is idempotent and performs
+        the authoritative conflict check.
+      operationId: createReservation
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+            example:
+              resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+              startTime: '2026-08-01T10:00:00Z'
+              endTime: '2026-08-01T11:00:00Z'
+              purpose: Sprint planning
+      responses:
+        '201':
+          description: Reservation record created.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateReservationResponse'
+              example:
+                reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                status: CONFIRMED
+                startTime: '2026-08-01T10:00:00Z'
+                endTime: '2026-08-01T11:00:00Z'
+                createdAt: '2026-07-20T05:30:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: The selected resource is not visible to the caller or does not exist.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: RESOURCE_NOT_FOUND
+                message: The selected resource was not found.
+                details: []
+                traceId: 4d7a1ed4cdbb4b5e
+        '409':
+          description: The resource conflicts with an existing blocking reservation, the idempotency key was reused
+            with a different payload, or a concurrent state conflict occurred.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                reservationConflict:
+                  value:
+                    code: RESERVATION_CONFLICT
+                    message: The resource is no longer available for the requested interval.
+                    details:
+                    - field: timeInterval
+                      reason: OVERLAPPING_RESERVATION
+                    traceId: 4d7a1ed4cdbb4b5e
+                idempotencyMismatch:
+                  value:
+                    code: IDEMPOTENCY_KEY_MISMATCH
+                    message: The idempotency key was already used with a different request.
+                    traceId: 4d7a1ed4cdbb4b5e
+        '422':
+          description: The request violates duration, active-resource, maintenance-authorization, or another reservation
+            policy.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                durationExceeded:
+                  value:
+                    code: RESERVATION_DURATION_EXCEEDED
+                    message: The requested interval exceeds the effective maximum duration.
+                    traceId: 4d7a1ed4cdbb4b5e
+                resourceInactive:
+                  value:
+                    code: RESOURCE_INACTIVE
+                    message: The selected resource is not active.
+                    traceId: 4d7a1ed4cdbb4b5e
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/reservations/me:
+    get:
+      tags:
+      - Reservations
+      summary: List the caller's reservations
+      description: Returns reservations created by the authenticated caller within the caller's organization.
+      operationId: listMyReservations
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ReservationStatus'
+      - name: from
+        in: query
+        required: false
+        description: Inclusive lower bound for the requested reservation date range.
+        schema:
+          $ref: '#/components/schemas/UtcDateTime'
+      - name: to
+        in: query
+        required: false
+        description: Exclusive upper bound for the requested reservation date range.
+        schema:
+          $ref: '#/components/schemas/UtcDateTime'
+      - name: upcoming
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: sort
+        in: query
+        required: false
+        description: Supported reservation sort expression.
+        schema:
+          type: string
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated caller reservation history.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationListResponse'
+              example:
+                items:
+                - reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                  resource:
+                    resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                    name: Orion
+                    resourceType: MEETING_ROOM
+                  startTime: '2026-08-01T10:00:00Z'
+                  endTime: '2026-08-01T11:00:00Z'
+                  purpose: Sprint planning
+                  status: CONFIRMED
+                  createdAt: '2026-07-20T05:30:00Z'
+                  updatedAt: '2026-07-20T05:30:00Z'
+                pagination:
+                  page: 1
+                  pageSize: 20
+                  totalItems: 1
+                  totalPages: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/reservations/{reservationId}:
+    get:
+      tags:
+      - Reservations
+      summary: Get a reservation
+      description: Returns a tenant-scoped reservation. Cross-tenant and unknown identifiers share safe `404 Not
+        Found` behavior.
+      operationId: getReservation
+      parameters:
+      - $ref: '#/components/parameters/ReservationIdPath'
+      responses:
+        '200':
+          description: Reservation details.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationDetails'
+              example:
+                reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                resource:
+                  resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                  name: Orion
+                  resourceType: MEETING_ROOM
+                creator:
+                  userId: usr_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                  displayName: Shashank K
+                startTime: '2026-08-01T10:00:00Z'
+                endTime: '2026-08-01T11:00:00Z'
+                purpose: Sprint planning
+                status: CONFIRMED
+                approval:
+                  required: false
+                  status: NOT_REQUIRED
+                  actorUserId: null
+                  decidedAt: null
+                  reason: null
+                createdAt: '2026-07-20T05:30:00Z'
+                updatedAt: '2026-07-20T05:30:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/reservations/{reservationId}/cancel:
+    post:
+      tags:
+      - Reservations
+      summary: Cancel a reservation
+      description: Cancels an eligible pending or confirmed reservation without deleting its history. Repeated cancellation
+        is idempotent from the caller's perspective when the reservation is already in the same final state.
+      operationId: cancelReservation
+      parameters:
+      - $ref: '#/components/parameters/ReservationIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelReservationRequest'
+            example:
+              reason: Meeting cancelled
+      responses:
+        '200':
+          description: Reservation cancelled.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelReservationResponse'
+              example:
+                reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                status: CANCELLED
+                cancelledAt: '2026-07-25T08:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The reservation is in a state that cannot be cancelled.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_RESERVATION_STATE
+                message: The reservation cannot be cancelled from its current state.
+                details: []
+                traceId: 4d7a1ed4cdbb4b5e
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/reservations/{reservationId}/extend:
+    post:
+      tags:
+      - Reservations
+      summary: Extend a reservation
+      description: Extends the end time of an eligible confirmed reservation. The operation repeats conflict and
+        policy validation and preserves the original start time.
+      operationId: extendReservation
+      parameters:
+      - $ref: '#/components/parameters/ReservationIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtendReservationRequest'
+            example:
+              newEndTime: '2026-08-01T12:00:00Z'
+      responses:
+        '200':
+          description: Reservation extended.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtendReservationResponse'
+              example:
+                reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                status: CONFIRMED
+                startTime: '2026-08-01T10:00:00Z'
+                endTime: '2026-08-01T12:00:00Z'
+                updatedAt: '2026-07-25T08:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The extension overlaps another confirmed reservation, the reservation state is invalid, or
+            a concurrent modification occurred.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                reservationConflict:
+                  value:
+                    code: RESERVATION_CONFLICT
+                    message: The extended interval conflicts with another reservation.
+                    traceId: 4d7a1ed4cdbb4b5e
+                concurrentModification:
+                  value:
+                    code: CONCURRENT_MODIFICATION
+                    message: The reservation changed concurrently.
+                    traceId: 4d7a1ed4cdbb4b5e
+        '422':
+          description: The new end time or resulting duration violates extension policy.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidExtension:
+                  value:
+                    code: INVALID_EXTENSION
+                    message: The new end time must be later than the existing end time.
+                    traceId: 4d7a1ed4cdbb4b5e
+                durationExceeded:
+                  value:
+                    code: RESERVATION_DURATION_EXCEEDED
+                    message: The extended interval exceeds the effective maximum duration.
+                    traceId: 4d7a1ed4cdbb4b5e
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/approvals:
+    get:
+      tags:
+      - Approvals
+      summary: List pending approvals
+      description: Returns pending reservations visible to an authenticated caller with approval permission within
+        the caller's tenant and authorization scope.
+      operationId: listPendingApprovals
+      parameters:
+      - name: resourceType
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ResourceType'
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/UtcDateTime'
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/UtcDateTime'
+      - name: sort
+        in: query
+        required: false
+        description: Supported pending-approval sort expression.
+        schema:
+          type: string
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated pending approvals.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingApprovalListResponse'
+              example:
+                items:
+                - reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                  resource:
+                    resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                    name: Executive Boardroom
+                    resourceType: MEETING_ROOM
+                  creator:
+                    userId: usr_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                    displayName: User Name
+                  startTime: '2026-08-01T10:00:00Z'
+                  endTime: '2026-08-01T11:00:00Z'
+                  purpose: Quarterly review
+                  status: PENDING_APPROVAL
+                  createdAt: '2026-07-20T05:30:00Z'
+                pagination:
+                  page: 1
+                  pageSize: 20
+                  totalItems: 1
+                  totalPages: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/approvals/{reservationId}/approve:
+    post:
+      tags:
+      - Approvals
+      summary: Approve a reservation
+      description: Approves a `PENDING_APPROVAL` reservation. The operation performs an authoritative conflict check
+        before moving the reservation to `CONFIRMED`.
+      operationId: approveReservation
+      parameters:
+      - $ref: '#/components/parameters/ReservationIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveReservationRequest'
+            example:
+              comment: Approved for the leadership review.
+      responses:
+        '200':
+          description: Reservation approved and confirmed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApproveReservationResponse'
+              example:
+                reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                status: CONFIRMED
+                approvedAt: '2026-07-21T09:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The resource became unavailable, the reservation is no longer pending, or a concurrent modification
+            occurred.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                reservationConflict:
+                  value:
+                    code: RESERVATION_CONFLICT
+                    message: The resource is no longer available for the requested interval.
+                    traceId: 4d7a1ed4cdbb4b5e
+                invalidState:
+                  value:
+                    code: INVALID_RESERVATION_STATE
+                    message: The reservation is not pending approval.
+                    traceId: 4d7a1ed4cdbb4b5e
+                concurrentModification:
+                  value:
+                    code: CONCURRENT_MODIFICATION
+                    message: The reservation changed concurrently.
+                    traceId: 4d7a1ed4cdbb4b5e
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/approvals/{reservationId}/reject:
+    post:
+      tags:
+      - Approvals
+      summary: Reject a reservation
+      description: Rejects a `PENDING_APPROVAL` reservation and records decision metadata.
+      operationId: rejectReservation
+      parameters:
+      - $ref: '#/components/parameters/ReservationIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectReservationRequest'
+            example:
+              reason: Reserved for an executive event.
+      responses:
+        '200':
+          description: Reservation rejected.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RejectReservationResponse'
+              example:
+                reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                status: REJECTED
+                rejectedAt: '2026-07-21T09:00:00Z'
+                reason: Reserved for an executive event.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The reservation is no longer pending approval or changed concurrently.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidState:
+                  value:
+                    code: INVALID_RESERVATION_STATE
+                    message: The reservation is not pending approval.
+                    traceId: 4d7a1ed4cdbb4b5e
+                concurrentModification:
+                  value:
+                    code: CONCURRENT_MODIFICATION
+                    message: The reservation changed concurrently.
+                    traceId: 4d7a1ed4cdbb4b5e
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/organization/policies:
+    get:
+      tags:
+      - Organization
+      summary: Get effective reservation policies
+      description: Returns the effective organization policies relevant to the authenticated caller. This is informational;
+        server-side policy evaluation remains authoritative.
+      operationId: getOrganizationPolicies
+      responses:
+        '200':
+          description: Effective organization policies.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationPoliciesResponse'
+              example:
+                standardMaximumDurationHours: 12
+                maintenanceMaximumDurationHours: 24
+                approvalRules:
+                - resourceType: MEETING_ROOM
+                  resourceTag: PRIORITY
+                  approvalRequired: true
+                timeZone: Asia/Kolkata
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Signed JWT containing trusted user, organization, role, and permission claims.
+  headers:
+    XRequestId:
+      description: Identifier for the inbound HTTP request.
+      schema:
+        type: string
+      example: req_01J2H6M5J5W7P3C7Q9R8T6V4B2
+    Traceparent:
+      description: W3C trace context when distributed tracing is enabled.
+      schema:
+        type: string
+      example: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+    Location:
+      description: URI of the created reservation.
+      schema:
+        type: string
+        format: uri-reference
+      example: /api/v1/reservations/rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+    RetryAfter:
+      description: Seconds the client should wait before retrying.
+      schema:
+        type: integer
+        minimum: 1
+      example: 30
+  parameters:
+    ResourceIdPath:
+      name: resourceId
+      in: path
+      required: true
+      description: Opaque server-generated resource identifier.
+      schema:
+        $ref: '#/components/schemas/ResourceId'
+    ReservationIdPath:
+      name: reservationId
+      in: path
+      required: true
+      description: Opaque server-generated reservation identifier.
+      schema:
+        $ref: '#/components/schemas/ReservationId'
+    ResourceTypeQuery:
+      name: resourceType
+      in: query
+      required: true
+      description: Resource category to search.
+      schema:
+        $ref: '#/components/schemas/ResourceType'
+    StartTimeQuery:
+      name: startTime
+      in: query
+      required: true
+      description: Requested interval start in UTC. Must be earlier than `endTime`.
+      schema:
+        $ref: '#/components/schemas/UtcDateTime'
+      example: '2026-08-01T10:00:00Z'
+    EndTimeQuery:
+      name: endTime
+      in: query
+      required: true
+      description: Requested interval end in UTC.
+      schema:
+        $ref: '#/components/schemas/UtcDateTime'
+      example: '2026-08-01T11:00:00Z'
+    Page:
+      name: page
+      in: query
+      required: false
+      description: One-based page number.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: Number of items per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated opaque key scoped by organization, authenticated user, and operation. The same
+        key and canonical payload returns the original result; reuse with a different payload returns `409 Conflict`.
+      schema:
+        type: string
+        minLength: 1
+      example: idem_01J2H6M5J5W7P3C7Q9R8T6V4B2
+  schemas:
+    ResourceId:
+      type: string
+      minLength: 1
+      description: Opaque server-owned resource identifier.
+      examples:
+      - res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+    ReservationId:
+      type: string
+      minLength: 1
+      description: Opaque server-generated reservation identifier.
+      examples:
+      - rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+    UserId:
+      type: string
+      minLength: 1
+      description: Stable user identifier derived from trusted authentication context.
+      examples:
+      - usr_01J2H6M5J5W7P3C7Q9R8T6V4B2
+    UtcDateTime:
+      type: string
+      format: date-time
+      pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$
+      description: UTC ISO-8601 timestamp ending in `Z`.
+      examples:
+      - '2026-08-01T10:00:00Z'
+    ResourceType:
+      type: string
+      enum:
+      - MEETING_ROOM
+      - DESK
+      - PARKING_SLOT
+      - HOTEL_ROOM
+      - GAME_ZONE
+      description: Supported fixed-interval resource category.
+    ResourceStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - INACTIVE
+    ReservationStatus:
+      type: string
+      enum:
+      - PENDING_APPROVAL
+      - CONFIRMED
+      - CANCELLED
+      - REJECTED
+      - EXPIRED
+      - COMPLETED
+    ApprovalStatus:
+      type: string
+      enum:
+      - NOT_REQUIRED
+      - PENDING
+      - APPROVED
+      - REJECTED
+    DependencyStatus:
+      type: string
+      enum:
+      - UP
+      - DEGRADED
+      - DOWN
+    Location:
+      type: object
+      description: Human-readable resource location.
+      properties:
+        building:
+          type: string
+        floor:
+          type: string
+        zone:
+          type: string
+      required:
+      - building
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+      required:
+      - page
+      - pageSize
+      - totalItems
+      - totalPages
+    SearchContext:
+      type: object
+      properties:
+        startTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        endTime:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - startTime
+      - endTime
+      description: Requested interval used to derive the availability snapshot.
+    ResourceSummary:
+      type: object
+      properties:
+        resourceId:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        resourceType:
+          $ref: '#/components/schemas/ResourceType'
+        capacity:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          description: Capacity where meaningful for the resource type.
+        location:
+          $ref: '#/components/schemas/Location'
+        features:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          uniqueItems: true
+      required:
+      - resourceId
+      - name
+      - description
+      - resourceType
+      - capacity
+      - location
+      - features
+      description: Selection metadata for a resource available in the requested search snapshot. The response does
+        not guarantee the resource remains available until creation.
+    ResourceDetails:
+      allOf:
+      - $ref: '#/components/schemas/ResourceSummary'
+      - type: object
+        properties:
+          status:
+            $ref: '#/components/schemas/ResourceStatus'
+        required:
+        - status
+      description: Resource metadata. It does not assert availability for an unspecified interval.
+    ResourceSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceSummary'
+        searchContext:
+          $ref: '#/components/schemas/SearchContext'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+      - items
+      - searchContext
+      - pagination
+    CreateReservationRequest:
+      type: object
+      properties:
+        resourceId:
+          $ref: '#/components/schemas/ResourceId'
+        startTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        endTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        purpose:
+          type: string
+          description: Optional bounded free text. It is never used to derive authorization or workflow behavior.
+      required:
+      - resourceId
+      - startTime
+      - endTime
+      description: Organization, creator, roles, and permissions are derived from trusted JWT claims. `startTime`
+        must be earlier than `endTime`; standard duration is at most 12 hours. Maintenance duration up to 24 hours
+        requires a separate trusted authorization mechanism.
+    CreateReservationResponse:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        resourceId:
+          $ref: '#/components/schemas/ResourceId'
+        status:
+          type: string
+          enum:
+          - CONFIRMED
+          - PENDING_APPROVAL
+        startTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        endTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        createdAt:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - reservationId
+      - resourceId
+      - status
+      - startTime
+      - endTime
+      - createdAt
+    ResourceReference:
+      type: object
+      properties:
+        resourceId:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          type: string
+        resourceType:
+          $ref: '#/components/schemas/ResourceType'
+      required:
+      - resourceId
+      - name
+      - resourceType
+    CreatorSummary:
+      type: object
+      properties:
+        userId:
+          $ref: '#/components/schemas/UserId'
+        displayName:
+          type: string
+      required:
+      - userId
+      - displayName
+    ApprovalInfo:
+      type: object
+      properties:
+        required:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        actorUserId:
+          type:
+          - string
+          - 'null'
+          description: Approver identifier when a decision has been made.
+        decidedAt:
+          anyOf:
+          - $ref: '#/components/schemas/UtcDateTime'
+          - type: 'null'
+        reason:
+          type:
+          - string
+          - 'null'
+          description: Optional safe approval or rejection reason.
+      required:
+      - required
+      - status
+    ReservationDetails:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        resource:
+          $ref: '#/components/schemas/ResourceReference'
+        creator:
+          $ref: '#/components/schemas/CreatorSummary'
+        startTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        endTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        purpose:
+          type:
+          - string
+          - 'null'
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        approval:
+          $ref: '#/components/schemas/ApprovalInfo'
+        createdAt:
+          $ref: '#/components/schemas/UtcDateTime'
+        updatedAt:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - reservationId
+      - resource
+      - creator
+      - startTime
+      - endTime
+      - purpose
+      - status
+      - approval
+      - createdAt
+      - updatedAt
+    ReservationListItem:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        resource:
+          $ref: '#/components/schemas/ResourceReference'
+        startTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        endTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        purpose:
+          type:
+          - string
+          - 'null'
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        createdAt:
+          $ref: '#/components/schemas/UtcDateTime'
+        updatedAt:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - reservationId
+      - resource
+      - startTime
+      - endTime
+      - purpose
+      - status
+      - createdAt
+      - updatedAt
+    ReservationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationListItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+      - items
+      - pagination
+    CancelReservationRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Optional cancellation reason.
+    CancelReservationResponse:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        status:
+          type: string
+          const: CANCELLED
+        cancelledAt:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - reservationId
+      - status
+      - cancelledAt
+    ExtendReservationRequest:
+      type: object
+      properties:
+        newEndTime:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - newEndTime
+      description: '`newEndTime` must be later than the existing end time. The start time cannot be changed. The
+        operation revalidates duration, resource state, overlap, and approval policy.'
+    ExtendReservationResponse:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        status:
+          type: string
+          const: CONFIRMED
+        startTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        endTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        updatedAt:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - reservationId
+      - status
+      - startTime
+      - endTime
+      - updatedAt
+    PendingApprovalItem:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        resource:
+          $ref: '#/components/schemas/ResourceReference'
+        creator:
+          $ref: '#/components/schemas/CreatorSummary'
+        startTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        endTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        purpose:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+          const: PENDING_APPROVAL
+        createdAt:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - reservationId
+      - resource
+      - creator
+      - startTime
+      - endTime
+      - purpose
+      - status
+      - createdAt
+    PendingApprovalListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingApprovalItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+      - items
+      - pagination
+    ApproveReservationRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          description: Optional approver comment.
+    ApproveReservationResponse:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        status:
+          type: string
+          const: CONFIRMED
+        approvedAt:
+          $ref: '#/components/schemas/UtcDateTime'
+      required:
+      - reservationId
+      - status
+      - approvedAt
+    RejectReservationRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Rejection reason. The design documentation leaves mandatory enforcement for final policy
+            resolution; clients should provide it.
+    RejectReservationResponse:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        status:
+          type: string
+          const: REJECTED
+        rejectedAt:
+          $ref: '#/components/schemas/UtcDateTime'
+        reason:
+          type:
+          - string
+          - 'null'
+      required:
+      - reservationId
+      - status
+      - rejectedAt
+      - reason
+    ApprovalRule:
+      type: object
+      properties:
+        resourceType:
+          $ref: '#/components/schemas/ResourceType'
+        resourceTag:
+          type: string
+        approvalRequired:
+          type: boolean
+      required:
+      - resourceType
+      - resourceTag
+      - approvalRequired
+    OrganizationPoliciesResponse:
+      type: object
+      properties:
+        standardMaximumDurationHours:
+          type: integer
+          minimum: 1
+          maximum: 12
+        maintenanceMaximumDurationHours:
+          type: integer
+          minimum: 1
+          maximum: 24
+        approvalRules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalRule'
+        timeZone:
+          type: string
+          description: IANA time-zone identifier used for display and configuration.
+          example: Asia/Kolkata
+      required:
+      - standardMaximumDurationHours
+      - maintenanceMaximumDurationHours
+      - approvalRules
+      - timeZone
+      description: Informational view; server-side policy remains authoritative.
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          const: UP
+      required:
+      - status
+    ReadinessDependencies:
+      type: object
+      properties:
+        couchbase:
+          $ref: '#/components/schemas/DependencyStatus'
+        redis:
+          $ref: '#/components/schemas/DependencyStatus'
+        kafka:
+          $ref: '#/components/schemas/DependencyStatus'
+      required:
+      - couchbase
+      - redis
+      - kafka
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - UP
+          - DOWN
+        dependencies:
+          $ref: '#/components/schemas/ReadinessDependencies'
+      required:
+      - status
+      - dependencies
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+        reason:
+          type: string
+      required:
+      - reason
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        message:
+          type: string
+          minLength: 1
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        traceId:
+          type: string
+          minLength: 1
+      required:
+      - code
+      - message
+      - traceId
+      description: Safe public error contract. It must not expose stack traces, database details, credentials, raw
+        dependency errors, or cross-tenant object existence.
+  responses:
+    BadRequest:
+      description: Malformed input or transport-level validation failure.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: The request is malformed or contains invalid values.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+    Unauthorized:
+      description: Missing, malformed, expired, or invalid authentication.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHENTICATED
+            message: Authentication is required.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+    Forbidden:
+      description: The authenticated caller is not permitted to perform this action.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: FORBIDDEN
+            message: The requested action is not permitted.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+    NotFound:
+      description: The resource is not visible to the caller or does not exist.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: NOT_FOUND
+            message: The requested resource was not found.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+    Conflict:
+      description: The request conflicts with current reservation state, idempotency state, or a concurrent update.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: CONFLICT
+            message: The request conflicts with the current state.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+    UnprocessableEntity:
+      description: The request is syntactically valid but violates a business policy.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: POLICY_VIOLATION
+            message: The request violates a reservation policy.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+    TooManyRequests:
+      description: The caller exceeded an applicable rate limit.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: RATE_LIMITED
+            message: Too many requests.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+    InternalServerError:
+      description: Unexpected internal failure.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: INTERNAL_ERROR
+            message: An unexpected error occurred.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+    ServiceUnavailable:
+      description: An essential dependency is unavailable or safe processing cannot continue.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: DEPENDENCY_UNAVAILABLE
+            message: The service is temporarily unavailable.
+            details: []
+            traceId: 4d7a1ed4cdbb4b5e
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Traceparent:
+          $ref: '#/components/headers/Traceparent'
+x-haven-contract-notes:
+  canonicalFile: docs/api/haven-api-v1.yaml
+  sourceOfTruth: true
+  generatedJsonCommitted: false
+  unresolvedPolicyItems:
+  - Exact supported sort values.
+  - Exact text and identifier length limits.
+  - Whether rejection reason is mandatory.
+  - Pending-approval expiry behavior.
+  - Exact idempotency retention period.

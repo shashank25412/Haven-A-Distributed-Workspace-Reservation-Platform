@@ -1,10 +1,6 @@
 /**
  * @file live_response_test.cpp
- * @brief Verifies Haven's framework-independent liveness response contract.
- *
- * These tests intentionally avoid starting Drogon or using network resources.
- * They validate only the stable response model returned by the presentation
- * layer's liveness factory.
+ * @brief Tests Haven's liveness response serialization.
  */
 
 #include "haven/presentation/health/live_response.hpp"
@@ -14,11 +10,16 @@
 namespace haven::presentation::health {
 namespace {
 
-TEST(LiveResponseTest, ReportsHavenApiAsAlive) {
-    const LiveResponse response = make_live_response();
+TEST(LiveResponseTest, ToJson_ShouldReturnUpStatus) {
+    const LiveResponse live_response;
 
-    EXPECT_EQ(response.status, "alive");
-    EXPECT_EQ(response.service, "haven-api");
+    const Json::Value response = live_response.to_json();
+
+    ASSERT_TRUE(response.isObject());
+    ASSERT_TRUE(response.isMember("status"));
+
+    EXPECT_EQ(response["status"].asString(), "UP");
+    EXPECT_EQ(response.size(), 1U);
 }
 
 }  // namespace

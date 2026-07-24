@@ -21,7 +21,7 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/.build-tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_MANIFEST_MODE": "ON",
-        "HAVEN_BUILD_TESTS": "ON"
+        "HVN_BUILD_TESTS": "ON"
       }
     },
 
@@ -33,8 +33,8 @@
 
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "HAVEN_ENABLE_WARNINGS_AS_ERRORS": "OFF",
-        "HAVEN_ENABLE_SANITIZERS": "OFF"
+        "HVN_ENABLE_WARNINGS_AS_ERRORS": "OFF",
+        "HVN_ENABLE_SANITIZERS": "OFF"
       }
     },
 
@@ -46,8 +46,8 @@
 
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "HAVEN_ENABLE_WARNINGS_AS_ERRORS": "ON",
-        "HAVEN_ENABLE_SANITIZERS": "ON"
+        "HVN_ENABLE_WARNINGS_AS_ERRORS": "ON",
+        "HVN_ENABLE_SANITIZERS": "ON"
       }
     },
 
@@ -59,8 +59,8 @@
 
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "HAVEN_ENABLE_WARNINGS_AS_ERRORS": "ON",
-        "HAVEN_ENABLE_SANITIZERS": "OFF"
+        "HVN_ENABLE_WARNINGS_AS_ERRORS": "ON",
+        "HVN_ENABLE_SANITIZERS": "OFF"
       }
     }
   ],

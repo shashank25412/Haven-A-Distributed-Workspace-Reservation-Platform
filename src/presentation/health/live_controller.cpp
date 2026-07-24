@@ -1,13 +1,14 @@
 /**
  * @file live_controller.cpp
- * @brief Implements Haven's process-liveness HTTP endpoint.
+ * @brief Implements Haven's liveness HTTP endpoint.
  *
- * This file owns the Drogon-specific mapping between the framework-independent
- * liveness response model and the HTTP JSON response returned to clients.
+ * The liveness endpoint confirms that the Haven process and HTTP server are
+ * running. It does not inspect Couchbase, Redis, Kafka, or other dependencies.
  */
 
 #include "haven/presentation/health/live_controller.hpp"
 
+#include "haven/logging/logging.hpp"
 #include "haven/presentation/health/live_response.hpp"
 
 #include <drogon/HttpAppFramework.h>
@@ -18,26 +19,35 @@
 
 namespace haven::presentation::health {
 
+namespace {
+
+/**
+ * @brief Handles a liveness request.
+ *
+ * @param request Incoming HTTP request.
+ * @param callback Callback used to return the HTTP response.
+ */
+void handle_live_request(
+    const drogon::HttpRequestPtr&,
+    std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
+    HVN_TRACE_SCOPE();
+    HVN_DEBUG_LOG("Handling GET /health/live request");
+
+    const LiveResponse live_response;
+
+    auto response = drogon::HttpResponse::newHttpJsonResponse(live_response.to_json());
+    response->setStatusCode(drogon::k200OK);
+
+    callback(response);
+}
+
+}  // namespace
+
 void register_live_route() {
-    drogon::app().registerHandler(
-        "/health/live",
-        [](const drogon::HttpRequestPtr&,
-           std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-            const LiveResponse live_response = make_live_response();
+    HVN_TRACE_SCOPE();
+    HVN_DEBUG_LOG("Registering GET /health/live route");
 
-            Json::Value response_body;
-            response_body["status"] = live_response.status;
-            response_body["service"] = live_response.service;
-
-            drogon::HttpResponsePtr response =
-                drogon::HttpResponse::newHttpJsonResponse(response_body);
-
-            response->setStatusCode(drogon::k200OK);
-            response->addHeader("Cache-Control", "no-store");
-
-            callback(std::move(response));
-        },
-        {drogon::Get});
+    drogon::app().registerHandler("/health/live", &handle_live_request, {drogon::Get});
 }
 
 }  // namespace haven::presentation::health

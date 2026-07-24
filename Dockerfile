@@ -4,11 +4,10 @@
 # Haven Container Build
 #
 # Builds and tests Haven in a reproducible Ubuntu environment, then copies only
-# the installed application and its required libraries into a smaller runtime
-# image.
+# the installed application and required runtime libraries into the final image.
 #
-# The image intentionally does not include Couchbase, Redis, or Kafka. Those
-# services will be introduced through Docker Compose in later milestones.
+# Couchbase, Redis, and Kafka remain outside this image and will be introduced
+# as separate Docker Compose services.
 # -----------------------------------------------------------------------------
 
 # =============================================================================
@@ -44,15 +43,15 @@ RUN apt-get update \
 
 WORKDIR /workspace
 
-# Create the download directory before bootstrapping vcpkg.
-#
-# vcpkg requires VCPKG_DOWNLOADS to reference an existing directory.
+# vcpkg requires its configured download-cache path to exist before bootstrap.
 RUN mkdir -p \
         /workspace/.build-tools \
         "${VCPKG_DOWNLOADS}"
 
-# Use HTTP/1.1 because some networks exhibit intermittent HTTP/2 framing
-# failures while downloading from GitHub.
+# Clone the project-pinned vcpkg release.
+#
+# HTTP/1.1 is used to reduce GitHub HTTP/2 framing failures observed on some
+# development and corporate networks.
 RUN git \
         -c http.version=HTTP/1.1 \
         clone \
@@ -63,8 +62,8 @@ RUN git \
         "${VCPKG_ROOT}" \
     && "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
 
-# .dockerignore prevents local build output and the host vcpkg installation
-# from entering the Linux build context.
+# Local build output and the host vcpkg installation are excluded through
+# .dockerignore, so only repository-owned source files enter the image.
 COPY . .
 
 # Configure, compile, test, and install Haven.
@@ -73,11 +72,9 @@ RUN cmake --preset release \
     && ctest --preset release \
     && cmake --install build/release --prefix /opt/haven
 
-# Collect any dynamically linked libraries produced by vcpkg.
+# Collect dynamically linked libraries produced by vcpkg.
 #
-# Default Linux vcpkg builds are commonly static, so this directory may remain
-# empty. Keeping this step makes the runtime stage resilient if a dependency is
-# later built dynamically.
+# This directory may remain empty when dependencies are linked statically.
 RUN mkdir -p /opt/haven/lib \
     && find build/release/vcpkg_installed \
         -type f \
@@ -93,11 +90,14 @@ FROM ubuntu:24.04 AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-ENV HAVEN_HTTP_ADDRESS=0.0.0.0
-ENV HAVEN_HTTP_PORT=8080
+# Default Haven runtime configuration.
+#
+# Docker Compose or the deployment environment may override these values.
+ENV HVN_HTTP_ADDRESS=0.0.0.0
+ENV HVN_HTTP_PORT=8080
+ENV HVN_HTTP_THREADS=1
+ENV HVN_LOG_LEVEL=info
 
-# Install only the operating-system libraries required to run and inspect the
-# service. curl will also be used by the Docker Compose health check.
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
         ca-certificates \
@@ -116,13 +116,8 @@ RUN apt-get update \
         --shell /usr/sbin/nologin \
         haven
 
-COPY --from=builder \
-    /opt/haven/bin/haven-server \
-    /usr/local/bin/haven-server
-
-COPY --from=builder \
-    /opt/haven/lib/ \
-    /usr/local/lib/
+COPY --from=builder /opt/haven/bin/haven-server /usr/local/bin/haven-server
+COPY --from=builder /opt/haven/lib/ /usr/local/lib/
 
 RUN ldconfig
 

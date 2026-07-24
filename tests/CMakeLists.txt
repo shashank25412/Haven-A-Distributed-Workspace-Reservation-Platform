@@ -1,4 +1,3 @@
-#------------------------------------------------------------------------------
 # Haven Test Suite
 #
 # This directory owns all automated tests.
@@ -10,6 +9,8 @@
 #   • concurrency   Transaction and race-condition validation
 #   • e2e           End-to-end API verification
 #
-#------------------------------------------------------------------------------
+
+# Provides gtest_discover_tests() to all GoogleTest-based test directories.
+include(GoogleTest)
 
 add_subdirectory(unit)

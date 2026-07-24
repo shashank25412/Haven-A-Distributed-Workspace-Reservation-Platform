@@ -398,7 +398,7 @@ Secrets should be supplied through environment variables or a secret manager.
 
 ```text
 HAVEN_ENVIRONMENT=local
-HAVEN_HTTP_PORT=8080
+HVN_HTTP_PORT=8080
 
 HAVEN_COUCHBASE_CONNECTION_STRING=couchbase://couchbase
 HAVEN_COUCHBASE_USERNAME=haven
@@ -412,7 +412,7 @@ HAVEN_KAFKA_BROKERS=kafka:9092
 HAVEN_JWT_ISSUER=https://identity.example.com/
 HAVEN_JWT_AUDIENCE=haven-api
 
-HAVEN_LOG_LEVEL=info
+HVN_LOG_LEVEL=info
 HAVEN_METRICS_ENABLED=true
 HAVEN_TRACING_ENABLED=false
 ```

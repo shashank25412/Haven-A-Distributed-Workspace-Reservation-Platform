@@ -846,8 +846,6 @@ Haven follows these standards:
 - Benchmarks for performance-sensitive code
 - Documentation updates in the same change as behavior updates
 
-The files under `AI_CONTEXT/` define the full engineering rules.
-
 ---
 
 ## 18. Design Decisions Introduced

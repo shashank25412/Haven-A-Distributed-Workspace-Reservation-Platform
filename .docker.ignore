@@ -62,7 +62,6 @@ tsan.log*
 
 # Documentation and repository-only material are not required to build
 # the runtime image.
-AI_CONTEXT
 docs
 
 # Local CMake developer overrides

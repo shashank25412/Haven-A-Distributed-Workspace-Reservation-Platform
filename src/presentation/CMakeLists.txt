@@ -8,7 +8,7 @@
 #   • HTTP DTOs
 #   • request/response translation
 #
-# The presentation layer depends only on Drogon today.
+# The presentation layer depends on Drogon and Haven's logging module today.
 # Business workflows will be delegated to the application layer as the project
 # evolves.
 #------------------------------------------------------------------------------
@@ -39,6 +39,7 @@ target_link_libraries(
     haven_presentation
 
     PRIVATE
+        haven_logging
         Drogon::Drogon
 )
 

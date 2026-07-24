@@ -3,8 +3,10 @@
 #
 # Defines the Haven API process entry point.
 #
-# The executable acts as the composition root. It starts the HTTP framework and
-# connects project modules, but it must not contain domain or application logic.
+# The executable acts as the composition root. It loads validated process
+# configuration, registers presentation routes, and starts the HTTP framework.
+#
+# Domain and application business logic must not be implemented here.
 #------------------------------------------------------------------------------
 
 add_executable(
@@ -14,23 +16,33 @@ add_executable(
 
 target_link_libraries(
     haven_server
+
     PRIVATE
+        haven::bootstrap
         haven::presentation
         Drogon::Drogon
 )
 
-# Produce a conventional executable name while retaining a CMake-friendly
-# target identifier.
+# Keep the CMake target identifier underscore-based while producing a
+# conventional command name for local execution and deployment.
 set_target_properties(
     haven_server
+
     PROPERTIES
         OUTPUT_NAME "haven-server"
 )
 
 haven_apply_project_options(haven_server)
 
-# Prepare the executable for installation into a container or deployment
-# package without encoding a platform-specific destination.
+# Install the executable into a predictable deployment directory.
+#
+# The Docker build later installs Haven with:
+#
+#     cmake --install build/release --prefix /opt/haven
+#
+# producing:
+#
+#     /opt/haven/bin/haven-server
 install(
     TARGETS haven_server
     RUNTIME DESTINATION bin

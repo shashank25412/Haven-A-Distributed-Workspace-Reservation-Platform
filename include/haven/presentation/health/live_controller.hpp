@@ -1,10 +1,9 @@
 /**
  * @file live_controller.hpp
- * @brief Declares registration of Haven's process-liveness HTTP route.
+ * @brief Declares registration for Haven's liveness endpoint.
  *
- * This file belongs to the presentation layer because it exposes an
- * HTTP-facing capability. The public contract intentionally avoids Drogon
- * types so framework details remain inside the implementation file.
+ * The liveness endpoint reports whether the Haven process and HTTP server
+ * are running. It does not inspect external infrastructure dependencies.
  */
 
 #pragma once
@@ -12,12 +11,11 @@
 namespace haven::presentation::health {
 
 /**
- * @brief Registers the `GET /health/live` route with the HTTP application.
+ * @brief Registers the Haven liveness HTTP route.
  *
- * The endpoint reports process liveness only. It must not query Couchbase,
- * Redis, Kafka, or any other external dependency.
- *
- * This function must be called before the Drogon event loop starts.
+ * Registers GET /health/live with the Drogon application. This function
+ * must be called exactly once during application startup before the Drogon
+ * event loop begins.
  */
 void register_live_route();
 

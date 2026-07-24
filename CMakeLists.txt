@@ -24,19 +24,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(
-    HAVEN_BUILD_TESTS
+    HVN_BUILD_TESTS
     "Build Haven unit and integration test targets"
     ON
 )
 
 option(
-    HAVEN_ENABLE_WARNINGS_AS_ERRORS
+    HVN_ENABLE_WARNINGS_AS_ERRORS
     "Treat compiler warnings in Haven-owned targets as errors"
     OFF
 )
 
 option(
-    HAVEN_ENABLE_SANITIZERS
+    HVN_ENABLE_SANITIZERS
     "Enable AddressSanitizer and UndefinedBehaviorSanitizer"
     OFF
 )
@@ -50,12 +50,17 @@ include(HavenCompilerOptions)
 # It is restored through the project's vcpkg manifest.
 find_package(Drogon CONFIG REQUIRED)
 
-# Build the presentation library before the server, because the server
-# depends on presentation-layer route registration.
+# Discover the platform threading library required by the logging module.
+find_package(Threads REQUIRED)
+
+# Build Haven-owned libraries before the server executable.
+# The server acts as the composition root and links these module targets.
+add_subdirectory(src/logging)
+add_subdirectory(src/bootstrap)
 add_subdirectory(src/presentation)
 add_subdirectory(apps/server)
 
-if(HAVEN_BUILD_TESTS)
+if(HVN_BUILD_TESTS)
     include(CTest)
     enable_testing()
 

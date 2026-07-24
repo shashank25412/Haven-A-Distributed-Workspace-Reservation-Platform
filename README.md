@@ -510,42 +510,6 @@ Before contributing:
 
 ---
 
-# Current Development Phase
-
-Haven is currently inside:
-
-```text
-Phase 3–5:
-Environment setup, project skeleton, and first APIs
-```
-
-Current progress:
-
-```text
-Phase 3 — Environment setup     In progress
-Phase 4 — Project skeleton      In progress
-Phase 5 — First APIs            Liveness started
-```
-
-The liveness endpoint is treated as a foundation-level API because it proves that the process, HTTP framework, routing, tests, and container runtime are connected correctly.
-
----
-
-# Next Milestone
-
-After the Foundation milestone is verified, the next work will introduce:
-
-1. validated bootstrap configuration;
-2. structured startup logging;
-3. graceful shutdown verification;
-4. readiness semantics;
-5. Couchbase connectivity;
-6. integration-test infrastructure.
-
-Business reservation logic will not be added until the runtime foundation is stable.
-
----
-
 # Documentation Policy
 
 Haven documents:

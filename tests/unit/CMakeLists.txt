@@ -1,3 +1,4 @@
 add_subdirectory(bootstrap)
 add_subdirectory(logging)
 add_subdirectory(presentation)
+add_subdirectory(domain)

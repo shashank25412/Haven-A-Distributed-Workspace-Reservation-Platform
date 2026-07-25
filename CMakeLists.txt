@@ -58,6 +58,7 @@ find_package(Threads REQUIRED)
 add_subdirectory(src/logging)
 add_subdirectory(src/bootstrap)
 add_subdirectory(src/presentation)
+add_subdirectory(src/domain)
 add_subdirectory(apps/server)
 
 if(HVN_BUILD_TESTS)

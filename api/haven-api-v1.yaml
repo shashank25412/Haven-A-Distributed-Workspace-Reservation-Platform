@@ -1,7 +1,6 @@
 # Haven public API contract.
 #
 # This file is the canonical OpenAPI source of truth for Haven API v1.
-# Do not maintain a duplicate swagger.json unless a concrete tool requires it.
 # Organization and creator identity are derived from trusted JWT claims.
 #
 openapi: 3.1.1

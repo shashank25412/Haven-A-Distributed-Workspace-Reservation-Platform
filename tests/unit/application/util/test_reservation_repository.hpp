@@ -1,0 +1,252 @@
+/**
+ * @file test_reservation_repository.hpp
+ * @brief Defines a configurable reservation repository for application tests.
+ */
+
+#pragma once
+
+#include "haven/application/reservations/reservation_repository.hpp"
+
+#include <cstddef>
+#include <optional>
+#include <utility>
+#include <vector>
+
+namespace haven::tests::util::application {
+
+/**
+ * @brief Provides configurable reservation repository behavior for application tests.
+ *
+ * Query results are empty and conflict checks are false by default. Every
+ * operation records its supplied arguments, and save retains a copy of the
+ * reservation.
+ */
+class TestReservationRepository final
+    : public haven::application::reservations::ReservationRepository {
+public:
+    void set_lookup_result(haven::application::reservations::ReservationLookupResult result) {
+        lookup_result_ = std::move(result);
+    }
+
+    void set_creator_result(haven::application::reservations::ReservationListResult result) {
+        creator_result_ = std::move(result);
+    }
+
+    void set_pending_approvals_result(
+        haven::application::reservations::ReservationListResult result) {
+        pending_approvals_result_ = std::move(result);
+    }
+
+    void set_calendar_result(haven::application::reservations::ReservationListResult result) {
+        calendar_result_ = std::move(result);
+    }
+
+    void set_conflict(const bool result) noexcept {
+        conflict_result_ = result;
+        conflict_results_.clear();
+    }
+
+    void set_conflict_results(std::vector<bool> results) {
+        conflict_results_ = std::move(results);
+    }
+
+    void set_conflict_excluding(const bool result) noexcept {
+        conflict_excluding_result_ = result;
+    }
+
+    [[nodiscard]] haven::application::reservations::ReservationLookupResult find_by_id(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::ReservationId& reservation_id) const override {
+        find_by_id_called_ = true;
+        lookup_organization_id_ = organization_id;
+        lookup_reservation_id_ = reservation_id;
+        return lookup_result_;
+    }
+
+    [[nodiscard]] haven::application::reservations::ReservationListResult find_by_creator(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::UserId& caller_id) const override {
+        find_by_creator_called_ = true;
+        creator_organization_id_ = organization_id;
+        creator_caller_id_ = caller_id;
+        return creator_result_;
+    }
+
+    [[nodiscard]] haven::application::reservations::ReservationListResult find_pending_approvals(
+        const haven::domain::OrganizationId& organization_id) const override {
+        find_pending_approvals_called_ = true;
+        pending_approvals_organization_id_ = organization_id;
+        return pending_approvals_result_;
+    }
+
+    [[nodiscard]] haven::application::reservations::ReservationListResult
+    find_by_resource_and_interval(const haven::domain::OrganizationId& organization_id,
+                                  const haven::domain::ResourceId& resource_id,
+                                  const haven::domain::TimeInterval& interval) const override {
+        find_by_resource_and_interval_called_ = true;
+        calendar_organization_id_ = organization_id;
+        calendar_resource_id_ = resource_id;
+        calendar_interval_ = interval;
+        return calendar_result_;
+    }
+
+    [[nodiscard]] bool has_conflict(const haven::domain::OrganizationId& organization_id,
+                                    const haven::domain::ResourceId& resource_id,
+                                    const haven::domain::TimeInterval& interval) const override {
+        has_conflict_called_ = true;
+        conflict_organization_ids_.push_back(organization_id);
+        conflict_resource_ids_.push_back(resource_id);
+        conflict_intervals_.push_back(interval);
+
+        const auto result_index = conflict_resource_ids_.size() - 1U;
+        if (result_index < conflict_results_.size()) {
+            return conflict_results_.at(result_index);
+        }
+        return conflict_result_;
+    }
+
+    [[nodiscard]] bool has_conflict_excluding(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::ResourceId& resource_id,
+        const haven::domain::TimeInterval& interval,
+        const haven::domain::ReservationId& excluded_reservation_id) const override {
+        has_conflict_excluding_called_ = true;
+        conflict_excluding_organization_id_ = organization_id;
+        conflict_excluding_resource_id_ = resource_id;
+        conflict_excluding_interval_ = interval;
+        excluded_reservation_id_ = excluded_reservation_id;
+        return conflict_excluding_result_;
+    }
+
+    void save(const haven::domain::OrganizationId& organization_id,
+              const haven::domain::Reservation& reservation) override {
+        save_called_ = true;
+        saved_organization_id_ = organization_id;
+        saved_reservation_ = reservation;
+    }
+
+    [[nodiscard]] bool find_by_id_called() const noexcept {
+        return find_by_id_called_;
+    }
+    [[nodiscard]] bool find_by_creator_called() const noexcept {
+        return find_by_creator_called_;
+    }
+    [[nodiscard]] bool find_pending_approvals_called() const noexcept {
+        return find_pending_approvals_called_;
+    }
+    [[nodiscard]] bool find_by_resource_and_interval_called() const noexcept {
+        return find_by_resource_and_interval_called_;
+    }
+    [[nodiscard]] bool has_conflict_called() const noexcept {
+        return has_conflict_called_;
+    }
+    [[nodiscard]] bool has_conflict_excluding_called() const noexcept {
+        return has_conflict_excluding_called_;
+    }
+    [[nodiscard]] bool save_called() const noexcept {
+        return save_called_;
+    }
+
+    [[nodiscard]] const std::optional<haven::domain::OrganizationId>& lookup_organization_id()
+        const noexcept {
+        return lookup_organization_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::ReservationId>& lookup_reservation_id()
+        const noexcept {
+        return lookup_reservation_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::OrganizationId>& creator_organization_id()
+        const noexcept {
+        return creator_organization_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::UserId>& creator_caller_id() const noexcept {
+        return creator_caller_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::OrganizationId>&
+    pending_approvals_organization_id() const noexcept {
+        return pending_approvals_organization_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::OrganizationId>& calendar_organization_id()
+        const noexcept {
+        return calendar_organization_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::ResourceId>& calendar_resource_id()
+        const noexcept {
+        return calendar_resource_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::TimeInterval>& calendar_interval()
+        const noexcept {
+        return calendar_interval_;
+    }
+    [[nodiscard]] const std::vector<haven::domain::OrganizationId>& conflict_organization_ids()
+        const noexcept {
+        return conflict_organization_ids_;
+    }
+    [[nodiscard]] const std::vector<haven::domain::ResourceId>& conflict_resource_ids()
+        const noexcept {
+        return conflict_resource_ids_;
+    }
+    [[nodiscard]] const std::vector<haven::domain::TimeInterval>& conflict_intervals()
+        const noexcept {
+        return conflict_intervals_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::OrganizationId>&
+    conflict_excluding_organization_id() const noexcept {
+        return conflict_excluding_organization_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::ResourceId>& conflict_excluding_resource_id()
+        const noexcept {
+        return conflict_excluding_resource_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::TimeInterval>& conflict_excluding_interval()
+        const noexcept {
+        return conflict_excluding_interval_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::ReservationId>& excluded_reservation_id()
+        const noexcept {
+        return excluded_reservation_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::OrganizationId>& saved_organization_id()
+        const noexcept {
+        return saved_organization_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::Reservation>& saved_reservation()
+        const noexcept {
+        return saved_reservation_;
+    }
+
+private:
+    haven::application::reservations::ReservationLookupResult lookup_result_;
+    haven::application::reservations::ReservationListResult creator_result_;
+    haven::application::reservations::ReservationListResult pending_approvals_result_;
+    haven::application::reservations::ReservationListResult calendar_result_;
+    bool conflict_result_{false};
+    std::vector<bool> conflict_results_;
+    bool conflict_excluding_result_{false};
+    mutable bool find_by_id_called_{false};
+    mutable bool find_by_creator_called_{false};
+    mutable bool find_pending_approvals_called_{false};
+    mutable bool find_by_resource_and_interval_called_{false};
+    mutable bool has_conflict_called_{false};
+    mutable bool has_conflict_excluding_called_{false};
+    bool save_called_{false};
+    mutable std::optional<haven::domain::OrganizationId> lookup_organization_id_;
+    mutable std::optional<haven::domain::ReservationId> lookup_reservation_id_;
+    mutable std::optional<haven::domain::OrganizationId> creator_organization_id_;
+    mutable std::optional<haven::domain::UserId> creator_caller_id_;
+    mutable std::optional<haven::domain::OrganizationId> pending_approvals_organization_id_;
+    mutable std::optional<haven::domain::OrganizationId> calendar_organization_id_;
+    mutable std::optional<haven::domain::ResourceId> calendar_resource_id_;
+    mutable std::optional<haven::domain::TimeInterval> calendar_interval_;
+    mutable std::vector<haven::domain::OrganizationId> conflict_organization_ids_;
+    mutable std::vector<haven::domain::ResourceId> conflict_resource_ids_;
+    mutable std::vector<haven::domain::TimeInterval> conflict_intervals_;
+    mutable std::optional<haven::domain::OrganizationId> conflict_excluding_organization_id_;
+    mutable std::optional<haven::domain::ResourceId> conflict_excluding_resource_id_;
+    mutable std::optional<haven::domain::TimeInterval> conflict_excluding_interval_;
+    mutable std::optional<haven::domain::ReservationId> excluded_reservation_id_;
+    std::optional<haven::domain::OrganizationId> saved_organization_id_;
+    std::optional<haven::domain::Reservation> saved_reservation_;
+};
+
+}  // namespace haven::tests::util::application

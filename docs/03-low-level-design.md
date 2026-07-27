@@ -5,7 +5,7 @@ version: 1.0
 status: Draft
 author: Shashank Kumar
 reviewer: Kumar Rahul
-last_updated: 2026-07-20
+last_updated: 2026-07-28
 related_documents:
   - 01-requirements.md
   - 02-high-level-design.md
@@ -103,14 +103,15 @@ Allowed:
 
 - Commands and queries
 - Use-case orchestration
-- Authorization orchestration
+- Enforcement of ownership, tenant isolation, lifecycle, conflict, and policy rules
 - Repository coordination
-- Transaction boundaries
+- Definition of logical use-case boundaries
 - Idempotency workflow
 - Mapping domain results to application outputs
 
 Forbidden:
 
+- Authentication-token parsing and role or permission lookup
 - Drogon types
 - Couchbase SDK types
 - Raw Kafka clients
@@ -471,6 +472,11 @@ public:
 
 Exact signatures may change during implementation, but responsibilities remain stable.
 
+`ReservationRepository` remains one cohesive port. Its operations
+all load, query, conflict-check, or save the Reservation aggregate and its
+derived views. Separate reader, writer, calendar, or conflict ports are not
+justified until a concrete implementation or use case requires them.
+
 ### 9.2 ResourceRepository
 
 Responsibilities:
@@ -515,6 +521,48 @@ Infrastructure-neutral ports include:
 - `TransactionRunner` only if required by concrete persistence model
 
 Ports must be introduced only when the application genuinely needs an external capability.
+
+### 10.1 Authorization Trust Boundary
+
+Authentication and role or permission validation occur before an application
+handler is invoked. The presentation or authentication boundary must supply a
+trusted caller identity and tenant context. It verifies the authentication
+token, determines the caller and organization, checks approval or
+administrative permission where required, and rejects unauthenticated or
+unauthorized requests.
+
+Application handlers treat that identity and tenant context as trusted input,
+but they still enforce tenant-scoped repository access, defend against
+repository tenant leakage, check reservation ownership where applicable,
+verify resource and reservation existence, and coordinate domain lifecycle,
+conflict, policy, and aggregate-invariant enforcement. Approval and rejection
+handlers record the acting user but do not load roles or permissions in Phase
+7.
+
+A dedicated authorization policy or application-owned port may be introduced
+later if authorization becomes domain-sensitive or must be shared across
+non-HTTP entry points. Phase 7 does not introduce a placeholder authorization
+dependency.
+
+### 10.2 Application Boundary Responsibilities
+
+Handlers orchestrate a use case by loading aggregates, validating lookup
+results and tenant scope, invoking domain policies and aggregate operations,
+persisting successful mutations, returning application results, and emitting
+meaningful non-sensitive logs. Repository ports expose tenant-aware aggregate
+persistence and derived queries while keeping storage SDK types and document
+structures outside the application layer.
+
+Expected business failures are translated into explicit application results.
+Unexpected technical failures may propagate as exceptions, but infrastructure
+adapters must translate SDK-specific failures before they cross an
+application-owned port. Presentation remains responsible for transport and HTTP
+mapping.
+
+The application layer does not authenticate callers, serialize JSON, construct
+HTTP responses, issue database queries, publish directly to Kafka, manage
+infrastructure transactions or locks, or duplicate domain interval and
+lifecycle rules.
 
 ---
 
@@ -702,6 +750,7 @@ Every mutation:
 - Re-executes safe reads when needed.
 - Rejects unsafe retries.
 - Coordinates idempotency.
+- Defines each handler invocation as a logical use-case boundary.
 
 ### Infrastructure
 
@@ -709,6 +758,12 @@ Every mutation:
 - Maps concurrency failures.
 - Enforces bounded timeout and retry configuration.
 - Provides diagnostics.
+
+For handlers that load, check, mutate, and save, future infrastructure adapters
+will provide optimistic concurrency, atomic persistence, idempotency, and
+outbox guarantees behind application-owned ports or decorators. Phase 7 does
+not add Couchbase transaction APIs, Redis locks, Kafka producers, or a concrete
+unit of work to application handlers.
 
 ---
 

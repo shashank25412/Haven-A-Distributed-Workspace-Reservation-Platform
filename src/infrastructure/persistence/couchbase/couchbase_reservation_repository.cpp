@@ -33,6 +33,17 @@ using haven::application::RepositoryError;
 using haven::application::RepositoryErrorCode;
 using ReservationListResult = haven::application::reservations::ReservationListResult;
 
+[[nodiscard]] haven::application::persistence::PersistenceToken persistence_token_from(
+    const ::couchbase::cas cas) {
+    return haven::application::persistence::PersistenceToken{cas.value()};
+}
+
+[[nodiscard]] ::couchbase::cas couchbase_cas_from(
+    const haven::application::persistence::PersistenceToken& token) {
+    return ::couchbase::cas{
+        haven::application::persistence::PersistenceTokenAccess::representation(token)};
+}
+
 [[nodiscard]] RepositoryError translate_error(const ::couchbase::error& error,
                                               const std::string_view operation) {
     const auto error_code = error.ec();
@@ -134,8 +145,7 @@ CouchbaseReservationRepository::find_by_id(
             throw std::invalid_argument("Stored reservation identity does not match its key");
         }
         return haven::application::reservations::LoadedReservation{
-            std::move(reservation),
-            haven::application::persistence::PersistenceToken{result.cas().value()}};
+            std::move(reservation), persistence_token_from(result.cas())};
     } catch (const std::exception& exception) {
         HVN_ERROR_LOG("Stored Couchbase reservation is invalid for organization ",
                       organization_id.value(),
@@ -310,7 +320,7 @@ haven::application::persistence::PersistenceToken CouchbaseReservationRepository
                       error.ec().message());
         throw translate_error(error, "Couchbase reservation insert");
     }
-    return haven::application::persistence::PersistenceToken{result.cas().value()};
+    return persistence_token_from(result.cas());
 }
 
 haven::application::persistence::PersistenceToken CouchbaseReservationRepository::update(
@@ -324,14 +334,26 @@ haven::application::persistence::PersistenceToken CouchbaseReservationRepository
     const auto key = reservation_document_key(organization_id, reservation.reservation_id());
     const auto json = reservation_document_to_json(to_reservation_document(reservation));
     auto options = ::couchbase::replace_options{};
-    options.cas(::couchbase::cas{
-        haven::application::persistence::PersistenceTokenAccess::representation(expected_token)});
+    options.cas(couchbase_cas_from(expected_token));
     auto collection = connection_->collection(CouchbaseCollections::reservations);
     auto [error, result] = collection.replace(key, json, options).get();
     if (error) {
+        if (error.ec() == ::couchbase::errc::common::cas_mismatch) {
+            HVN_WARN_LOG("Couchbase reservation update rejected a stale write for organization ",
+                         organization_id.value(),
+                         " and reservation ",
+                         reservation.reservation_id().value());
+        } else {
+            HVN_ERROR_LOG("Couchbase reservation update failed for organization ",
+                          organization_id.value(),
+                          " and reservation ",
+                          reservation.reservation_id().value(),
+                          ": ",
+                          error.ec().message());
+        }
         throw translate_error(error, "Couchbase reservation update");
     }
-    return haven::application::persistence::PersistenceToken{result.cas().value()};
+    return persistence_token_from(result.cas());
 }
 
 }  // namespace haven::infrastructure::persistence::couchbase

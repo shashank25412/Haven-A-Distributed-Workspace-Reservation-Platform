@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
+
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -82,6 +84,7 @@ struct LoggingConfiguration final {
 struct ApplicationConfiguration final {
     HttpConfiguration http;
     LoggingConfiguration logging;
+    infrastructure::persistence::couchbase::CouchbaseConfiguration couchbase;
 };
 
 /**
@@ -104,9 +107,15 @@ public:
  * - `HVN_HTTP_PORT`
  * - `HVN_HTTP_THREADS`
  * - `HVN_LOG_LEVEL`
+ * - `HVN_COUCHBASE_CONNECTION_STRING`
+ * - `HVN_COUCHBASE_USERNAME`
+ * - `HVN_COUCHBASE_PASSWORD`
+ * - `HVN_COUCHBASE_BUCKET`
+ * - `HVN_COUCHBASE_SCOPE`
  *
- * Missing or empty variables use documented development defaults. Present but
- * invalid values cause configuration loading to fail.
+ * Missing or empty HTTP and logging variables use documented development
+ * defaults. All Couchbase variables are required. Present but invalid values
+ * cause configuration loading to fail.
  *
  * Supported log-level values are case-insensitive:
  *

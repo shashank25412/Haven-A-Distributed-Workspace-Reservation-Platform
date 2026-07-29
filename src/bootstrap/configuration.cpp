@@ -8,9 +8,11 @@
 
 #include "haven/bootstrap/configuration.hpp"
 
+#include "haven/logging/logging.hpp"
+
 #include <algorithm>
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
@@ -30,6 +32,11 @@ constexpr std::string_view kHttpAddressVariable{"HVN_HTTP_ADDRESS"};
 constexpr std::string_view kHttpPortVariable{"HVN_HTTP_PORT"};
 constexpr std::string_view kHttpThreadsVariable{"HVN_HTTP_THREADS"};
 constexpr std::string_view kLogLevelVariable{"HVN_LOG_LEVEL"};
+constexpr std::string_view kCouchbaseConnectionStringVariable{"HVN_COUCHBASE_CONNECTION_STRING"};
+constexpr std::string_view kCouchbaseUsernameVariable{"HVN_COUCHBASE_USERNAME"};
+constexpr std::string_view kCouchbasePasswordVariable{"HVN_COUCHBASE_PASSWORD"};
+constexpr std::string_view kCouchbaseBucketVariable{"HVN_COUCHBASE_BUCKET"};
+constexpr std::string_view kCouchbaseScopeVariable{"HVN_COUCHBASE_SCOPE"};
 
 /**
  * @brief Reads an environment variable or returns its default value.
@@ -40,14 +47,39 @@ constexpr std::string_view kLogLevelVariable{"HVN_LOG_LEVEL"};
  * @param default_value Value returned when the variable is absent or empty.
  * @return The configured value or the documented default.
  */
-[[nodiscard]] std::string environment_or_default(
-    const std::string_view variable_name,
-    const std::string_view default_value) {
+[[nodiscard]] std::string environment_or_default(const std::string_view variable_name,
+                                                 const std::string_view default_value) {
     const std::string variable{variable_name};
     const char* configured_value = std::getenv(variable.c_str());
 
     if (configured_value == nullptr || *configured_value == '\0') {
         return std::string{default_value};
+    }
+
+    return std::string{configured_value};
+}
+
+/**
+ * @brief Reads a required, non-empty environment variable.
+ *
+ * @param variable_name Name of the environment variable.
+ * @return The configured value, preserved exactly.
+ *
+ * @throws ConfigurationError
+ *     When the variable is missing or empty.
+ */
+[[nodiscard]] std::string required_environment(const std::string_view variable_name) {
+    HVN_TRACE_SCOPE();
+
+    const std::string variable{variable_name};
+    const char* configured_value = std::getenv(variable.c_str());
+
+    if (configured_value == nullptr) {
+        throw ConfigurationError{variable + " is required but is not set"};
+    }
+
+    if (*configured_value == '\0') {
+        throw ConfigurationError{variable + " is required and must not be empty"};
     }
 
     return std::string{configured_value};
@@ -70,8 +102,7 @@ constexpr std::string_view kLogLevelVariable{"HVN_LOG_LEVEL"};
     constexpr std::string_view kWhitespace{" \t\n\r\f\v"};
 
     if (value.find_first_not_of(kWhitespace) == std::string::npos) {
-        throw ConfigurationError{
-            "HVN_HTTP_ADDRESS must not be blank"};
+        throw ConfigurationError{"HVN_HTTP_ADDRESS must not be blank"};
     }
 
     return value;
@@ -89,24 +120,17 @@ constexpr std::string_view kLogLevelVariable{"HVN_LOG_LEVEL"};
  * @throws ConfigurationError
  *     When the value is not a valid TCP port.
  */
-[[nodiscard]] std::uint16_t parse_http_port(
-    const std::string_view value) {
+[[nodiscard]] std::uint16_t parse_http_port(const std::string_view value) {
     unsigned int parsed_port = 0;
 
-    const auto [parse_end, error] = std::from_chars(
-        value.data(),
-        value.data() + value.size(),
-        parsed_port);
+    const auto [parse_end, error] =
+        std::from_chars(value.data(), value.data() + value.size(), parsed_port);
 
-    const bool consumed_entire_value =
-        parse_end == value.data() + value.size();
+    const bool consumed_entire_value = parse_end == value.data() + value.size();
 
-    if (error != std::errc{} ||
-        !consumed_entire_value ||
-        parsed_port == 0U ||
+    if (error != std::errc{} || !consumed_entire_value || parsed_port == 0U ||
         parsed_port > 65535U) {
-        throw ConfigurationError{
-            "HVN_HTTP_PORT must be an integer between 1 and 65535"};
+        throw ConfigurationError{"HVN_HTTP_PORT must be an integer between 1 and 65535"};
     }
 
     return static_cast<std::uint16_t>(parsed_port);
@@ -123,23 +147,16 @@ constexpr std::string_view kLogLevelVariable{"HVN_LOG_LEVEL"};
  * @throws ConfigurationError
  *     When the value is not a positive decimal integer.
  */
-[[nodiscard]] std::uint32_t parse_http_threads(
-    const std::string_view value) {
+[[nodiscard]] std::uint32_t parse_http_threads(const std::string_view value) {
     std::uint32_t parsed_threads = 0;
 
-    const auto [parse_end, error] = std::from_chars(
-        value.data(),
-        value.data() + value.size(),
-        parsed_threads);
+    const auto [parse_end, error] =
+        std::from_chars(value.data(), value.data() + value.size(), parsed_threads);
 
-    const bool consumed_entire_value =
-        parse_end == value.data() + value.size();
+    const bool consumed_entire_value = parse_end == value.data() + value.size();
 
-    if (error != std::errc{} ||
-        !consumed_entire_value ||
-        parsed_threads == 0U) {
-        throw ConfigurationError{
-            "HVN_HTTP_THREADS must be a positive integer"};
+    if (error != std::errc{} || !consumed_entire_value || parsed_threads == 0U) {
+        throw ConfigurationError{"HVN_HTTP_THREADS must be a positive integer"};
     }
 
     return parsed_threads;
@@ -152,13 +169,9 @@ constexpr std::string_view kLogLevelVariable{"HVN_LOG_LEVEL"};
  * @return Lowercase copy of the input.
  */
 [[nodiscard]] std::string to_lowercase(std::string value) {
-    std::transform(
-        value.begin(),
-        value.end(),
-        value.begin(),
-        [](const unsigned char character) {
-            return static_cast<char>(std::tolower(character));
-        });
+    std::transform(value.begin(), value.end(), value.begin(), [](const unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
 
     return value;
 }
@@ -210,21 +223,18 @@ constexpr std::string_view kLogLevelVariable{"HVN_LOG_LEVEL"};
 }  // namespace
 
 ApplicationConfiguration load_configuration_from_environment() {
-    std::string http_address = environment_or_default(
-        kHttpAddressVariable,
-        kDefaultHttpAddress);
+    HVN_TRACE_SCOPE();
 
-    const std::string http_port = environment_or_default(
-        kHttpPortVariable,
-        kDefaultHttpPort);
+    std::string http_address = environment_or_default(kHttpAddressVariable, kDefaultHttpAddress);
 
-    const std::string http_threads = environment_or_default(
-        kHttpThreadsVariable,
-        kDefaultHttpThreads);
+    const std::string http_port = environment_or_default(kHttpPortVariable, kDefaultHttpPort);
 
-    std::string log_level = environment_or_default(
-        kLogLevelVariable,
-        kDefaultLogLevel);
+    const std::string http_threads =
+        environment_or_default(kHttpThreadsVariable, kDefaultHttpThreads);
+
+    std::string log_level = environment_or_default(kLogLevelVariable, kDefaultLogLevel);
+
+    using infrastructure::persistence::couchbase::CouchbaseConfiguration;
 
     return ApplicationConfiguration{
         .http =
@@ -236,6 +246,14 @@ ApplicationConfiguration load_configuration_from_environment() {
         .logging =
             LoggingConfiguration{
                 .level = parse_log_level(std::move(log_level)),
+            },
+        .couchbase =
+            CouchbaseConfiguration{
+                .connection_string = required_environment(kCouchbaseConnectionStringVariable),
+                .username = required_environment(kCouchbaseUsernameVariable),
+                .password = required_environment(kCouchbasePasswordVariable),
+                .bucket_name = required_environment(kCouchbaseBucketVariable),
+                .scope_name = required_environment(kCouchbaseScopeVariable),
             },
     };
 }

@@ -26,6 +26,12 @@ constexpr const char* kHttpAddressVariable = "HVN_HTTP_ADDRESS";
 constexpr const char* kHttpPortVariable = "HVN_HTTP_PORT";
 constexpr const char* kHttpThreadsVariable = "HVN_HTTP_THREADS";
 constexpr const char* kLogLevelVariable = "HVN_LOG_LEVEL";
+constexpr const char* kCouchbaseConnectionStringVariable = "HVN_COUCHBASE_CONNECTION_STRING";
+constexpr const char* kCouchbaseUsernameVariable = "HVN_COUCHBASE_USERNAME";
+constexpr const char* kCouchbasePasswordVariable = "HVN_COUCHBASE_PASSWORD";
+constexpr const char* kCouchbaseBucketVariable = "HVN_COUCHBASE_BUCKET";
+constexpr const char* kCouchbaseScopeVariable = "HVN_COUCHBASE_SCOPE";
+constexpr std::string_view kTestPassword{"test-secret-password"};
 
 /**
  * @brief Provides isolated environment-variable handling for configuration tests.
@@ -43,6 +49,13 @@ protected:
         original_http_port_ = read_environment_variable(kHttpPortVariable);
         original_http_threads_ = read_environment_variable(kHttpThreadsVariable);
         original_log_level_ = read_environment_variable(kLogLevelVariable);
+        original_couchbase_connection_string_ = read_environment_variable(kCouchbaseConnectionStringVariable);
+        original_couchbase_username_ = read_environment_variable(kCouchbaseUsernameVariable);
+        original_couchbase_password_ = read_environment_variable(kCouchbasePasswordVariable);
+        original_couchbase_bucket_ = read_environment_variable(kCouchbaseBucketVariable);
+        original_couchbase_scope_ = read_environment_variable(kCouchbaseScopeVariable);
+
+        set_valid_couchbase_configuration();
     }
 
     void TearDown() override {
@@ -50,6 +63,11 @@ protected:
         EXPECT_TRUE(restore_environment_variable(kHttpPortVariable, original_http_port_));
         EXPECT_TRUE(restore_environment_variable(kHttpThreadsVariable, original_http_threads_));
         EXPECT_TRUE(restore_environment_variable(kLogLevelVariable, original_log_level_));
+        EXPECT_TRUE(restore_environment_variable(kCouchbaseConnectionStringVariable, original_couchbase_connection_string_));
+        EXPECT_TRUE(restore_environment_variable(kCouchbaseUsernameVariable, original_couchbase_username_));
+        EXPECT_TRUE(restore_environment_variable(kCouchbasePasswordVariable, original_couchbase_password_));
+        EXPECT_TRUE(restore_environment_variable(kCouchbaseBucketVariable, original_couchbase_bucket_));
+        EXPECT_TRUE(restore_environment_variable(kCouchbaseScopeVariable, original_couchbase_scope_));
     }
 
     /**
@@ -60,6 +78,17 @@ protected:
         ASSERT_TRUE(unset_environment_variable(kHttpPortVariable));
         ASSERT_TRUE(unset_environment_variable(kHttpThreadsVariable));
         ASSERT_TRUE(unset_environment_variable(kLogLevelVariable));
+    }
+
+    /**
+     * @brief Sets deterministic valid Couchbase configuration for a test.
+     */
+    void set_valid_couchbase_configuration() {
+        ASSERT_TRUE(set_environment_variable(kCouchbaseConnectionStringVariable, "couchbase://127.0.0.1?network=external"));
+        ASSERT_TRUE(set_environment_variable(kCouchbaseUsernameVariable, "test-user"));
+        ASSERT_TRUE(set_environment_variable(kCouchbasePasswordVariable, kTestPassword));
+        ASSERT_TRUE(set_environment_variable(kCouchbaseBucketVariable, "test-bucket"));
+        ASSERT_TRUE(set_environment_variable(kCouchbaseScopeVariable, "test-scope"));
     }
 
     /**
@@ -79,9 +108,8 @@ protected:
     /**
      * @brief Sets an environment variable for the current test process.
      */
-    [[nodiscard]] static bool set_environment_variable(
-        const char* variable_name,
-        const std::string_view value) {
+    [[nodiscard]] static bool set_environment_variable(const char* variable_name,
+                                                       const std::string_view value) {
 #if defined(_WIN32)
         return _putenv_s(variable_name, std::string{value}.c_str()) == 0;
 #else
@@ -105,8 +133,7 @@ private:
      * @brief Restores an environment variable to its pre-test state.
      */
     [[nodiscard]] static bool restore_environment_variable(
-        const char* variable_name,
-        const std::optional<std::string>& original_value) {
+        const char* variable_name, const std::optional<std::string>& original_value) {
         if (original_value.has_value()) {
             return set_environment_variable(variable_name, original_value.value());
         }
@@ -118,6 +145,11 @@ private:
     std::optional<std::string> original_http_port_;
     std::optional<std::string> original_http_threads_;
     std::optional<std::string> original_log_level_;
+    std::optional<std::string> original_couchbase_connection_string_;
+    std::optional<std::string> original_couchbase_username_;
+    std::optional<std::string> original_couchbase_password_;
+    std::optional<std::string> original_couchbase_bucket_;
+    std::optional<std::string> original_couchbase_scope_;
 };
 
 TEST_F(EnvironmentConfigurationTest, UsesDocumentedDefaultsWhenVariablesAreAbsent) {
@@ -143,6 +175,64 @@ TEST_F(EnvironmentConfigurationTest, LoadsConfiguredValues) {
     EXPECT_EQ(configuration.http.port, std::uint16_t{9090});
     EXPECT_EQ(configuration.http.worker_threads, std::uint32_t{4});
     EXPECT_EQ(configuration.logging.level, LogLevel::debug);
+}
+
+TEST_F(EnvironmentConfigurationTest, LoadsAllCouchbaseEnvironmentVariablesExactly) {
+    const ApplicationConfiguration configuration = load_configuration_from_environment();
+
+    EXPECT_EQ(configuration.couchbase.connection_string, "couchbase://127.0.0.1?network=external");
+    EXPECT_EQ(configuration.couchbase.username, "test-user");
+    EXPECT_EQ(configuration.couchbase.password, kTestPassword);
+    EXPECT_EQ(configuration.couchbase.bucket_name, "test-bucket");
+    EXPECT_EQ(configuration.couchbase.scope_name, "test-scope");
+}
+
+TEST_F(EnvironmentConfigurationTest, RejectsMissingCouchbaseEnvironmentVariables) {
+    constexpr std::array<const char*, 5> kRequiredVariables{
+        kCouchbaseConnectionStringVariable,
+        kCouchbaseUsernameVariable,
+        kCouchbasePasswordVariable,
+        kCouchbaseBucketVariable,
+        kCouchbaseScopeVariable,
+    };
+
+    for (const char* variable : kRequiredVariables) {
+        SCOPED_TRACE(variable);
+        set_valid_couchbase_configuration();
+        ASSERT_TRUE(unset_environment_variable(variable));
+
+        try {
+            static_cast<void>(load_configuration_from_environment());
+            FAIL() << "Expected ConfigurationError for " << variable;
+        } catch (const ConfigurationError& error) {
+            EXPECT_NE(std::string{error.what()}.find(variable), std::string::npos);
+            EXPECT_EQ(std::string{error.what()}.find(kTestPassword), std::string::npos);
+        }
+    }
+}
+
+TEST_F(EnvironmentConfigurationTest, RejectsEmptyCouchbaseEnvironmentVariables) {
+    constexpr std::array<const char*, 5> kRequiredVariables{
+        kCouchbaseConnectionStringVariable,
+        kCouchbaseUsernameVariable,
+        kCouchbasePasswordVariable,
+        kCouchbaseBucketVariable,
+        kCouchbaseScopeVariable,
+    };
+
+    for (const char* variable : kRequiredVariables) {
+        SCOPED_TRACE(variable);
+        set_valid_couchbase_configuration();
+        ASSERT_TRUE(set_environment_variable(variable, ""));
+
+        try {
+            static_cast<void>(load_configuration_from_environment());
+            FAIL() << "Expected ConfigurationError for " << variable;
+        } catch (const ConfigurationError& error) {
+            EXPECT_NE(std::string{error.what()}.find(variable), std::string::npos);
+            EXPECT_EQ(std::string{error.what()}.find(kTestPassword), std::string::npos);
+        }
+    }
 }
 
 TEST_F(EnvironmentConfigurationTest, UsesDefaultsWhenVariablesArePresentButEmpty) {
@@ -175,7 +265,7 @@ TEST_F(EnvironmentConfigurationTest, RejectsPortValuesOutsideTheValidTcpRange) {
         SCOPED_TRACE(invalid_port);
 
         ASSERT_TRUE(set_environment_variable(kHttpPortVariable, invalid_port));
-        EXPECT_THROW( static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+        EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
     }
 }
 
@@ -207,7 +297,7 @@ TEST_F(EnvironmentConfigurationTest, RejectsInvalidHttpWorkerThreadCounts) {
         SCOPED_TRACE(invalid_thread_count);
 
         ASSERT_TRUE(set_environment_variable(kHttpThreadsVariable, invalid_thread_count));
-        EXPECT_THROW( static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+        EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
     }
 }
 
@@ -254,14 +344,14 @@ TEST_F(EnvironmentConfigurationTest, RejectsUnsupportedLogLevels) {
         SCOPED_TRACE(invalid_log_level);
 
         ASSERT_TRUE(set_environment_variable(kLogLevelVariable, invalid_log_level));
-        EXPECT_THROW( static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+        EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
     }
 }
 
 TEST_F(EnvironmentConfigurationTest, RejectsWhitespaceOnlyHttpAddress) {
     ASSERT_TRUE(set_environment_variable(kHttpAddressVariable, "   \t"));
 
-    EXPECT_THROW( static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
 }
 
 }  // namespace

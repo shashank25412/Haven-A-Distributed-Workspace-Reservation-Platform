@@ -31,4 +31,11 @@ target_include_directories(
         "${PROJECT_SOURCE_DIR}/include"
 )
 
+target_link_libraries(
+    haven_bootstrap
+
+    PRIVATE
+        haven_logging
+)
+
 haven_apply_project_options(haven_bootstrap)

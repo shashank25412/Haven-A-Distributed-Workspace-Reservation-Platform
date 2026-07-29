@@ -10,6 +10,7 @@ add_executable(
     persistence/couchbase/couchbase_configuration_test.cpp
     persistence/couchbase/couchbase_connection_test.cpp
     persistence/couchbase/couchbase_document_key_test.cpp
+    persistence/couchbase/couchbase_resource_repository_test.cpp
     persistence/couchbase/resource_document_test.cpp
     persistence/couchbase/resource_document_mapper_test.cpp
     persistence/couchbase/resource_document_validator_test.cpp

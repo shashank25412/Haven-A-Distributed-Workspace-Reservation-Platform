@@ -9,7 +9,7 @@
 
 #include <couchbase/cluster.hxx>
 #include <couchbase/collection.hxx>
-
+#include <couchbase/scope.hxx>
 #include <string_view>
 
 namespace haven::infrastructure::persistence::couchbase {
@@ -54,6 +54,13 @@ public:
      * @throws std::invalid_argument If the collection name is empty.
      */
     [[nodiscard]] ::couchbase::collection collection(std::string_view collection_name);
+
+    /**
+     * @brief Returns the configured Couchbase scope.
+     *
+     * @return Couchbase SDK scope handle used by infrastructure queries.
+     */
+    [[nodiscard]] ::couchbase::scope scope();
 
 private:
     static void validate_configuration(const CouchbaseConfiguration& configuration);

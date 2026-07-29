@@ -16,6 +16,7 @@ add_library(
 
     persistence/couchbase/couchbase_connection.cpp
     persistence/couchbase/couchbase_document_key.cpp
+    persistence/couchbase/couchbase_resource_repository.cpp
     persistence/couchbase/resource_document.cpp
     persistence/couchbase/resource_document_mapper.cpp
     persistence/couchbase/resource_document_validator.cpp

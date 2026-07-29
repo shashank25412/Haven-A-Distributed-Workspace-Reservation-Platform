@@ -8,7 +8,6 @@
 #include "haven/logging/logging.hpp"
 
 #include <couchbase/cluster_options.hxx>
-
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -17,9 +16,7 @@ namespace haven::infrastructure::persistence::couchbase {
 
 namespace {
 
-[[nodiscard]] ::couchbase::cluster connect_to_cluster(
-    const CouchbaseConfiguration& configuration
-) {
+[[nodiscard]] ::couchbase::cluster connect_to_cluster(const CouchbaseConfiguration& configuration) {
     HVN_TRACE_SCOPE();
 
     auto options = ::couchbase::cluster_options(configuration.username, configuration.password);
@@ -37,8 +34,7 @@ namespace {
 }  // namespace
 
 CouchbaseConnection::CouchbaseConnection(CouchbaseConfiguration configuration)
-    : configuration_(std::move(configuration)),
-      cluster_([this] {
+    : configuration_(std::move(configuration)), cluster_([this] {
           validate_configuration(configuration_);
           return connect_to_cluster(configuration_);
       }()) {
@@ -52,10 +48,7 @@ CouchbaseConnection::~CouchbaseConnection() {
         cluster_.close().get();
         HVN_INFO_LOG("Closed Couchbase cluster connection");
     } catch (const std::exception& exception) {
-        HVN_ERROR_LOG(
-            "Failed to close Couchbase cluster connection: {}",
-            exception.what()
-        );
+        HVN_ERROR_LOG("Failed to close Couchbase cluster connection: {}", exception.what());
     }
 }
 
@@ -69,6 +62,12 @@ CouchbaseConnection::~CouchbaseConnection() {
     return cluster_.bucket(configuration_.bucket_name)
         .scope(configuration_.scope_name)
         .collection(std::string{collection_name});
+}
+
+::couchbase::scope CouchbaseConnection::scope() {
+    HVN_TRACE_SCOPE();
+
+    return cluster_.bucket(configuration_.bucket_name).scope(configuration_.scope_name);
 }
 
 void CouchbaseConnection::validate_configuration(const CouchbaseConfiguration& configuration) {

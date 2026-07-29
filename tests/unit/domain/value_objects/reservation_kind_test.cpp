@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+
 namespace haven::domain {
 namespace {
 
@@ -22,6 +24,15 @@ TEST(ReservationKindTest, ToString_ShouldReturnUnknown_WhenKindIsUnsupported) {
     const auto unsupported_kind = static_cast<ReservationKind>(999);
 
     EXPECT_EQ(to_string(unsupported_kind), "UNKNOWN");
+}
+
+TEST(ReservationKindTest, FromString_ShouldReturnEverySupportedKind) {
+    EXPECT_EQ(reservation_kind_from_string("STANDARD"), ReservationKind::Standard);
+    EXPECT_EQ(reservation_kind_from_string("MAINTENANCE"), ReservationKind::Maintenance);
+}
+
+TEST(ReservationKindTest, FromString_ShouldRejectUnsupportedKind) {
+    EXPECT_THROW(static_cast<void>(reservation_kind_from_string("UNKNOWN")), std::invalid_argument);
 }
 
 }  // namespace

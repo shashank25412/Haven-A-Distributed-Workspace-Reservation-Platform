@@ -14,6 +14,9 @@ add_executable(
     persistence/couchbase/resource_document_test.cpp
     persistence/couchbase/resource_document_mapper_test.cpp
     persistence/couchbase/resource_document_validator_test.cpp
+    persistence/couchbase/reservation_document_test.cpp
+    persistence/couchbase/reservation_document_mapper_test.cpp
+    persistence/couchbase/reservation_document_validator_test.cpp
 )
 
 target_link_libraries(

@@ -20,6 +20,9 @@ add_library(
     persistence/couchbase/resource_document.cpp
     persistence/couchbase/resource_document_mapper.cpp
     persistence/couchbase/resource_document_validator.cpp
+    persistence/couchbase/reservation_document.cpp
+    persistence/couchbase/reservation_document_mapper.cpp
+    persistence/couchbase/reservation_document_validator.cpp
 )
 
 add_library(

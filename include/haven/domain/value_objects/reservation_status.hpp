@@ -45,4 +45,14 @@ enum class ReservationStatus {
  */
 [[nodiscard]] std::string_view to_string(ReservationStatus reservation_status) noexcept;
 
+/**
+ * @brief Constructs a reservation status from its canonical persisted name.
+ *
+ * @param value Canonical reservation status name.
+ * @return Parsed reservation status.
+ *
+ * @throws std::invalid_argument If the value is not supported.
+ */
+[[nodiscard]] ReservationStatus reservation_status_from_string(std::string_view value);
+
 }  // namespace haven::domain

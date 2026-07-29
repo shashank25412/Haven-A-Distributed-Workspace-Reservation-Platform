@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+
 namespace haven::domain {
 namespace {
 
@@ -62,6 +64,21 @@ TEST(ReservationStatusTest, ToString_ShouldReturnUnknown_WhenStatusIsUnsupported
     const auto unsupported_status = static_cast<ReservationStatus>(999);
 
     EXPECT_EQ(to_string(unsupported_status), "UNKNOWN");
+}
+
+TEST(ReservationStatusTest, FromString_ShouldReturnEverySupportedStatus) {
+    EXPECT_EQ(reservation_status_from_string("PENDING_APPROVAL"),
+              ReservationStatus::PendingApproval);
+    EXPECT_EQ(reservation_status_from_string("CONFIRMED"), ReservationStatus::Confirmed);
+    EXPECT_EQ(reservation_status_from_string("CANCELLED"), ReservationStatus::Cancelled);
+    EXPECT_EQ(reservation_status_from_string("REJECTED"), ReservationStatus::Rejected);
+    EXPECT_EQ(reservation_status_from_string("EXPIRED"), ReservationStatus::Expired);
+    EXPECT_EQ(reservation_status_from_string("COMPLETED"), ReservationStatus::Completed);
+}
+
+TEST(ReservationStatusTest, FromString_ShouldRejectUnsupportedStatus) {
+    EXPECT_THROW(static_cast<void>(reservation_status_from_string("UNKNOWN")),
+                 std::invalid_argument);
 }
 
 }  // namespace

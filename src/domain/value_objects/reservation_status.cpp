@@ -5,6 +5,9 @@
 
 #include "haven/domain/value_objects/reservation_status.hpp"
 
+#include <stdexcept>
+#include <string>
+
 namespace haven::domain {
 
 bool is_terminal(const ReservationStatus reservation_status) noexcept {
@@ -39,6 +42,29 @@ std::string_view to_string(const ReservationStatus reservation_status) noexcept 
     }
 
     return "UNKNOWN";
+}
+
+ReservationStatus reservation_status_from_string(const std::string_view value) {
+    if (value == "PENDING_APPROVAL") {
+        return ReservationStatus::PendingApproval;
+    }
+    if (value == "CONFIRMED") {
+        return ReservationStatus::Confirmed;
+    }
+    if (value == "CANCELLED") {
+        return ReservationStatus::Cancelled;
+    }
+    if (value == "REJECTED") {
+        return ReservationStatus::Rejected;
+    }
+    if (value == "EXPIRED") {
+        return ReservationStatus::Expired;
+    }
+    if (value == "COMPLETED") {
+        return ReservationStatus::Completed;
+    }
+
+    throw std::invalid_argument("Unsupported reservation status: " + std::string{value});
 }
 
 }  // namespace haven::domain

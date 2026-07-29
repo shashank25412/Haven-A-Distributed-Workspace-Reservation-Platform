@@ -33,4 +33,15 @@ enum class ResourceType {
  */
 [[nodiscard]] std::string_view to_string(ResourceType resource_type) noexcept;
 
+/**
+ * @brief Constructs a resource type from its canonical persisted name.
+ *
+ * @param value Canonical resource type name.
+ *
+ * @return Parsed resource type.
+ *
+ * @throws std::invalid_argument If the value is not supported.
+ */
+[[nodiscard]] ResourceType resource_type_from_string(std::string_view value);
+
 }  // namespace haven::domain

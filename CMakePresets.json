@@ -20,6 +20,7 @@
 
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/.build-tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_PREFIX_PATH": "/opt/homebrew/opt/couchbase-cxx-client",
         "VCPKG_MANIFEST_MODE": "ON",
         "HVN_BUILD_TESTS": "ON"
       }

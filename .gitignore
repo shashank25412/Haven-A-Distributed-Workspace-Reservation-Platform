@@ -23,9 +23,6 @@ install_manifest.txt
 # vcpkg generated dependencies
 /vcpkg_installed/
 
-# Local CMake user presets
-CMakeUserPresets.json
-
 # Local environment configuration
 .env
 .env.local

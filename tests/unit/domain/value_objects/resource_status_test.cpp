@@ -24,5 +24,15 @@ TEST(ResourceStatusTest, ToString_ShouldReturnUnknown_WhenStatusIsUnsupported) {
     EXPECT_EQ(to_string(unsupported_status), "UNKNOWN");
 }
 
+TEST(ResourceStatusTest, FromString_ShouldReturnSupportedResourceStatus) {
+    EXPECT_EQ(resource_status_from_string("INACTIVE"), ResourceStatus::Inactive);
+}
+
+TEST(ResourceStatusTest, FromString_ShouldRejectUnsupportedResourceStatus) {
+    EXPECT_THROW(
+        static_cast<void>(resource_status_from_string("ARCHIVED")),
+        std::invalid_argument);
+}
+
 }  // namespace
 }  // namespace haven::domain

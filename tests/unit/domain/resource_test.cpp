@@ -94,5 +94,54 @@ TEST(ResourceTest, Activate_ShouldMarkResourceActive_WhenResourceIsInactive) {
     EXPECT_TRUE(resource.is_active());
 }
 
+TEST(ResourceTest, Rehydrate_ShouldRestorePersistedState) {
+    const Resource resource = Resource::rehydrate(
+        OrganizationId{"organization-123"},
+        ResourceId{"resource-123"},
+        "Atlas Meeting Room",
+        "",
+        ResourceType::MeetingRoom,
+        ResourceStatus::Inactive,
+        true,
+        Version{42});
+
+    EXPECT_EQ(resource.organization_id(), OrganizationId{"organization-123"});
+    EXPECT_EQ(resource.resource_id(), ResourceId{"resource-123"});
+    EXPECT_EQ(resource.name(), "Atlas Meeting Room");
+    EXPECT_TRUE(resource.description().empty());
+    EXPECT_EQ(resource.type(), ResourceType::MeetingRoom);
+    EXPECT_EQ(resource.status(), ResourceStatus::Inactive);
+    EXPECT_TRUE(resource.requires_approval());
+    EXPECT_EQ(resource.version(), Version{42});
+}
+
+TEST(ResourceTest, Rehydrate_ShouldRejectEmptyName) {
+    EXPECT_THROW(
+        static_cast<void>(Resource::rehydrate(
+            OrganizationId{"organization-123"},
+            ResourceId{"resource-123"},
+            "",
+            "",
+            ResourceType::MeetingRoom,
+            ResourceStatus::Active,
+            false,
+            Version{42})),
+        std::invalid_argument);
+}
+
+TEST(ResourceTest, Rehydrate_ShouldRejectZeroPersistenceVersion) {
+    EXPECT_THROW(
+        static_cast<void>(Resource::rehydrate(
+            OrganizationId{"organization-123"},
+            ResourceId{"resource-123"},
+            "Atlas Meeting Room",
+            "",
+            ResourceType::MeetingRoom,
+            ResourceStatus::Active,
+            false,
+            Version{0})),
+        std::invalid_argument);
+}
+
 }  // namespace
 }  // namespace haven::domain

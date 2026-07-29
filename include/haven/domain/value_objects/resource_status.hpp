@@ -30,4 +30,16 @@ enum class ResourceStatus {
  */
 [[nodiscard]] std::string_view to_string(ResourceStatus resource_status) noexcept;
 
+/**
+ * @brief Constructs a resource status from its canonical persisted name.
+ *
+ * @param value Canonical resource status name.
+ *
+ * @return Parsed resource status.
+ *
+ * @throws std::invalid_argument If the value is not supported.
+ */
+[[nodiscard]] ResourceStatus resource_status_from_string(
+    std::string_view value);
+
 }  // namespace haven::domain

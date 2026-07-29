@@ -38,8 +38,7 @@ add_library(
     reservation.cpp
 )
 
-add_library(
-    haven::domain ALIAS haven_domain)
+add_library(haven::domain ALIAS haven_domain)
 
 target_include_directories(haven_domain
     PUBLIC

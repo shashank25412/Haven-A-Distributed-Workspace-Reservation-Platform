@@ -36,5 +36,15 @@ TEST(ResourceTypeTest, ToString_ShouldReturnUnknown_WhenTypeIsUnsupported) {
     EXPECT_EQ(to_string(unsupported_type), "UNKNOWN");
 }
 
+TEST(ResourceTypeTest, FromString_ShouldReturnSupportedResourceType) {
+    EXPECT_EQ(resource_type_from_string("HOTEL_ROOM"), ResourceType::HotelRoom);
+}
+
+TEST(ResourceTypeTest, FromString_ShouldRejectUnsupportedResourceType) {
+    EXPECT_THROW(
+        static_cast<void>(resource_type_from_string("ROOFTOP")),
+        std::invalid_argument);
+}
+
 }  // namespace
 }  // namespace haven::domain

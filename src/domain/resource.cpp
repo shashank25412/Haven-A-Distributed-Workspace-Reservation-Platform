@@ -5,6 +5,9 @@
 
 #include "haven/domain/resource.hpp"
 
+#include "haven/logging/logging.hpp"
+
+#include <stdexcept>
 #include <utility>
 
 namespace haven::domain {
@@ -17,9 +20,61 @@ Resource::Resource(
     const bool requires_approval)
     : organization_id_(std::move(organization_id)),
       resource_id_(std::move(resource_id)),
+      name_(),
+      description_(),
       type_(type),
       status_(status),
-      requires_approval_(requires_approval) {
+      requires_approval_(requires_approval),
+      version_(Version{0}) {
+}
+
+Resource Resource::rehydrate(
+    OrganizationId organization_id,
+    ResourceId resource_id,
+    std::string name,
+    std::string description,
+    const ResourceType type,
+    const ResourceStatus status,
+    const bool requires_approval,
+    const Version version) {
+    HVN_TRACE_SCOPE();
+
+    if (name.empty()) {
+        throw std::invalid_argument("Resource name must not be empty.");
+    }
+    if (version.value() == 0) {
+        throw std::invalid_argument(
+            "Persisted resource version must be greater than zero.");
+    }
+
+    return Resource{
+        std::move(organization_id),
+        std::move(resource_id),
+        std::move(name),
+        std::move(description),
+        type,
+        status,
+        requires_approval,
+        version};
+}
+
+Resource::Resource(
+    OrganizationId organization_id,
+    ResourceId resource_id,
+    std::string name,
+    std::string description,
+    const ResourceType type,
+    const ResourceStatus status,
+    const bool requires_approval,
+    const Version version)
+    : organization_id_(std::move(organization_id)),
+      resource_id_(std::move(resource_id)),
+      name_(std::move(name)),
+      description_(std::move(description)),
+      type_(type),
+      status_(status),
+      requires_approval_(requires_approval),
+      version_(version) {
 }
 
 const OrganizationId& Resource::organization_id() const noexcept {
@@ -28,6 +83,14 @@ const OrganizationId& Resource::organization_id() const noexcept {
 
 const ResourceId& Resource::resource_id() const noexcept {
     return resource_id_;
+}
+
+const std::string& Resource::name() const noexcept {
+    return name_;
+}
+
+const std::string& Resource::description() const noexcept {
+    return description_;
 }
 
 ResourceType Resource::type() const noexcept {
@@ -44,6 +107,10 @@ bool Resource::is_active() const noexcept {
 
 bool Resource::requires_approval() const noexcept {
     return requires_approval_;
+}
+
+Version Resource::version() const noexcept {
+    return version_;
 }
 
 void Resource::activate() noexcept {

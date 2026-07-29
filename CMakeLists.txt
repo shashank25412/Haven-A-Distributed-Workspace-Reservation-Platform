@@ -60,6 +60,7 @@ add_subdirectory(src/bootstrap)
 add_subdirectory(src/presentation)
 add_subdirectory(src/domain)
 add_subdirectory(src/application)
+add_subdirectory(src/infrastructure)
 
 add_subdirectory(apps/server)
 

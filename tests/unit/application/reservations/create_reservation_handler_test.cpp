@@ -4,19 +4,20 @@
  */
 
 #include "haven/application/reservations/create_reservation_handler.hpp"
+
 #include "haven/application/reservations/reservation_repository.hpp"
 #include "haven/application/resources/resource_repository.hpp"
 #include "haven/domain/policies/reservation_creation_policy.hpp"
-#include "haven/domain/value_objects/reservation_kind.hpp"
-#include "haven/domain/value_objects/reservation_status.hpp"
 #include "haven/domain/resource.hpp"
-#include "haven/domain/value_objects/resource_type.hpp"
-#include "haven/domain/value_objects/resource_status.hpp"
 #include "haven/domain/value_objects/event_id.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
 #include "haven/domain/value_objects/reservation_id.hpp"
+#include "haven/domain/value_objects/reservation_kind.hpp"
+#include "haven/domain/value_objects/reservation_status.hpp"
 #include "haven/domain/value_objects/resource_id.hpp"
+#include "haven/domain/value_objects/resource_status.hpp"
+#include "haven/domain/value_objects/resource_type.hpp"
 #include "haven/domain/value_objects/time_interval.hpp"
 #include "haven/domain/value_objects/user_id.hpp"
 
@@ -56,16 +57,15 @@ public:
         resources_.push_back(std::move(resource));
     }
 
-    [[nodiscard]] ResourceLookupResult find_by_id(
-        const OrganizationId& organization_id,
-        const ResourceId& resource_id) const override {
-        const auto resource = std::find_if(
-            resources_.cbegin(),
-            resources_.cend(),
-            [&organization_id, &resource_id](const Resource& candidate) {
-                return candidate.organization_id() == organization_id
-                    && candidate.resource_id() == resource_id;
-            });
+    [[nodiscard]] ResourceLookupResult find_by_id(const OrganizationId& organization_id,
+                                                  const ResourceId& resource_id) const override {
+        const auto resource =
+            std::find_if(resources_.cbegin(),
+                         resources_.cend(),
+                         [&organization_id, &resource_id](const Resource& candidate) {
+                             return candidate.organization_id() == organization_id &&
+                                    candidate.resource_id() == resource_id;
+                         });
 
         if (resource == resources_.cend()) {
             return std::nullopt;
@@ -74,9 +74,8 @@ public:
         return *resource;
     }
 
-    [[nodiscard]] ResourceSearchResult find_active_by_type(
-        const OrganizationId&,
-        ResourceType) const override {
+    [[nodiscard]] ResourceSearchResult find_active_by_type(const OrganizationId&,
+                                                           ResourceType) const override {
         return {};
     }
 
@@ -90,26 +89,31 @@ public:
         conflict_ = conflict;
     }
 
-    [[nodiscard]] bool has_conflict(
-        const OrganizationId&,
-        const ResourceId&,
-        const TimeInterval&) const override {
+    [[nodiscard]] bool has_conflict(const OrganizationId&,
+                                    const ResourceId&,
+                                    const TimeInterval&) const override {
         return conflict_;
     }
 
-    [[nodiscard]] bool has_conflict_excluding(
-        const OrganizationId&,
-        const ResourceId&,
-        const TimeInterval&,
-        const ReservationId&) const override {
+    [[nodiscard]] bool has_conflict_excluding(const OrganizationId&,
+                                              const ResourceId&,
+                                              const TimeInterval&,
+                                              const ReservationId&) const override {
         return false;
     }
 
-    void save(
-        const OrganizationId& organization_id,
-        const Reservation& reservation) override {
+    [[nodiscard]] haven::application::persistence::PersistenceToken insert(
+        const OrganizationId& organization_id, const Reservation& reservation) override {
         saved_organization_id_ = organization_id;
         saved_reservation_ = reservation;
+        return haven::application::persistence::PersistenceToken{1};
+    }
+
+    [[nodiscard]] haven::application::persistence::PersistenceToken update(
+        const OrganizationId&,
+        const Reservation&,
+        const haven::application::persistence::PersistenceToken&) override {
+        return haven::application::persistence::PersistenceToken{2};
     }
 
     [[nodiscard]] const std::optional<OrganizationId>& saved_organization_id() const noexcept {
@@ -120,15 +124,13 @@ public:
         return saved_reservation_;
     }
 
-    [[nodiscard]] ReservationLookupResult find_by_id(
-        const OrganizationId&,
-        const ReservationId&) const override {
+    [[nodiscard]] ReservationLookupResult find_by_id(const OrganizationId&,
+                                                     const ReservationId&) const override {
         return std::nullopt;
     }
 
-    [[nodiscard]] ReservationListResult find_by_creator(
-        const OrganizationId&,
-        const UserId&) const override {
+    [[nodiscard]] ReservationListResult find_by_creator(const OrganizationId&,
+                                                        const UserId&) const override {
         return {};
     }
 
@@ -138,9 +140,7 @@ public:
     }
 
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
-        const OrganizationId&,
-        const ResourceId&,
-        const TimeInterval&) const override {
+        const OrganizationId&, const ResourceId&, const TimeInterval&) const override {
         return {};
     }
 
@@ -155,21 +155,17 @@ private:
 }
 
 [[nodiscard]] TimeInterval make_interval() {
-    return TimeInterval{
-        make_time_point(10),
-        make_time_point(11)};
+    return TimeInterval{make_time_point(10), make_time_point(11)};
 }
 
-[[nodiscard]] Resource make_resource(
-    const ResourceId& resource_id,
-    const OrganizationId& organization_id,
-    const bool requires_approval) {
-    return Resource{
-        organization_id,
-        resource_id,
-        ResourceType::MeetingRoom,
-        haven::domain::ResourceStatus::Active,
-        requires_approval};
+[[nodiscard]] Resource make_resource(const ResourceId& resource_id,
+                                     const OrganizationId& organization_id,
+                                     const bool requires_approval) {
+    return Resource{organization_id,
+                    resource_id,
+                    ResourceType::MeetingRoom,
+                    haven::domain::ResourceStatus::Active,
+                    requires_approval};
 }
 
 [[nodiscard]] CreateReservationCommand make_command(
@@ -177,32 +173,30 @@ private:
     const ResourceId& resource_id,
     const ReservationKind reservation_kind = ReservationKind::Standard,
     const bool maintenance_authorized = false) {
-    return CreateReservationCommand{
-        organization_id,
-        ReservationId{"reservation-100"},
-        resource_id,
-        UserId{"user-100"},
-        make_interval(),
-        Purpose{"Planning meeting"},
-        reservation_kind,
-        maintenance_authorized,
-        EventId{"event-created-100"},
-        EventId{"event-confirmed-100"},
-        EventId{"event-approval-100"},
-        make_time_point(9)};
+    return CreateReservationCommand{organization_id,
+                                    ReservationId{"reservation-100"},
+                                    resource_id,
+                                    UserId{"user-100"},
+                                    make_interval(),
+                                    Purpose{"Planning meeting"},
+                                    reservation_kind,
+                                    maintenance_authorized,
+                                    EventId{"event-created-100"},
+                                    EventId{"event-confirmed-100"},
+                                    EventId{"event-approval-100"},
+                                    make_time_point(9)};
 }
 
-TEST(CreateReservationHandlerTest, Handle_ShouldCreateConfirmedReservation_WhenResourceDoesNotRequireApproval) {
+TEST(CreateReservationHandlerTest,
+     Handle_ShouldCreateConfirmedReservation_WhenResourceDoesNotRequireApproval) {
     const auto organization_id = OrganizationId{"organization-alpha"};
     const auto resource_id = ResourceId{"resource-boardroom"};
     auto resource_repository = InMemoryResourceRepository{};
     auto reservation_repository = InMemoryReservationRepository{};
     const auto creation_policy = ReservationCreationPolicy{};
     resource_repository.add(make_resource(resource_id, organization_id, false));
-    const auto handler = CreateReservationHandler{
-        resource_repository,
-        reservation_repository,
-        creation_policy};
+    const auto handler =
+        CreateReservationHandler{resource_repository, reservation_repository, creation_policy};
 
     const auto result = handler.handle(make_command(organization_id, resource_id));
 
@@ -213,17 +207,16 @@ TEST(CreateReservationHandlerTest, Handle_ShouldCreateConfirmedReservation_WhenR
     EXPECT_EQ(reservation_repository.saved_organization_id(), organization_id);
 }
 
-TEST(CreateReservationHandlerTest, Handle_ShouldCreatePendingReservation_WhenResourceRequiresApproval) {
+TEST(CreateReservationHandlerTest,
+     Handle_ShouldCreatePendingReservation_WhenResourceRequiresApproval) {
     const auto organization_id = OrganizationId{"organization-alpha"};
     const auto resource_id = ResourceId{"resource-executive-room"};
     auto resource_repository = InMemoryResourceRepository{};
     auto reservation_repository = InMemoryReservationRepository{};
     const auto creation_policy = ReservationCreationPolicy{};
     resource_repository.add(make_resource(resource_id, organization_id, true));
-    const auto handler = CreateReservationHandler{
-        resource_repository,
-        reservation_repository,
-        creation_policy};
+    const auto handler =
+        CreateReservationHandler{resource_repository, reservation_repository, creation_policy};
 
     const auto result = handler.handle(make_command(organization_id, resource_id));
 
@@ -239,10 +232,8 @@ TEST(CreateReservationHandlerTest, Handle_ShouldReturnNotFound_WhenResourceDoesN
     auto resource_repository = InMemoryResourceRepository{};
     auto reservation_repository = InMemoryReservationRepository{};
     const auto creation_policy = ReservationCreationPolicy{};
-    const auto handler = CreateReservationHandler{
-        resource_repository,
-        reservation_repository,
-        creation_policy};
+    const auto handler =
+        CreateReservationHandler{resource_repository, reservation_repository, creation_policy};
 
     const auto result = handler.handle(make_command(organization_id, resource_id));
 
@@ -251,7 +242,8 @@ TEST(CreateReservationHandlerTest, Handle_ShouldReturnNotFound_WhenResourceDoesN
     EXPECT_FALSE(reservation_repository.saved_reservation().has_value());
 }
 
-TEST(CreateReservationHandlerTest, Handle_ShouldReturnNotFound_WhenResourceBelongsToAnotherOrganization) {
+TEST(CreateReservationHandlerTest,
+     Handle_ShouldReturnNotFound_WhenResourceBelongsToAnotherOrganization) {
     const auto caller_organization_id = OrganizationId{"organization-alpha"};
     const auto owner_organization_id = OrganizationId{"organization-beta"};
     const auto resource_id = ResourceId{"resource-boardroom"};
@@ -259,10 +251,8 @@ TEST(CreateReservationHandlerTest, Handle_ShouldReturnNotFound_WhenResourceBelon
     auto reservation_repository = InMemoryReservationRepository{};
     const auto creation_policy = ReservationCreationPolicy{};
     resource_repository.add(make_resource(resource_id, owner_organization_id, false));
-    const auto handler = CreateReservationHandler{
-        resource_repository,
-        reservation_repository,
-        creation_policy};
+    const auto handler =
+        CreateReservationHandler{resource_repository, reservation_repository, creation_policy};
 
     const auto result = handler.handle(make_command(caller_organization_id, resource_id));
 
@@ -270,7 +260,8 @@ TEST(CreateReservationHandlerTest, Handle_ShouldReturnNotFound_WhenResourceBelon
     EXPECT_FALSE(reservation_repository.saved_reservation().has_value());
 }
 
-TEST(CreateReservationHandlerTest, Handle_ShouldReturnConflict_WhenConfirmedReservationOverlapsInterval) {
+TEST(CreateReservationHandlerTest,
+     Handle_ShouldReturnConflict_WhenConfirmedReservationOverlapsInterval) {
     const auto organization_id = OrganizationId{"organization-alpha"};
     const auto resource_id = ResourceId{"resource-boardroom"};
     auto resource_repository = InMemoryResourceRepository{};
@@ -278,10 +269,8 @@ TEST(CreateReservationHandlerTest, Handle_ShouldReturnConflict_WhenConfirmedRese
     const auto creation_policy = ReservationCreationPolicy{};
     resource_repository.add(make_resource(resource_id, organization_id, false));
     reservation_repository.set_conflict(true);
-    const auto handler = CreateReservationHandler{
-        resource_repository,
-        reservation_repository,
-        creation_policy};
+    const auto handler =
+        CreateReservationHandler{resource_repository, reservation_repository, creation_policy};
 
     const auto result = handler.handle(make_command(organization_id, resource_id));
 
@@ -289,30 +278,29 @@ TEST(CreateReservationHandlerTest, Handle_ShouldReturnConflict_WhenConfirmedRese
     EXPECT_FALSE(reservation_repository.saved_reservation().has_value());
 }
 
-TEST(CreateReservationHandlerTest, Handle_ShouldRejectStandardReservation_WhenDurationExceedsTwelveHours) {
+TEST(CreateReservationHandlerTest,
+     Handle_ShouldRejectStandardReservation_WhenDurationExceedsTwelveHours) {
     const auto organization_id = OrganizationId{"organization-alpha"};
     const auto resource_id = ResourceId{"resource-boardroom"};
     auto resource_repository = InMemoryResourceRepository{};
     auto reservation_repository = InMemoryReservationRepository{};
     const auto creation_policy = ReservationCreationPolicy{};
     resource_repository.add(make_resource(resource_id, organization_id, false));
-    const auto handler = CreateReservationHandler{
-        resource_repository,
-        reservation_repository,
-        creation_policy};
-    const auto command = CreateReservationCommand{
-        organization_id,
-        ReservationId{"reservation-100"},
-        resource_id,
-        UserId{"user-100"},
-        TimeInterval{make_time_point(10), make_time_point(23)},
-        Purpose{"Planning meeting"},
-        ReservationKind::Standard,
-        false,
-        EventId{"event-created-100"},
-        EventId{"event-confirmed-100"},
-        EventId{"event-approval-100"},
-        make_time_point(9)};
+    const auto handler =
+        CreateReservationHandler{resource_repository, reservation_repository, creation_policy};
+    const auto command =
+        CreateReservationCommand{organization_id,
+                                 ReservationId{"reservation-100"},
+                                 resource_id,
+                                 UserId{"user-100"},
+                                 TimeInterval{make_time_point(10), make_time_point(23)},
+                                 Purpose{"Planning meeting"},
+                                 ReservationKind::Standard,
+                                 false,
+                                 EventId{"event-created-100"},
+                                 EventId{"event-confirmed-100"},
+                                 EventId{"event-approval-100"},
+                                 make_time_point(9)};
 
     const auto result = handler.handle(command);
 

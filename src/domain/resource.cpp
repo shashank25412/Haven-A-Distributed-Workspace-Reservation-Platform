@@ -12,12 +12,11 @@
 
 namespace haven::domain {
 
-Resource::Resource(
-    OrganizationId organization_id,
-    ResourceId resource_id,
-    const ResourceType type,
-    const ResourceStatus status,
-    const bool requires_approval)
+Resource::Resource(OrganizationId organization_id,
+                   ResourceId resource_id,
+                   const ResourceType type,
+                   const ResourceStatus status,
+                   const bool requires_approval)
     : organization_id_(std::move(organization_id)),
       resource_id_(std::move(resource_id)),
       name_(),
@@ -25,48 +24,43 @@ Resource::Resource(
       type_(type),
       status_(status),
       requires_approval_(requires_approval),
-      version_(Version{0}) {
-}
+      version_(Version{1}) {}
 
-Resource Resource::rehydrate(
-    OrganizationId organization_id,
-    ResourceId resource_id,
-    std::string name,
-    std::string description,
-    const ResourceType type,
-    const ResourceStatus status,
-    const bool requires_approval,
-    const Version version) {
+Resource Resource::rehydrate(OrganizationId organization_id,
+                             ResourceId resource_id,
+                             std::string name,
+                             std::string description,
+                             const ResourceType type,
+                             const ResourceStatus status,
+                             const bool requires_approval,
+                             const Version version) {
     HVN_TRACE_SCOPE();
 
     if (name.empty()) {
         throw std::invalid_argument("Resource name must not be empty.");
     }
     if (version.value() == 0) {
-        throw std::invalid_argument(
-            "Persisted resource version must be greater than zero.");
+        throw std::invalid_argument("Persisted resource version must be greater than zero.");
     }
 
-    return Resource{
-        std::move(organization_id),
-        std::move(resource_id),
-        std::move(name),
-        std::move(description),
-        type,
-        status,
-        requires_approval,
-        version};
+    return Resource{std::move(organization_id),
+                    std::move(resource_id),
+                    std::move(name),
+                    std::move(description),
+                    type,
+                    status,
+                    requires_approval,
+                    version};
 }
 
-Resource::Resource(
-    OrganizationId organization_id,
-    ResourceId resource_id,
-    std::string name,
-    std::string description,
-    const ResourceType type,
-    const ResourceStatus status,
-    const bool requires_approval,
-    const Version version)
+Resource::Resource(OrganizationId organization_id,
+                   ResourceId resource_id,
+                   std::string name,
+                   std::string description,
+                   const ResourceType type,
+                   const ResourceStatus status,
+                   const bool requires_approval,
+                   const Version version)
     : organization_id_(std::move(organization_id)),
       resource_id_(std::move(resource_id)),
       name_(std::move(name)),
@@ -74,8 +68,7 @@ Resource::Resource(
       type_(type),
       status_(status),
       requires_approval_(requires_approval),
-      version_(version) {
-}
+      version_(version) {}
 
 const OrganizationId& Resource::organization_id() const noexcept {
     return organization_id_;
@@ -114,11 +107,19 @@ Version Resource::version() const noexcept {
 }
 
 void Resource::activate() noexcept {
+    if (status_ == ResourceStatus::Active) {
+        return;
+    }
     status_ = ResourceStatus::Active;
+    version_ = Version{version_.value() + 1};
 }
 
 void Resource::deactivate() noexcept {
+    if (status_ == ResourceStatus::Inactive) {
+        return;
+    }
     status_ = ResourceStatus::Inactive;
+    version_ = Version{version_.value() + 1};
 }
 
 }  // namespace haven::domain

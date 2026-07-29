@@ -5,7 +5,7 @@
 
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 
-#include "haven/application/resources/resource_repository_error.hpp"
+#include "haven/application/repository_error.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
 #include "haven/infrastructure/persistence/couchbase/resource_document.hpp"
@@ -27,27 +27,26 @@ namespace haven::infrastructure::persistence::couchbase {
 
 namespace {
 
-using haven::application::resources::ResourceRepositoryError;
-using haven::application::resources::ResourceRepositoryErrorCode;
+using haven::application::RepositoryError;
+using haven::application::RepositoryErrorCode;
 
-[[nodiscard]] ResourceRepositoryError translate_error(const ::couchbase::error& error,
-                                                      const std::string_view operation) {
+[[nodiscard]] RepositoryError translate_error(const ::couchbase::error& error,
+                                              const std::string_view operation) {
     const auto error_code = error.ec();
 
-    auto code = ResourceRepositoryErrorCode::Persistence;
+    auto code = RepositoryErrorCode::Persistence;
     if (error_code == ::couchbase::errc::key_value::document_exists) {
-        code = ResourceRepositoryErrorCode::AlreadyExists;
+        code = RepositoryErrorCode::AlreadyExists;
     } else if (error_code == ::couchbase::errc::common::authentication_failure) {
-        code = ResourceRepositoryErrorCode::Authentication;
+        code = RepositoryErrorCode::Authentication;
     } else if (error_code == ::couchbase::errc::key_value::xattr_no_access) {
-        code = ResourceRepositoryErrorCode::Authorization;
+        code = RepositoryErrorCode::Authorization;
     } else if (error_code == ::couchbase::errc::common::ambiguous_timeout ||
                error_code == ::couchbase::errc::common::unambiguous_timeout) {
-        code = ResourceRepositoryErrorCode::Timeout;
+        code = RepositoryErrorCode::Timeout;
     }
 
-    return ResourceRepositoryError{code,
-                                   std::string{operation} + " failed: " + error_code.message()};
+    return RepositoryError{code, std::string{operation} + " failed: " + error_code.message()};
 }
 
 [[nodiscard]] std::string active_resource_query() {
@@ -100,18 +99,17 @@ haven::application::resources::ResourceLookupResult CouchbaseResourceRepository:
             throw std::invalid_argument("Stored resource identity does not match its document key");
         }
         return resource;
-    } catch (const ResourceRepositoryError&) {
+    } catch (const RepositoryError&) {
         throw;
     } catch (const std::exception& exception) {
-        HVN_ERROR_LOG(
-            "Stored Couchbase resource is invalid for organization ",
-            organization_id.value(),
-            " and resource ",
-            resource_id.value(),
-            ": ",
-            exception.what());
-        throw ResourceRepositoryError{ResourceRepositoryErrorCode::Persistence,
-                                      "Stored Couchbase resource document is invalid"};
+        HVN_ERROR_LOG("Stored Couchbase resource is invalid for organization ",
+                      organization_id.value(),
+                      " and resource ",
+                      resource_id.value(),
+                      ": ",
+                      exception.what());
+        throw RepositoryError{RepositoryErrorCode::Persistence,
+                              "Stored Couchbase resource document is invalid"};
     }
 }
 
@@ -151,13 +149,12 @@ CouchbaseResourceRepository::find_active_by_type(
             resources.push_back(std::move(resource));
         }
     } catch (const std::exception& exception) {
-        HVN_ERROR_LOG(
-            "Couchbase resource search returned an invalid document for organization ",
-            organization_id.value(),
-            ": ",
-            exception.what());
-        throw ResourceRepositoryError{ResourceRepositoryErrorCode::Persistence,
-                                      "Couchbase resource search returned an invalid document"};
+        HVN_ERROR_LOG("Couchbase resource search returned an invalid document for organization ",
+                      organization_id.value(),
+                      ": ",
+                      exception.what());
+        throw RepositoryError{RepositoryErrorCode::Persistence,
+                              "Couchbase resource search returned an invalid document"};
     }
 
     return resources;

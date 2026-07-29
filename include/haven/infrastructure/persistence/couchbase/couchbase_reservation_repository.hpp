@@ -58,13 +58,14 @@ public:
         const haven::domain::TimeInterval& interval,
         const haven::domain::ReservationId& excluded_reservation_id) const override;
 
-    /**
-     * @brief Creates or replaces the tenant-owned reservation.
-     *
-     * The port uses the same operation for initial persistence and lifecycle updates.
-     */
-    void save(const haven::domain::OrganizationId& organization_id,
-              const haven::domain::Reservation& reservation) override;
+    [[nodiscard]] haven::application::persistence::PersistenceToken insert(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::Reservation& reservation) override;
+
+    [[nodiscard]] haven::application::persistence::PersistenceToken update(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::Reservation& reservation,
+        const haven::application::persistence::PersistenceToken& expected_token) override;
 
 private:
     std::shared_ptr<CouchbaseConnection> connection_;

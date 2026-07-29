@@ -5,9 +5,11 @@
 
 #pragma once
 
+#include "haven/application/repository_error.hpp"
 #include "haven/application/reservations/reservation_repository.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -26,6 +28,15 @@ class TestReservationRepository final
 public:
     void set_lookup_result(haven::application::reservations::ReservationLookupResult result) {
         lookup_result_ = std::move(result);
+    }
+
+    void set_lookup_result(std::optional<haven::domain::Reservation> result) {
+        if (!result.has_value()) {
+            lookup_result_ = std::nullopt;
+            return;
+        }
+        lookup_result_.emplace(std::move(*result),
+                               haven::application::persistence::PersistenceToken{current_token_});
     }
 
     void set_creator_result(haven::application::reservations::ReservationListResult result) {
@@ -118,11 +129,49 @@ public:
         return conflict_excluding_result_;
     }
 
-    void save(const haven::domain::OrganizationId& organization_id,
-              const haven::domain::Reservation& reservation) override {
-        save_called_ = true;
+    [[nodiscard]] haven::application::persistence::PersistenceToken insert(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::Reservation& reservation) override {
+        ++insert_call_count_;
+        if (lookup_result_.has_value()) {
+            throw haven::application::RepositoryError{
+                haven::application::RepositoryErrorCode::AlreadyExists,
+                "Reservation already exists"};
+        }
+        ++current_token_;
         saved_organization_id_ = organization_id;
         saved_reservation_ = reservation;
+        lookup_result_.emplace(reservation,
+                               haven::application::persistence::PersistenceToken{current_token_});
+        return haven::application::persistence::PersistenceToken{current_token_};
+    }
+
+    [[nodiscard]] haven::application::persistence::PersistenceToken update(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::Reservation& reservation,
+        const haven::application::persistence::PersistenceToken& expected_token) override {
+        ++update_call_count_;
+        last_expected_token_ = expected_token;
+        if (force_concurrency_conflict_ ||
+            (lookup_result_.has_value() && lookup_result_->persistence_token() != expected_token)) {
+            throw haven::application::RepositoryError{
+                haven::application::RepositoryErrorCode::ConcurrencyConflict,
+                "Reservation persistence token is stale"};
+        }
+        if (!lookup_result_.has_value()) {
+            throw haven::application::RepositoryError{
+                haven::application::RepositoryErrorCode::Persistence, "Reservation does not exist"};
+        }
+        ++current_token_;
+        saved_organization_id_ = organization_id;
+        saved_reservation_ = reservation;
+        lookup_result_.emplace(reservation,
+                               haven::application::persistence::PersistenceToken{current_token_});
+        return haven::application::persistence::PersistenceToken{current_token_};
+    }
+
+    void set_force_concurrency_conflict(const bool value) noexcept {
+        force_concurrency_conflict_ = value;
     }
 
     [[nodiscard]] bool find_by_id_called() const noexcept {
@@ -144,7 +193,17 @@ public:
         return has_conflict_excluding_called_;
     }
     [[nodiscard]] bool save_called() const noexcept {
-        return save_called_;
+        return insert_call_count_ + update_call_count_ != 0;
+    }
+    [[nodiscard]] std::size_t insert_call_count() const noexcept {
+        return insert_call_count_;
+    }
+    [[nodiscard]] std::size_t update_call_count() const noexcept {
+        return update_call_count_;
+    }
+    [[nodiscard]] const std::optional<haven::application::persistence::PersistenceToken>&
+    last_expected_token() const noexcept {
+        return last_expected_token_;
     }
 
     [[nodiscard]] const std::optional<haven::domain::OrganizationId>& lookup_organization_id()
@@ -229,7 +288,11 @@ private:
     mutable bool find_by_resource_and_interval_called_{false};
     mutable bool has_conflict_called_{false};
     mutable bool has_conflict_excluding_called_{false};
-    bool save_called_{false};
+    std::size_t insert_call_count_{0};
+    std::size_t update_call_count_{0};
+    std::uint64_t current_token_{1};
+    bool force_concurrency_conflict_{false};
+    std::optional<haven::application::persistence::PersistenceToken> last_expected_token_;
     mutable std::optional<haven::domain::OrganizationId> lookup_organization_id_;
     mutable std::optional<haven::domain::ReservationId> lookup_reservation_id_;
     mutable std::optional<haven::domain::OrganizationId> creator_organization_id_;

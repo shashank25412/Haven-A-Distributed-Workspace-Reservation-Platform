@@ -48,7 +48,7 @@ public:
             return std::nullopt;
         }
 
-        return *reservation;
+        return LoadedReservation{*reservation, persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ReservationListResult find_by_creator(
@@ -74,18 +74,24 @@ public:
         return false;
     }
 
-    [[nodiscard]] bool has_conflict_excluding(
-        const haven::domain::OrganizationId&,
-        const haven::domain::ResourceId&,
-        const haven::domain::TimeInterval&,
-        const haven::domain::ReservationId&) const override {
+    [[nodiscard]] bool has_conflict_excluding(const haven::domain::OrganizationId&,
+                                              const haven::domain::ResourceId&,
+                                              const haven::domain::TimeInterval&,
+                                              const haven::domain::ReservationId&) const override {
         return false;
     }
 
-    void save(const haven::domain::OrganizationId& organization_id,
-              const haven::domain::Reservation& reservation) override {
+    [[nodiscard]] persistence::PersistenceToken insert(const haven::domain::OrganizationId&,
+                                                       const haven::domain::Reservation&) override {
+        return persistence::PersistenceToken{1};
+    }
+    [[nodiscard]] persistence::PersistenceToken update(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::Reservation& reservation,
+        const persistence::PersistenceToken&) override {
         saved_organization_id_ = organization_id;
         saved_reservation_ = reservation;
+        return persistence::PersistenceToken{2};
     }
 
     [[nodiscard]] const std::optional<haven::domain::OrganizationId>& saved_organization_id()

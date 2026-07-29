@@ -14,8 +14,8 @@ namespace haven::domain {
  * @brief Represents a persistence-neutral optimistic concurrency version.
  *
  * Version isolates domain and application code from datastore-specific version
- * types such as Couchbase CAS values. A zero value is valid and may represent
- * an entity that has not yet been persisted.
+ * types such as Couchbase CAS values. Valid aggregates begin at one and advance
+ * once for each successful business state change.
  */
 class Version final {
 public:
@@ -24,8 +24,7 @@ public:
      *
      * @param value Non-negative version value.
      */
-    explicit constexpr Version(std::uint64_t value) noexcept : value_(value) {
-    }
+    explicit constexpr Version(std::uint64_t value) noexcept : value_(value) {}
 
     /**
      * @brief Returns the stored version value.

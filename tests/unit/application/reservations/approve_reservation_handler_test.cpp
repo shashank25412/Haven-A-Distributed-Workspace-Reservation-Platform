@@ -52,7 +52,7 @@ public:
             return std::nullopt;
         }
 
-        return *reservation;
+        return LoadedReservation{*reservation, persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ReservationListResult find_by_creator(
@@ -90,10 +90,17 @@ public:
         return conflict_;
     }
 
-    void save(const haven::domain::OrganizationId& organization_id,
-              const haven::domain::Reservation& reservation) override {
+    [[nodiscard]] persistence::PersistenceToken insert(const haven::domain::OrganizationId&,
+                                                       const haven::domain::Reservation&) override {
+        return persistence::PersistenceToken{1};
+    }
+    [[nodiscard]] persistence::PersistenceToken update(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::Reservation& reservation,
+        const persistence::PersistenceToken&) override {
         saved_organization_id_ = organization_id;
         saved_reservation_ = reservation;
+        return persistence::PersistenceToken{2};
     }
 
     [[nodiscard]] const std::optional<haven::domain::OrganizationId>& checked_organization_id()
@@ -144,7 +151,7 @@ public:
 
     [[nodiscard]] ReservationLookupResult find_by_id(
         const haven::domain::OrganizationId&, const haven::domain::ReservationId&) const override {
-        return reservation_;
+        return LoadedReservation{reservation_, persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ReservationListResult find_by_creator(
@@ -177,8 +184,16 @@ public:
         return false;
     }
 
-    void save(const haven::domain::OrganizationId&, const haven::domain::Reservation&) override {
+    [[nodiscard]] persistence::PersistenceToken insert(const haven::domain::OrganizationId&,
+                                                       const haven::domain::Reservation&) override {
+        return persistence::PersistenceToken{1};
+    }
+    [[nodiscard]] persistence::PersistenceToken update(
+        const haven::domain::OrganizationId&,
+        const haven::domain::Reservation&,
+        const persistence::PersistenceToken&) override {
         save_called_ = true;
+        return persistence::PersistenceToken{2};
     }
 
     [[nodiscard]] bool save_called() const noexcept {
@@ -221,16 +236,17 @@ private:
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::ResourceId& resource_id,
     const haven::domain::UserId& creator_id) {
-    return haven::domain::Reservation::create_confirmed(organization_id,
-                                                        reservation_id,
-                                                        resource_id,
-                                                        creator_id,
-                                                        make_interval(),
-                                                        haven::domain::Purpose{"Planning meeting"},
-                                                        haven::domain::ReservationKind::Standard,
-                                                        haven::domain::EventId{"event-created-100"},
-                                                        haven::domain::EventId{"event-confirmed-100"},
-                                                        make_time_point(9));
+    return haven::domain::Reservation::create_confirmed(
+        organization_id,
+        reservation_id,
+        resource_id,
+        creator_id,
+        make_interval(),
+        haven::domain::Purpose{"Planning meeting"},
+        haven::domain::ReservationKind::Standard,
+        haven::domain::EventId{"event-created-100"},
+        haven::domain::EventId{"event-confirmed-100"},
+        make_time_point(9));
 }
 
 [[nodiscard]] ApproveReservationCommand make_command(

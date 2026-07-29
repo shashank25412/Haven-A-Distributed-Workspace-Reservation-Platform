@@ -4,8 +4,9 @@
  */
 
 #include "haven/application/reservations/extend_reservation_handler.hpp"
-#include "haven/domain/reservation.hpp"
+
 #include "haven/domain/policies/reservation_policy.hpp"
+#include "haven/domain/reservation.hpp"
 #include "haven/domain/value_objects/event_id.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
@@ -50,26 +51,24 @@ public:
     }
 
     [[nodiscard]] ReservationLookupResult find_by_id(
-        const OrganizationId& organization_id,
-        const ReservationId& reservation_id) const override {
-        const auto reservation = std::find_if(
-            reservations_.cbegin(),
-            reservations_.cend(),
-            [&organization_id, &reservation_id](const Reservation& candidate) {
-                return candidate.organization_id() == organization_id
-                    && candidate.reservation_id() == reservation_id;
-            });
+        const OrganizationId& organization_id, const ReservationId& reservation_id) const override {
+        const auto reservation =
+            std::find_if(reservations_.cbegin(),
+                         reservations_.cend(),
+                         [&organization_id, &reservation_id](const Reservation& candidate) {
+                             return candidate.organization_id() == organization_id &&
+                                    candidate.reservation_id() == reservation_id;
+                         });
 
         if (reservation == reservations_.cend()) {
             return std::nullopt;
         }
 
-        return *reservation;
+        return LoadedReservation{*reservation, persistence::PersistenceToken{1}};
     }
 
-    [[nodiscard]] ReservationListResult find_by_creator(
-        const OrganizationId&,
-        const UserId&) const override {
+    [[nodiscard]] ReservationListResult find_by_creator(const OrganizationId&,
+                                                        const UserId&) const override {
         return {};
     }
 
@@ -79,16 +78,13 @@ public:
     }
 
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
-        const OrganizationId&,
-        const ResourceId&,
-        const TimeInterval&) const override {
+        const OrganizationId&, const ResourceId&, const TimeInterval&) const override {
         return {};
     }
 
-    [[nodiscard]] bool has_conflict(
-        const OrganizationId&,
-        const ResourceId&,
-        const TimeInterval&) const override {
+    [[nodiscard]] bool has_conflict(const OrganizationId&,
+                                    const ResourceId&,
+                                    const TimeInterval&) const override {
         return false;
     }
 
@@ -104,11 +100,17 @@ public:
         return conflict_;
     }
 
-    void save(
+    [[nodiscard]] persistence::PersistenceToken insert(const OrganizationId&,
+                                                       const Reservation&) override {
+        return persistence::PersistenceToken{1};
+    }
+    [[nodiscard]] persistence::PersistenceToken update(
         const OrganizationId& organization_id,
-        const Reservation& reservation) override {
+        const Reservation& reservation,
+        const persistence::PersistenceToken&) override {
         saved_organization_id_ = organization_id;
         saved_reservation_ = reservation;
+        return persistence::PersistenceToken{2};
     }
 
     [[nodiscard]] const std::optional<Reservation>& saved_reservation() const noexcept {
@@ -135,33 +137,27 @@ private:
 }
 
 [[nodiscard]] TimeInterval make_original_interval() {
-    return TimeInterval{
-        make_time_point(10),
-        make_time_point(11)};
+    return TimeInterval{make_time_point(10), make_time_point(11)};
 }
 
 [[nodiscard]] TimeInterval make_extended_interval() {
-    return TimeInterval{
-        make_time_point(10),
-        make_time_point(12)};
+    return TimeInterval{make_time_point(10), make_time_point(12)};
 }
 
-[[nodiscard]] Reservation make_confirmed_reservation(
-    const ReservationId& reservation_id,
-    const OrganizationId& organization_id,
-    const ResourceId& resource_id,
-    const UserId& creator_id) {
-    return Reservation::create_confirmed(
-        organization_id,
-        reservation_id,
-        resource_id,
-        creator_id,
-        make_original_interval(),
-        Purpose{"Planning meeting"},
-        ReservationKind::Standard,
-        EventId{"event-created-100"},
-        EventId{"event-confirmed-100"},
-        make_time_point(9));
+[[nodiscard]] Reservation make_confirmed_reservation(const ReservationId& reservation_id,
+                                                     const OrganizationId& organization_id,
+                                                     const ResourceId& resource_id,
+                                                     const UserId& creator_id) {
+    return Reservation::create_confirmed(organization_id,
+                                         reservation_id,
+                                         resource_id,
+                                         creator_id,
+                                         make_original_interval(),
+                                         Purpose{"Planning meeting"},
+                                         ReservationKind::Standard,
+                                         EventId{"event-created-100"},
+                                         EventId{"event-confirmed-100"},
+                                         make_time_point(9));
 }
 
 [[nodiscard]] ExtendReservationCommand make_command(
@@ -169,13 +165,12 @@ private:
     const ReservationId& reservation_id,
     const UserId& caller_id,
     TimeInterval interval = make_extended_interval()) {
-    return ExtendReservationCommand{
-        organization_id,
-        reservation_id,
-        caller_id,
-        std::move(interval),
-        EventId{"event-extended-100"},
-        make_time_point(9)};
+    return ExtendReservationCommand{organization_id,
+                                    reservation_id,
+                                    caller_id,
+                                    std::move(interval),
+                                    EventId{"event-extended-100"},
+                                    make_time_point(9)};
 }
 
 TEST(ExtendReservationHandlerTest, Handle_ShouldExtendReservation_WhenRequestIsValid) {
@@ -185,17 +180,11 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldExtendReservation_WhenRequestIsV
     const auto caller_id = UserId{"user-100"};
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
-    repository.add(make_confirmed_reservation(
-        reservation_id,
-        organization_id,
-        resource_id,
-        caller_id));
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+    repository.add(
+        make_confirmed_reservation(reservation_id, organization_id, resource_id, caller_id));
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
-    const auto result = handler.handle(
-        make_command(organization_id, reservation_id, caller_id));
+    const auto result = handler.handle(make_command(organization_id, reservation_id, caller_id));
 
     ASSERT_EQ(result.status(), ExtendReservationStatus::EXTENDED);
     ASSERT_TRUE(result.reservation().has_value());
@@ -211,19 +200,17 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldReturnNotFound_WhenReservationDo
     const auto caller_id = UserId{"user-100"};
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
-    const auto result = handler.handle(
-        make_command(organization_id, reservation_id, caller_id));
+    const auto result = handler.handle(make_command(organization_id, reservation_id, caller_id));
 
     EXPECT_EQ(result.status(), ExtendReservationStatus::RESERVATION_NOT_FOUND);
     EXPECT_FALSE(result.reservation().has_value());
     EXPECT_FALSE(repository.saved_reservation().has_value());
 }
 
-TEST(ExtendReservationHandlerTest, Handle_ShouldReturnNotFound_WhenReservationBelongsToAnotherOrganization) {
+TEST(ExtendReservationHandlerTest,
+     Handle_ShouldReturnNotFound_WhenReservationBelongsToAnotherOrganization) {
     const auto caller_organization_id = OrganizationId{"organization-alpha"};
     const auto owner_organization_id = OrganizationId{"organization-beta"};
     const auto reservation_id = ReservationId{"reservation-100"};
@@ -231,19 +218,11 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldReturnNotFound_WhenReservationBe
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
     repository.add(make_confirmed_reservation(
-        reservation_id,
-        owner_organization_id,
-        ResourceId{"resource-boardroom"},
-        caller_id));
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+        reservation_id, owner_organization_id, ResourceId{"resource-boardroom"}, caller_id));
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
-    const auto result = handler.handle(
-        make_command(
-            caller_organization_id,
-            reservation_id,
-            caller_id));
+    const auto result =
+        handler.handle(make_command(caller_organization_id, reservation_id, caller_id));
 
     EXPECT_EQ(result.status(), ExtendReservationStatus::RESERVATION_NOT_FOUND);
     EXPECT_FALSE(repository.saved_reservation().has_value());
@@ -257,16 +236,10 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldRejectExtension_WhenCallerDoesNo
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
     repository.add(make_confirmed_reservation(
-        reservation_id,
-        organization_id,
-        ResourceId{"resource-boardroom"},
-        creator_id));
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+        reservation_id, organization_id, ResourceId{"resource-boardroom"}, creator_id));
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
-    const auto result = handler.handle(
-        make_command(organization_id, reservation_id, caller_id));
+    const auto result = handler.handle(make_command(organization_id, reservation_id, caller_id));
 
     EXPECT_EQ(result.status(), ExtendReservationStatus::CALLER_NOT_AUTHORIZED);
     EXPECT_FALSE(repository.saved_reservation().has_value());
@@ -279,17 +252,11 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldRejectExtension_WhenAnotherReser
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
     repository.add(make_confirmed_reservation(
-        reservation_id,
-        organization_id,
-        ResourceId{"resource-boardroom"},
-        caller_id));
+        reservation_id, organization_id, ResourceId{"resource-boardroom"}, caller_id));
     repository.set_conflict(true);
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
-    const auto result = handler.handle(
-        make_command(organization_id, reservation_id, caller_id));
+    const auto result = handler.handle(make_command(organization_id, reservation_id, caller_id));
 
     EXPECT_EQ(result.status(), ExtendReservationStatus::SCHEDULE_CONFLICT);
     EXPECT_FALSE(repository.saved_reservation().has_value());
@@ -303,20 +270,14 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldRejectExtension_WhenIntervalViol
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
     repository.add(make_confirmed_reservation(
-        reservation_id,
-        organization_id,
-        ResourceId{"resource-boardroom"},
-        caller_id));
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+        reservation_id, organization_id, ResourceId{"resource-boardroom"}, caller_id));
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
-    const auto result = handler.handle(
-        make_command(
-            organization_id,
-            reservation_id,
-            caller_id,
-            TimeInterval{make_time_point(10), make_time_point(23)}));
+    const auto result =
+        handler.handle(make_command(organization_id,
+                                    reservation_id,
+                                    caller_id,
+                                    TimeInterval{make_time_point(10), make_time_point(23)}));
 
     EXPECT_EQ(result.status(), ExtendReservationStatus::POLICY_REJECTED);
     EXPECT_FALSE(repository.saved_reservation().has_value());
@@ -329,20 +290,11 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldRejectExtension_WhenEndDoesNotMo
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
     repository.add(make_confirmed_reservation(
-        reservation_id,
-        organization_id,
-        ResourceId{"resource-boardroom"},
-        caller_id));
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+        reservation_id, organization_id, ResourceId{"resource-boardroom"}, caller_id));
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
     const auto result = handler.handle(
-        make_command(
-            organization_id,
-            reservation_id,
-            caller_id,
-            make_original_interval()));
+        make_command(organization_id, reservation_id, caller_id, make_original_interval()));
 
     EXPECT_EQ(result.status(), ExtendReservationStatus::POLICY_REJECTED);
     EXPECT_FALSE(result.reservation().has_value());
@@ -356,20 +308,14 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldRejectExtension_WhenStartTimeCha
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
     repository.add(make_confirmed_reservation(
-        reservation_id,
-        organization_id,
-        ResourceId{"resource-boardroom"},
-        caller_id));
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+        reservation_id, organization_id, ResourceId{"resource-boardroom"}, caller_id));
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
-    const auto result = handler.handle(
-        make_command(
-            organization_id,
-            reservation_id,
-            caller_id,
-            TimeInterval{make_time_point(9), make_time_point(12)}));
+    const auto result =
+        handler.handle(make_command(organization_id,
+                                    reservation_id,
+                                    caller_id,
+                                    TimeInterval{make_time_point(9), make_time_point(12)}));
 
     EXPECT_EQ(result.status(), ExtendReservationStatus::POLICY_REJECTED);
     EXPECT_FALSE(result.reservation().has_value());
@@ -381,23 +327,14 @@ TEST(ExtendReservationHandlerTest, Handle_ShouldRejectExtension_WhenReservationI
     const auto reservation_id = ReservationId{"reservation-100"};
     const auto caller_id = UserId{"user-100"};
     auto reservation = make_confirmed_reservation(
-        reservation_id,
-        organization_id,
-        ResourceId{"resource-boardroom"},
-        caller_id);
-    reservation.cancel(
-        caller_id,
-        make_time_point(9),
-        EventId{"event-cancelled-100"});
+        reservation_id, organization_id, ResourceId{"resource-boardroom"}, caller_id);
+    reservation.cancel(caller_id, make_time_point(9), EventId{"event-cancelled-100"});
     auto repository = InMemoryReservationRepository{};
     const auto reservation_policy = ReservationPolicy{};
     repository.add(std::move(reservation));
-    const auto handler = ExtendReservationHandler{
-        repository,
-        reservation_policy};
+    const auto handler = ExtendReservationHandler{repository, reservation_policy};
 
-    const auto result = handler.handle(
-        make_command(organization_id, reservation_id, caller_id));
+    const auto result = handler.handle(make_command(organization_id, reservation_id, caller_id));
 
     EXPECT_EQ(result.status(), ExtendReservationStatus::INVALID_STATE);
     EXPECT_FALSE(repository.saved_reservation().has_value());

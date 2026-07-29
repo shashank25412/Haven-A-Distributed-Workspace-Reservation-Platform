@@ -8,6 +8,8 @@
 #include "haven/application/reservations/get_reservation_query.hpp"
 #include "haven/application/reservations/reservation_repository.hpp"
 
+#include <optional>
+
 namespace haven::application::reservations {
 
 /**
@@ -31,7 +33,7 @@ public:
      * @param query Tenant and reservation identifiers for the lookup.
      * @return The visible reservation or an empty result.
      */
-    [[nodiscard]] ReservationLookupResult handle(
+    [[nodiscard]] std::optional<haven::domain::Reservation> handle(
         const GetReservationQuery& query) const;
 
 private:

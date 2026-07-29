@@ -5,6 +5,8 @@
 # introducing presentation or infrastructure dependencies.
 
 add_library(haven_application
+    repository_error.cpp
+
     resources/get_resource_handler.cpp
     resources/search_resources_handler.cpp
     resources/search_available_resources_handler.cpp

@@ -4,12 +4,13 @@
  */
 
 #include "haven/application/reservations/get_reservation_handler.hpp"
+
 #include "haven/domain/reservation.hpp"
-#include "haven/domain/value_objects/reservation_kind.hpp"
 #include "haven/domain/value_objects/event_id.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
 #include "haven/domain/value_objects/reservation_id.hpp"
+#include "haven/domain/value_objects/reservation_kind.hpp"
 #include "haven/domain/value_objects/resource_id.hpp"
 #include "haven/domain/value_objects/time_interval.hpp"
 #include "haven/domain/value_objects/user_id.hpp"
@@ -27,14 +28,11 @@ namespace {
 
 class InMemoryReservationRepository final : public ReservationRepository {
 public:
-    void add(
-        haven::domain::OrganizationId organization_id,
-        haven::domain::ReservationId reservation_id,
-        haven::domain::Reservation reservation) {
+    void add(haven::domain::OrganizationId organization_id,
+             haven::domain::ReservationId reservation_id,
+             haven::domain::Reservation reservation) {
         reservations_.push_back(StoredReservation{
-            std::move(organization_id),
-            std::move(reservation_id),
-            std::move(reservation)});
+            std::move(organization_id), std::move(reservation_id), std::move(reservation)});
     }
 
     [[nodiscard]] ReservationLookupResult find_by_id(
@@ -43,22 +41,21 @@ public:
         const auto reservation = std::find_if(
             reservations_.cbegin(),
             reservations_.cend(),
-            [&organization_id, &reservation_id](
-                const StoredReservation& stored_reservation) {
-                return stored_reservation.organization_id == organization_id
-                    && stored_reservation.reservation_id == reservation_id;
+            [&organization_id, &reservation_id](const StoredReservation& stored_reservation) {
+                return stored_reservation.organization_id == organization_id &&
+                       stored_reservation.reservation_id == reservation_id;
             });
 
         if (reservation == reservations_.cend()) {
             return std::nullopt;
         }
 
-        return reservation->reservation;
+        return haven::application::reservations::LoadedReservation{
+            reservation->reservation, haven::application::persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ReservationListResult find_by_creator(
-        const haven::domain::OrganizationId&,
-        const haven::domain::UserId&) const override {
+        const haven::domain::OrganizationId&, const haven::domain::UserId&) const override {
         return {};
     }
 
@@ -74,24 +71,29 @@ public:
         return {};
     }
 
-    [[nodiscard]] bool has_conflict(
-        const haven::domain::OrganizationId&,
-        const haven::domain::ResourceId&,
-        const haven::domain::TimeInterval&) const override {
+    [[nodiscard]] bool has_conflict(const haven::domain::OrganizationId&,
+                                    const haven::domain::ResourceId&,
+                                    const haven::domain::TimeInterval&) const override {
         return false;
     }
 
-    [[nodiscard]] bool has_conflict_excluding(
-        const haven::domain::OrganizationId&,
-        const haven::domain::ResourceId&,
-        const haven::domain::TimeInterval&,
-        const haven::domain::ReservationId&) const override {
+    [[nodiscard]] bool has_conflict_excluding(const haven::domain::OrganizationId&,
+                                              const haven::domain::ResourceId&,
+                                              const haven::domain::TimeInterval&,
+                                              const haven::domain::ReservationId&) const override {
         return false;
     }
 
-    void save(
+    [[nodiscard]] haven::application::persistence::PersistenceToken insert(
+        const haven::domain::OrganizationId&, const haven::domain::Reservation&) override {
+        return haven::application::persistence::PersistenceToken{1};
+    }
+    [[nodiscard]] haven::application::persistence::PersistenceToken update(
         const haven::domain::OrganizationId&,
-        const haven::domain::Reservation&) override {}
+        const haven::domain::Reservation&,
+        const haven::application::persistence::PersistenceToken&) override {
+        return haven::application::persistence::PersistenceToken{2};
+    }
 
 private:
     struct StoredReservation final {
@@ -109,14 +111,13 @@ public:
         : reservation_(std::move(reservation)) {}
 
     [[nodiscard]] ReservationLookupResult find_by_id(
-        const haven::domain::OrganizationId&,
-        const haven::domain::ReservationId&) const override {
-        return reservation_;
+        const haven::domain::OrganizationId&, const haven::domain::ReservationId&) const override {
+        return haven::application::reservations::LoadedReservation{
+            reservation_, haven::application::persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ReservationListResult find_by_creator(
-        const haven::domain::OrganizationId&,
-        const haven::domain::UserId&) const override {
+        const haven::domain::OrganizationId&, const haven::domain::UserId&) const override {
         return {};
     }
 
@@ -132,24 +133,29 @@ public:
         return {};
     }
 
-    [[nodiscard]] bool has_conflict(
-        const haven::domain::OrganizationId&,
-        const haven::domain::ResourceId&,
-        const haven::domain::TimeInterval&) const override {
+    [[nodiscard]] bool has_conflict(const haven::domain::OrganizationId&,
+                                    const haven::domain::ResourceId&,
+                                    const haven::domain::TimeInterval&) const override {
         return false;
     }
 
-    [[nodiscard]] bool has_conflict_excluding(
-        const haven::domain::OrganizationId&,
-        const haven::domain::ResourceId&,
-        const haven::domain::TimeInterval&,
-        const haven::domain::ReservationId&) const override {
+    [[nodiscard]] bool has_conflict_excluding(const haven::domain::OrganizationId&,
+                                              const haven::domain::ResourceId&,
+                                              const haven::domain::TimeInterval&,
+                                              const haven::domain::ReservationId&) const override {
         return false;
     }
 
-    void save(
+    [[nodiscard]] haven::application::persistence::PersistenceToken insert(
+        const haven::domain::OrganizationId&, const haven::domain::Reservation&) override {
+        return haven::application::persistence::PersistenceToken{1};
+    }
+    [[nodiscard]] haven::application::persistence::PersistenceToken update(
         const haven::domain::OrganizationId&,
-        const haven::domain::Reservation&) override {}
+        const haven::domain::Reservation&,
+        const haven::application::persistence::PersistenceToken&) override {
+        return haven::application::persistence::PersistenceToken{2};
+    }
 
 private:
     haven::domain::Reservation reservation_;
@@ -176,19 +182,18 @@ private:
         make_time_point(9));
 }
 
-TEST(GetReservationHandlerTest, Handle_ShouldReturnReservation_WhenReservationBelongsToOrganization) {
+TEST(GetReservationHandlerTest,
+     Handle_ShouldReturnReservation_WhenReservationBelongsToOrganization) {
     const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
     const auto reservation_id = haven::domain::ReservationId{"reservation-100"};
     const auto resource_id = haven::domain::ResourceId{"resource-boardroom"};
     auto repository = InMemoryReservationRepository{};
-    repository.add(
-        organization_id,
-        reservation_id,
-        make_reservation(reservation_id, organization_id, resource_id));
+    repository.add(organization_id,
+                   reservation_id,
+                   make_reservation(reservation_id, organization_id, resource_id));
     const auto handler = GetReservationHandler{repository};
 
-    const auto result = handler.handle(
-        GetReservationQuery{organization_id, reservation_id});
+    const auto result = handler.handle(GetReservationQuery{organization_id, reservation_id});
 
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result->organization_id(), organization_id);
@@ -200,51 +205,39 @@ TEST(GetReservationHandlerTest, Handle_ShouldReturnEmpty_WhenReservationDoesNotE
     auto repository = InMemoryReservationRepository{};
     const auto handler = GetReservationHandler{repository};
 
-    const auto result = handler.handle(
-        GetReservationQuery{organization_id, reservation_id});
+    const auto result = handler.handle(GetReservationQuery{organization_id, reservation_id});
 
     EXPECT_FALSE(result.has_value());
 }
 
-TEST(GetReservationHandlerTest, Handle_ShouldReturnEmpty_WhenReservationBelongsToAnotherOrganization) {
+TEST(GetReservationHandlerTest,
+     Handle_ShouldReturnEmpty_WhenReservationBelongsToAnotherOrganization) {
     const auto caller_organization_id = haven::domain::OrganizationId{"organization-alpha"};
     const auto owner_organization_id = haven::domain::OrganizationId{"organization-beta"};
     const auto reservation_id = haven::domain::ReservationId{"reservation-100"};
     const auto resource_id = haven::domain::ResourceId{"resource-boardroom"};
     auto repository = InMemoryReservationRepository{};
-    repository.add(
-        owner_organization_id,
-        reservation_id,
-        make_reservation(
-            reservation_id,
-            owner_organization_id,
-            resource_id));
+    repository.add(owner_organization_id,
+                   reservation_id,
+                   make_reservation(reservation_id, owner_organization_id, resource_id));
     const auto handler = GetReservationHandler{repository};
 
-    const auto result = handler.handle(
-        GetReservationQuery{
-            caller_organization_id,
-            reservation_id});
+    const auto result = handler.handle(GetReservationQuery{caller_organization_id, reservation_id});
 
     EXPECT_FALSE(result.has_value());
 }
 
-TEST(GetReservationHandlerTest, Handle_ShouldReturnEmpty_WhenRepositoryReturnsCrossTenantReservation) {
+TEST(GetReservationHandlerTest,
+     Handle_ShouldReturnEmpty_WhenRepositoryReturnsCrossTenantReservation) {
     const auto caller_organization_id = haven::domain::OrganizationId{"organization-alpha"};
     const auto owner_organization_id = haven::domain::OrganizationId{"organization-beta"};
     const auto reservation_id = haven::domain::ReservationId{"reservation-100"};
     const auto resource_id = haven::domain::ResourceId{"resource-boardroom"};
     auto repository = TenantLeakingReservationRepository{
-        make_reservation(
-            reservation_id,
-            owner_organization_id,
-            resource_id)};
+        make_reservation(reservation_id, owner_organization_id, resource_id)};
     const auto handler = GetReservationHandler{repository};
 
-    const auto result = handler.handle(
-        GetReservationQuery{
-            caller_organization_id,
-            reservation_id});
+    const auto result = handler.handle(GetReservationQuery{caller_organization_id, reservation_id});
 
     EXPECT_FALSE(result.has_value());
 }

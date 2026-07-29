@@ -17,6 +17,7 @@ add_executable(haven_application_tests
     reservations/list_pending_approvals_handler_test.cpp
     reservations/approve_reservation_handler_test.cpp
     reservations/reject_reservation_handler_test.cpp
+    reservations/test_reservation_repository_test.cpp
 )
 
 target_include_directories(haven_application_tests

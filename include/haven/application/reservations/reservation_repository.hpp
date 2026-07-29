@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "haven/application/persistence/loaded.hpp"
 #include "haven/domain/reservation.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/reservation_id.hpp"
@@ -23,7 +24,8 @@ namespace haven::application::reservations {
  * An empty result means that the reservation either does not exist or is not
  * visible within the supplied organization.
  */
-using ReservationLookupResult = std::optional<haven::domain::Reservation>;
+using LoadedReservation = persistence::Loaded<haven::domain::Reservation>;
+using ReservationLookupResult = std::optional<LoadedReservation>;
 
 /**
  * @brief Represents reservations returned by an application query.
@@ -102,10 +104,9 @@ public:
      * @param interval Requested reservation interval.
      * @return true when a blocking reservation overlaps the interval.
      */
-    [[nodiscard]] virtual bool has_conflict(
-        const haven::domain::OrganizationId& organization_id,
-        const haven::domain::ResourceId& resource_id,
-        const haven::domain::TimeInterval& interval) const = 0;
+    [[nodiscard]] virtual bool has_conflict(const haven::domain::OrganizationId& organization_id,
+                                            const haven::domain::ResourceId& resource_id,
+                                            const haven::domain::TimeInterval& interval) const = 0;
 
     /**
      * @brief Determines whether an interval conflicts with another reservation.
@@ -131,9 +132,17 @@ public:
      * @param organization_id Organization that owns the reservation.
      * @param reservation Reservation to persist.
      */
-    virtual void save(
+    [[nodiscard]] virtual persistence::PersistenceToken insert(
         const haven::domain::OrganizationId& organization_id,
         const haven::domain::Reservation& reservation) = 0;
+
+    /**
+     * @brief Replaces a reservation when its persisted revision matches.
+     */
+    [[nodiscard]] virtual persistence::PersistenceToken update(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::Reservation& reservation,
+        const persistence::PersistenceToken& expected_token) = 0;
 };
 
 }  // namespace haven::application::reservations

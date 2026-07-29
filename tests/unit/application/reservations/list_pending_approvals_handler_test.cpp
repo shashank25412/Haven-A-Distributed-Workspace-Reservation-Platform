@@ -48,7 +48,7 @@ public:
             return std::nullopt;
         }
 
-        return *reservation;
+        return LoadedReservation{*reservation, persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ReservationListResult find_by_creator(
@@ -90,7 +90,16 @@ public:
         return false;
     }
 
-    void save(const haven::domain::OrganizationId&, const haven::domain::Reservation&) override {}
+    [[nodiscard]] haven::application::persistence::PersistenceToken insert(
+        const haven::domain::OrganizationId&, const haven::domain::Reservation&) override {
+        return haven::application::persistence::PersistenceToken{1};
+    }
+    [[nodiscard]] haven::application::persistence::PersistenceToken update(
+        const haven::domain::OrganizationId&,
+        const haven::domain::Reservation&,
+        const haven::application::persistence::PersistenceToken&) override {
+        return haven::application::persistence::PersistenceToken{2};
+    }
 
 private:
     std::vector<haven::domain::Reservation> reservations_;
@@ -136,7 +145,16 @@ public:
         return false;
     }
 
-    void save(const haven::domain::OrganizationId&, const haven::domain::Reservation&) override {}
+    [[nodiscard]] haven::application::persistence::PersistenceToken insert(
+        const haven::domain::OrganizationId&, const haven::domain::Reservation&) override {
+        return haven::application::persistence::PersistenceToken{1};
+    }
+    [[nodiscard]] haven::application::persistence::PersistenceToken update(
+        const haven::domain::OrganizationId&,
+        const haven::domain::Reservation&,
+        const haven::application::persistence::PersistenceToken&) override {
+        return haven::application::persistence::PersistenceToken{2};
+    }
 
 private:
     ReservationListResult reservations_;

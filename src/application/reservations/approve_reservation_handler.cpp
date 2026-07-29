@@ -18,45 +18,35 @@ ApproveReservationResult ApproveReservationHandler::handle(
     const ApproveReservationCommand& command) const {
     HVN_TRACE_SCOPE();
 
-    auto reservation = reservation_repository_.find_by_id(
-        command.organization_id(),
-        command.reservation_id());
+    auto loaded =
+        reservation_repository_.find_by_id(command.organization_id(), command.reservation_id());
 
-    if (!reservation.has_value()
-        || reservation->organization_id() != command.organization_id()) {
+    if (!loaded.has_value() || loaded->aggregate().organization_id() != command.organization_id()) {
         HVN_WARN_LOG("Reservation approval rejected because the reservation is unavailable");
-        return ApproveReservationResult::rejected(
-            ApproveReservationStatus::RESERVATION_NOT_FOUND);
+        return ApproveReservationResult::rejected(ApproveReservationStatus::RESERVATION_NOT_FOUND);
     }
 
-    if (reservation->status()
-        != haven::domain::ReservationStatus::PendingApproval) {
+    auto& reservation = loaded->aggregate();
+    if (reservation.status() != haven::domain::ReservationStatus::PendingApproval) {
         HVN_WARN_LOG("Reservation approval rejected because the state is invalid");
-        return ApproveReservationResult::rejected(
-            ApproveReservationStatus::INVALID_STATE);
+        return ApproveReservationResult::rejected(ApproveReservationStatus::INVALID_STATE);
     }
 
-    if (reservation_repository_.has_conflict_excluding(
-            command.organization_id(),
-            reservation->resource_id(),
-            reservation->interval(),
-            command.reservation_id())) {
+    if (reservation_repository_.has_conflict_excluding(command.organization_id(),
+                                                       reservation.resource_id(),
+                                                       reservation.interval(),
+                                                       command.reservation_id())) {
         HVN_WARN_LOG("Reservation approval rejected because the schedule conflicts");
-        return ApproveReservationResult::rejected(
-            ApproveReservationStatus::SCHEDULE_CONFLICT);
+        return ApproveReservationResult::rejected(ApproveReservationStatus::SCHEDULE_CONFLICT);
     }
 
-    reservation->approve(
-        command.approver_id(),
-        command.occurred_at(),
-        command.approval_event_id());
+    reservation.approve(command.approver_id(), command.occurred_at(), command.approval_event_id());
 
-    reservation_repository_.save(
-        command.organization_id(),
-        *reservation);
+    static_cast<void>(reservation_repository_.update(
+        command.organization_id(), reservation, loaded->persistence_token()));
 
     HVN_INFO_LOG("Reservation approved successfully");
-    return ApproveReservationResult::approved(std::move(*reservation));
+    return ApproveReservationResult::approved(std::move(reservation));
 }
 
 }  // namespace haven::application::reservations

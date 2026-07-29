@@ -11,68 +11,62 @@ namespace haven::domain {
 namespace {
 
 TEST(ResourceTest, Constructor_ShouldStoreIdentity_WhenResourceIsCreated) {
-    const Resource resource{
-        OrganizationId{"organization-123"},
-        ResourceId{"resource-123"},
-        ResourceType::MeetingRoom,
-        ResourceStatus::Active,
-        false};
+    const Resource resource{OrganizationId{"organization-123"},
+                            ResourceId{"resource-123"},
+                            ResourceType::MeetingRoom,
+                            ResourceStatus::Active,
+                            false};
 
     EXPECT_EQ(resource.organization_id(), OrganizationId{"organization-123"});
     EXPECT_EQ(resource.resource_id(), ResourceId{"resource-123"});
 }
 
 TEST(ResourceTest, Constructor_ShouldStoreType_WhenResourceIsCreated) {
-    const Resource resource{
-        OrganizationId{"organization-123"},
-        ResourceId{"resource-123"},
-        ResourceType::ParkingSlot,
-        ResourceStatus::Active,
-        false};
+    const Resource resource{OrganizationId{"organization-123"},
+                            ResourceId{"resource-123"},
+                            ResourceType::ParkingSlot,
+                            ResourceStatus::Active,
+                            false};
 
     EXPECT_EQ(resource.type(), ResourceType::ParkingSlot);
 }
 
 TEST(ResourceTest, IsActive_ShouldReturnTrue_WhenResourceStatusIsActive) {
-    const Resource resource{
-        OrganizationId{"organization-123"},
-        ResourceId{"resource-123"},
-        ResourceType::OfficeDesk,
-        ResourceStatus::Active,
-        false};
+    const Resource resource{OrganizationId{"organization-123"},
+                            ResourceId{"resource-123"},
+                            ResourceType::OfficeDesk,
+                            ResourceStatus::Active,
+                            false};
 
     EXPECT_TRUE(resource.is_active());
 }
 
 TEST(ResourceTest, IsActive_ShouldReturnFalse_WhenResourceStatusIsInactive) {
-    const Resource resource{
-        OrganizationId{"organization-123"},
-        ResourceId{"resource-123"},
-        ResourceType::OfficeDesk,
-        ResourceStatus::Inactive,
-        false};
+    const Resource resource{OrganizationId{"organization-123"},
+                            ResourceId{"resource-123"},
+                            ResourceType::OfficeDesk,
+                            ResourceStatus::Inactive,
+                            false};
 
     EXPECT_FALSE(resource.is_active());
 }
 
 TEST(ResourceTest, RequiresApproval_ShouldReturnTrue_WhenResourceRequiresApproval) {
-    const Resource resource{
-        OrganizationId{"organization-123"},
-        ResourceId{"resource-123"},
-        ResourceType::MeetingRoom,
-        ResourceStatus::Active,
-        true};
+    const Resource resource{OrganizationId{"organization-123"},
+                            ResourceId{"resource-123"},
+                            ResourceType::MeetingRoom,
+                            ResourceStatus::Active,
+                            true};
 
     EXPECT_TRUE(resource.requires_approval());
 }
 
 TEST(ResourceTest, Deactivate_ShouldMarkResourceInactive_WhenResourceIsActive) {
-    Resource resource{
-        OrganizationId{"organization-123"},
-        ResourceId{"resource-123"},
-        ResourceType::MeetingRoom,
-        ResourceStatus::Active,
-        false};
+    Resource resource{OrganizationId{"organization-123"},
+                      ResourceId{"resource-123"},
+                      ResourceType::MeetingRoom,
+                      ResourceStatus::Active,
+                      false};
 
     resource.deactivate();
 
@@ -81,12 +75,11 @@ TEST(ResourceTest, Deactivate_ShouldMarkResourceInactive_WhenResourceIsActive) {
 }
 
 TEST(ResourceTest, Activate_ShouldMarkResourceActive_WhenResourceIsInactive) {
-    Resource resource{
-        OrganizationId{"organization-123"},
-        ResourceId{"resource-123"},
-        ResourceType::MeetingRoom,
-        ResourceStatus::Inactive,
-        false};
+    Resource resource{OrganizationId{"organization-123"},
+                      ResourceId{"resource-123"},
+                      ResourceType::MeetingRoom,
+                      ResourceStatus::Inactive,
+                      false};
 
     resource.activate();
 
@@ -95,15 +88,14 @@ TEST(ResourceTest, Activate_ShouldMarkResourceActive_WhenResourceIsInactive) {
 }
 
 TEST(ResourceTest, Rehydrate_ShouldRestorePersistedState) {
-    const Resource resource = Resource::rehydrate(
-        OrganizationId{"organization-123"},
-        ResourceId{"resource-123"},
-        "Atlas Meeting Room",
-        "",
-        ResourceType::MeetingRoom,
-        ResourceStatus::Inactive,
-        true,
-        Version{42});
+    const Resource resource = Resource::rehydrate(OrganizationId{"organization-123"},
+                                                  ResourceId{"resource-123"},
+                                                  "Atlas Meeting Room",
+                                                  "",
+                                                  ResourceType::MeetingRoom,
+                                                  ResourceStatus::Inactive,
+                                                  true,
+                                                  Version{42});
 
     EXPECT_EQ(resource.organization_id(), OrganizationId{"organization-123"});
     EXPECT_EQ(resource.resource_id(), ResourceId{"resource-123"});
@@ -116,31 +108,43 @@ TEST(ResourceTest, Rehydrate_ShouldRestorePersistedState) {
 }
 
 TEST(ResourceTest, Rehydrate_ShouldRejectEmptyName) {
-    EXPECT_THROW(
-        static_cast<void>(Resource::rehydrate(
-            OrganizationId{"organization-123"},
-            ResourceId{"resource-123"},
-            "",
-            "",
-            ResourceType::MeetingRoom,
-            ResourceStatus::Active,
-            false,
-            Version{42})),
-        std::invalid_argument);
+    EXPECT_THROW(static_cast<void>(Resource::rehydrate(OrganizationId{"organization-123"},
+                                                       ResourceId{"resource-123"},
+                                                       "",
+                                                       "",
+                                                       ResourceType::MeetingRoom,
+                                                       ResourceStatus::Active,
+                                                       false,
+                                                       Version{42})),
+                 std::invalid_argument);
 }
 
 TEST(ResourceTest, Rehydrate_ShouldRejectZeroPersistenceVersion) {
-    EXPECT_THROW(
-        static_cast<void>(Resource::rehydrate(
-            OrganizationId{"organization-123"},
-            ResourceId{"resource-123"},
-            "Atlas Meeting Room",
-            "",
-            ResourceType::MeetingRoom,
-            ResourceStatus::Active,
-            false,
-            Version{0})),
-        std::invalid_argument);
+    EXPECT_THROW(static_cast<void>(Resource::rehydrate(OrganizationId{"organization-123"},
+                                                       ResourceId{"resource-123"},
+                                                       "Atlas Meeting Room",
+                                                       "",
+                                                       ResourceType::MeetingRoom,
+                                                       ResourceStatus::Active,
+                                                       false,
+                                                       Version{0})),
+                 std::invalid_argument);
+}
+
+TEST(ResourceTest, NewResourceAndRealTransitions_ShouldProgressVersion) {
+    Resource resource{OrganizationId{"organization-123"},
+                      ResourceId{"resource-123"},
+                      ResourceType::MeetingRoom,
+                      ResourceStatus::Active,
+                      false};
+
+    EXPECT_EQ(resource.version(), Version{1});
+    resource.activate();
+    EXPECT_EQ(resource.version(), Version{1});
+    resource.deactivate();
+    EXPECT_EQ(resource.version(), Version{2});
+    resource.activate();
+    EXPECT_EQ(resource.version(), Version{3});
 }
 
 }  // namespace

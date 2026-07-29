@@ -21,43 +21,35 @@ CreateReservationResult CreateReservationHandler::handle(
     const CreateReservationCommand& command) const {
     HVN_TRACE_SCOPE();
 
-    const auto resource = resource_repository_.find_by_id(
-        command.organization_id(),
-        command.resource_id());
+    const auto resource =
+        resource_repository_.find_by_id(command.organization_id(), command.resource_id());
 
-    if (!resource.has_value()
-        || resource->organization_id() != command.organization_id()) {
+    if (!resource.has_value() || resource->organization_id() != command.organization_id()) {
         HVN_WARN_LOG("Reservation creation rejected because the resource is unavailable");
-        return CreateReservationResult::rejected(
-            CreateReservationStatus::RESOURCE_NOT_FOUND);
+        return CreateReservationResult::rejected(CreateReservationStatus::RESOURCE_NOT_FOUND);
     }
 
     if (!resource->is_active()) {
         HVN_WARN_LOG("Reservation creation rejected because the resource is inactive");
-        return CreateReservationResult::rejected(
-            CreateReservationStatus::RESOURCE_INACTIVE);
+        return CreateReservationResult::rejected(CreateReservationStatus::RESOURCE_INACTIVE);
     }
 
-    const auto policy_result = reservation_creation_policy_.evaluate(
-        *resource,
-        command.interval(),
-        command.reservation_kind(),
-        command.maintenance_authorized());
+    const auto policy_result =
+        reservation_creation_policy_.evaluate(*resource,
+                                              command.interval(),
+                                              command.reservation_kind(),
+                                              command.maintenance_authorized());
 
-    if (policy_result != haven::domain::ReservationCreationDecision::Confirmed
-        && policy_result != haven::domain::ReservationCreationDecision::PendingApproval) {
+    if (policy_result != haven::domain::ReservationCreationDecision::Confirmed &&
+        policy_result != haven::domain::ReservationCreationDecision::PendingApproval) {
         HVN_WARN_LOG("Reservation creation rejected by domain policy");
-        return CreateReservationResult::rejected(
-            CreateReservationStatus::POLICY_REJECTED);
+        return CreateReservationResult::rejected(CreateReservationStatus::POLICY_REJECTED);
     }
 
     if (reservation_repository_.has_conflict(
-            command.organization_id(),
-            command.resource_id(),
-            command.interval())) {
+            command.organization_id(), command.resource_id(), command.interval())) {
         HVN_WARN_LOG("Reservation creation rejected because the schedule conflicts");
-        return CreateReservationResult::rejected(
-            CreateReservationStatus::SCHEDULE_CONFLICT);
+        return CreateReservationResult::rejected(CreateReservationStatus::SCHEDULE_CONFLICT);
     }
 
     if (resource->requires_approval()) {
@@ -73,25 +65,24 @@ CreateReservationResult CreateReservationHandler::handle(
             command.approval_requested_event_id(),
             command.occurred_at());
 
-        reservation_repository_.save(command.organization_id(), reservation);
+        static_cast<void>(reservation_repository_.insert(command.organization_id(), reservation));
 
         HVN_INFO_LOG("Pending reservation created successfully");
         return CreateReservationResult::pending_approval(std::move(reservation));
     }
 
-    auto reservation = haven::domain::Reservation::create_confirmed(
-        command.organization_id(),
-        command.reservation_id(),
-        command.resource_id(),
-        command.creator_id(),
-        command.interval(),
-        command.purpose(),
-        command.reservation_kind(),
-        command.created_event_id(),
-        command.confirmed_event_id(),
-        command.occurred_at());
+    auto reservation = haven::domain::Reservation::create_confirmed(command.organization_id(),
+                                                                    command.reservation_id(),
+                                                                    command.resource_id(),
+                                                                    command.creator_id(),
+                                                                    command.interval(),
+                                                                    command.purpose(),
+                                                                    command.reservation_kind(),
+                                                                    command.created_event_id(),
+                                                                    command.confirmed_event_id(),
+                                                                    command.occurred_at());
 
-    reservation_repository_.save(command.organization_id(), reservation);
+    static_cast<void>(reservation_repository_.insert(command.organization_id(), reservation));
 
     HVN_INFO_LOG("Confirmed reservation created successfully");
     return CreateReservationResult::confirmed(std::move(reservation));

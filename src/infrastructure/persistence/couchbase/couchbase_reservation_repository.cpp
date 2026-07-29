@@ -5,7 +5,7 @@
 
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 
-#include "haven/application/resources/resource_repository_error.hpp"
+#include "haven/application/repository_error.hpp"
 #include "haven/domain/value_objects/reservation_status.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
@@ -17,8 +17,10 @@
 #include <couchbase/codec/tao_json_serializer.hxx>
 #include <couchbase/error.hxx>
 #include <couchbase/error_codes.hxx>
+#include <couchbase/insert_options.hxx>
 #include <couchbase/query_options.hxx>
 #include <couchbase/query_scan_consistency.hxx>
+#include <couchbase/replace_options.hxx>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -27,26 +29,27 @@
 namespace haven::infrastructure::persistence::couchbase {
 namespace {
 
-using haven::application::resources::ResourceRepositoryError;
-using haven::application::resources::ResourceRepositoryErrorCode;
+using haven::application::RepositoryError;
+using haven::application::RepositoryErrorCode;
 using ReservationListResult = haven::application::reservations::ReservationListResult;
 
-[[nodiscard]] ResourceRepositoryError translate_error(const ::couchbase::error& error,
-                                                      const std::string_view operation) {
+[[nodiscard]] RepositoryError translate_error(const ::couchbase::error& error,
+                                              const std::string_view operation) {
     const auto error_code = error.ec();
-    auto code = ResourceRepositoryErrorCode::Persistence;
+    auto code = RepositoryErrorCode::Persistence;
     if (error_code == ::couchbase::errc::key_value::document_exists) {
-        code = ResourceRepositoryErrorCode::AlreadyExists;
+        code = RepositoryErrorCode::AlreadyExists;
+    } else if (error_code == ::couchbase::errc::common::cas_mismatch) {
+        code = RepositoryErrorCode::ConcurrencyConflict;
     } else if (error_code == ::couchbase::errc::common::authentication_failure) {
-        code = ResourceRepositoryErrorCode::Authentication;
+        code = RepositoryErrorCode::Authentication;
     } else if (error_code == ::couchbase::errc::key_value::xattr_no_access) {
-        code = ResourceRepositoryErrorCode::Authorization;
+        code = RepositoryErrorCode::Authorization;
     } else if (error_code == ::couchbase::errc::common::ambiguous_timeout ||
                error_code == ::couchbase::errc::common::unambiguous_timeout) {
-        code = ResourceRepositoryErrorCode::Timeout;
+        code = RepositoryErrorCode::Timeout;
     }
-    return ResourceRepositoryError{code,
-                                   std::string{operation} + " failed: " + error_code.message()};
+    return RepositoryError{code, std::string{operation} + " failed: " + error_code.message()};
 }
 
 [[nodiscard]] std::string select_prefix() {
@@ -80,8 +83,8 @@ using ReservationListResult = haven::application::reservations::ReservationListR
                       organization_id.value(),
                       ": ",
                       exception.what());
-        throw ResourceRepositoryError{ResourceRepositoryErrorCode::Persistence,
-                                      std::string{operation} + " returned an invalid document"};
+        throw RepositoryError{RepositoryErrorCode::Persistence,
+                              std::string{operation} + " returned an invalid document"};
     }
     return reservations;
 }
@@ -115,13 +118,12 @@ CouchbaseReservationRepository::find_by_id(
         return std::nullopt;
     }
     if (error) {
-        HVN_ERROR_LOG(
-            "Couchbase reservation read failed for organization ",
-            organization_id.value(),
-            " and reservation ",
-            reservation_id.value(),
-            ": ",
-            error.ec().message());
+        HVN_ERROR_LOG("Couchbase reservation read failed for organization ",
+                      organization_id.value(),
+                      " and reservation ",
+                      reservation_id.value(),
+                      ": ",
+                      error.ec().message());
         throw translate_error(error, "Couchbase reservation read");
     }
     try {
@@ -131,17 +133,18 @@ CouchbaseReservationRepository::find_by_id(
             reservation.reservation_id() != reservation_id) {
             throw std::invalid_argument("Stored reservation identity does not match its key");
         }
-        return reservation;
+        return haven::application::reservations::LoadedReservation{
+            std::move(reservation),
+            haven::application::persistence::PersistenceToken{result.cas().value()}};
     } catch (const std::exception& exception) {
-        HVN_ERROR_LOG(
-            "Stored Couchbase reservation is invalid for organization ",
-            organization_id.value(),
-            " and reservation ",
-            reservation_id.value(),
-            ": ",
-            exception.what());
-        throw ResourceRepositoryError{ResourceRepositoryErrorCode::Persistence,
-                                      "Stored Couchbase reservation document is invalid"};
+        HVN_ERROR_LOG("Stored Couchbase reservation is invalid for organization ",
+                      organization_id.value(),
+                      " and reservation ",
+                      reservation_id.value(),
+                      ": ",
+                      exception.what());
+        throw RepositoryError{RepositoryErrorCode::Persistence,
+                              "Stored Couchbase reservation document is invalid"};
     }
 }
 
@@ -204,21 +207,20 @@ ReservationListResult CouchbaseReservationRepository::find_by_resource_and_inter
         select_prefix() + "AND reservation.organizationId = $organizationId " + overlap_predicate();
     auto [error, result] = connection_->scope().query(statement, options).get();
     if (error) {
-        HVN_ERROR_LOG(
-            "Couchbase reservation calendar query failed for organization ",
-            organization_id.value(),
-            " and resource ",
-            resource_id.value(),
-            ": ",
-            error.ec().message());
+        HVN_ERROR_LOG("Couchbase reservation calendar query failed for organization ",
+                      organization_id.value(),
+                      " and resource ",
+                      resource_id.value(),
+                      ": ",
+                      error.ec().message());
         throw translate_error(error, "Couchbase reservation calendar query");
     }
     auto reservations = map_rows(result, organization_id, "Couchbase reservation calendar query");
     for (const auto& reservation : reservations) {
         if (reservation.resource_id() != resource_id ||
             !reservation.interval().overlaps(interval)) {
-            throw ResourceRepositoryError{
-                ResourceRepositoryErrorCode::Persistence,
+            throw RepositoryError{
+                RepositoryErrorCode::Persistence,
                 "Couchbase reservation calendar query returned a document outside its filter"};
         }
     }
@@ -243,13 +245,12 @@ bool CouchbaseReservationRepository::has_conflict(
                            overlap_predicate() + "AND reservation.status = $status LIMIT 1";
     auto [error, result] = connection_->scope().query(statement, options).get();
     if (error) {
-        HVN_ERROR_LOG(
-            "Couchbase reservation conflict query failed for organization ",
-            organization_id.value(),
-            " and resource ",
-            resource_id.value(),
-            ": ",
-            error.ec().message());
+        HVN_ERROR_LOG("Couchbase reservation conflict query failed for organization ",
+                      organization_id.value(),
+                      " and resource ",
+                      resource_id.value(),
+                      ": ",
+                      error.ec().message());
         throw translate_error(error, "Couchbase reservation conflict query");
     }
     return !result.rows_as().empty();
@@ -277,40 +278,60 @@ bool CouchbaseReservationRepository::has_conflict_excluding(
                            "AND reservation.reservationId != $excludedReservationId LIMIT 1";
     auto [error, result] = connection_->scope().query(statement, options).get();
     if (error) {
-        HVN_ERROR_LOG(
-            "Couchbase excluding conflict query failed for organization ",
-            organization_id.value(),
-            " and resource ",
-            resource_id.value(),
-            ": ",
-            error.ec().message());
+        HVN_ERROR_LOG("Couchbase excluding conflict query failed for organization ",
+                      organization_id.value(),
+                      " and resource ",
+                      resource_id.value(),
+                      ": ",
+                      error.ec().message());
         throw translate_error(error, "Couchbase excluding conflict query");
     }
     return !result.rows_as().empty();
 }
 
-void CouchbaseReservationRepository::save(const haven::domain::OrganizationId& organization_id,
-                                          const haven::domain::Reservation& reservation) {
+haven::application::persistence::PersistenceToken CouchbaseReservationRepository::insert(
+    const haven::domain::OrganizationId& organization_id,
+    const haven::domain::Reservation& reservation) {
     HVN_TRACE_SCOPE();
     if (reservation.organization_id() != organization_id) {
         throw std::invalid_argument("Cannot save a reservation under a different organization");
     }
     const auto key = reservation_document_key(organization_id, reservation.reservation_id());
     const auto json = reservation_document_to_json(to_reservation_document(reservation));
-    HVN_DEBUG_LOG("Upserting Couchbase reservation document with key ", key);
+    HVN_DEBUG_LOG("Inserting Couchbase reservation document with key ", key);
     auto collection = connection_->collection(CouchbaseCollections::reservations);
-    auto [error, result] = collection.upsert(key, json).get();
-    static_cast<void>(result);
+    auto [error, result] = collection.insert(key, json).get();
     if (error) {
-        HVN_ERROR_LOG(
-            "Couchbase reservation save failed for organization ",
-            organization_id.value(),
-            " and reservation ",
-            reservation.reservation_id().value(),
-            ": ",
-            error.ec().message());
-        throw translate_error(error, "Couchbase reservation save");
+        HVN_ERROR_LOG("Couchbase reservation save failed for organization ",
+                      organization_id.value(),
+                      " and reservation ",
+                      reservation.reservation_id().value(),
+                      ": ",
+                      error.ec().message());
+        throw translate_error(error, "Couchbase reservation insert");
     }
+    return haven::application::persistence::PersistenceToken{result.cas().value()};
+}
+
+haven::application::persistence::PersistenceToken CouchbaseReservationRepository::update(
+    const haven::domain::OrganizationId& organization_id,
+    const haven::domain::Reservation& reservation,
+    const haven::application::persistence::PersistenceToken& expected_token) {
+    HVN_TRACE_SCOPE();
+    if (reservation.organization_id() != organization_id) {
+        throw std::invalid_argument("Cannot update a reservation under a different organization");
+    }
+    const auto key = reservation_document_key(organization_id, reservation.reservation_id());
+    const auto json = reservation_document_to_json(to_reservation_document(reservation));
+    auto options = ::couchbase::replace_options{};
+    options.cas(::couchbase::cas{
+        haven::application::persistence::PersistenceTokenAccess::representation(expected_token)});
+    auto collection = connection_->collection(CouchbaseCollections::reservations);
+    auto [error, result] = collection.replace(key, json, options).get();
+    if (error) {
+        throw translate_error(error, "Couchbase reservation update");
+    }
+    return haven::application::persistence::PersistenceToken{result.cas().value()};
 }
 
 }  // namespace haven::infrastructure::persistence::couchbase

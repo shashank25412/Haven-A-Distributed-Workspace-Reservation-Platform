@@ -140,22 +140,22 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest, SavesAndRestoresEveryPersi
                                               haven::domain::ApprovalInfo{approver, at(50)},
                                               7);
 
-    repository_->save(organization, reservation);
+    static_cast<void>(repository_->insert(organization, reservation));
     const auto found = repository_->find_by_id(organization, id);
 
     ASSERT_TRUE(found);
-    EXPECT_EQ(found->organization_id(), organization);
-    EXPECT_EQ(found->reservation_id(), id);
-    EXPECT_EQ(found->resource_id(), resource);
-    EXPECT_EQ(found->created_by(), creator);
-    EXPECT_EQ(found->interval(), interval);
-    EXPECT_EQ(found->purpose().value(), "  Architecture review  ");
-    EXPECT_EQ(found->status(), haven::domain::ReservationStatus::Confirmed);
-    EXPECT_EQ(found->kind(), haven::domain::ReservationKind::Maintenance);
-    ASSERT_TRUE(found->approval_info());
-    EXPECT_EQ(found->approval_info()->approved_by(), approver);
-    EXPECT_EQ(found->approval_info()->approved_at(), at(50));
-    EXPECT_EQ(found->version().value(), 7U);
+    EXPECT_EQ(found->aggregate().organization_id(), organization);
+    EXPECT_EQ(found->aggregate().reservation_id(), id);
+    EXPECT_EQ(found->aggregate().resource_id(), resource);
+    EXPECT_EQ(found->aggregate().created_by(), creator);
+    EXPECT_EQ(found->aggregate().interval(), interval);
+    EXPECT_EQ(found->aggregate().purpose().value(), "  Architecture review  ");
+    EXPECT_EQ(found->aggregate().status(), haven::domain::ReservationStatus::Confirmed);
+    EXPECT_EQ(found->aggregate().kind(), haven::domain::ReservationKind::Maintenance);
+    ASSERT_TRUE(found->aggregate().approval_info());
+    EXPECT_EQ(found->aggregate().approval_info()->approved_by(), approver);
+    EXPECT_EQ(found->aggregate().approval_info()->approved_at(), at(50));
+    EXPECT_EQ(found->aggregate().version().value(), 7U);
 }
 
 TEST_F(CouchbaseReservationRepositoryIntegrationTest, PreservesPendingAndEmptyPurpose) {
@@ -169,12 +169,12 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest, PreservesPendingAndEmptyPu
                                               haven::domain::TimeInterval{at(300), at(400)},
                                               "",
                                               haven::domain::ReservationStatus::PendingApproval);
-    repository_->save(organization, reservation);
+    static_cast<void>(repository_->insert(organization, reservation));
 
     const auto found = repository_->find_by_id(organization, id);
     ASSERT_TRUE(found);
-    EXPECT_EQ(found->status(), haven::domain::ReservationStatus::PendingApproval);
-    EXPECT_TRUE(found->purpose().value().empty());
+    EXPECT_EQ(found->aggregate().status(), haven::domain::ReservationStatus::PendingApproval);
+    EXPECT_TRUE(found->aggregate().purpose().value().empty());
 }
 
 TEST_F(CouchbaseReservationRepositoryIntegrationTest, MissingAndWrongOrganizationReturnEmpty) {
@@ -188,7 +188,7 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest, MissingAndWrongOrganizatio
                                         haven::domain::UserId{"creator-" + suffix},
                                         haven::domain::TimeInterval{at(500), at(600)},
                                         "purpose");
-    repository_->save(owner, reservation);
+    static_cast<void>(repository_->insert(owner, reservation));
 
     EXPECT_FALSE(repository_->find_by_id(other, id));
     EXPECT_FALSE(repository_->find_by_id(owner, haven::domain::ReservationId{"missing-" + suffix}));
@@ -215,16 +215,16 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
                                    creator,
                                    haven::domain::TimeInterval{at(630), at(640)},
                                    "second");
-    repository_->save(first_organization, first);
-    repository_->save(second_organization, second);
+    static_cast<void>(repository_->insert(first_organization, first));
+    static_cast<void>(repository_->insert(second_organization, second));
 
     const auto first_found = repository_->find_by_id(first_organization, reservation_id);
     const auto second_found = repository_->find_by_id(second_organization, reservation_id);
 
     ASSERT_TRUE(first_found);
     ASSERT_TRUE(second_found);
-    EXPECT_EQ(first_found->purpose().value(), "first");
-    EXPECT_EQ(second_found->purpose().value(), "second");
+    EXPECT_EQ(first_found->aggregate().purpose().value(), "first");
+    EXPECT_EQ(second_found->aggregate().purpose().value(), "second");
 }
 
 TEST_F(CouchbaseReservationRepositoryIntegrationTest, SaveReplacesExistingLifecycleState) {
@@ -238,7 +238,7 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest, SaveReplacesExistingLifecy
                                   haven::domain::TimeInterval{at(700), at(800)},
                                   "first",
                                   haven::domain::ReservationStatus::PendingApproval);
-    repository_->save(organization, first);
+    const auto token = repository_->insert(organization, first);
     auto updated = make_reservation(organization,
                                     id,
                                     first.resource_id(),
@@ -249,13 +249,13 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest, SaveReplacesExistingLifecy
                                     haven::domain::ReservationKind::Standard,
                                     std::nullopt,
                                     2);
-    repository_->save(organization, updated);
+    static_cast<void>(repository_->update(organization, updated, token));
 
     const auto found = repository_->find_by_id(organization, id);
     ASSERT_TRUE(found);
-    EXPECT_EQ(found->purpose().value(), "updated");
-    EXPECT_EQ(found->status(), haven::domain::ReservationStatus::Confirmed);
-    EXPECT_EQ(found->version().value(), 2U);
+    EXPECT_EQ(found->aggregate().purpose().value(), "updated");
+    EXPECT_EQ(found->aggregate().status(), haven::domain::ReservationStatus::Confirmed);
+    EXPECT_EQ(found->aggregate().version().value(), 2U);
 }
 
 TEST_F(CouchbaseReservationRepositoryIntegrationTest, QueriesCreatorAndPendingApprovalsByTenant) {
@@ -269,7 +269,7 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest, QueriesCreatorAndPendingAp
                                     haven::domain::TimeInterval{at(900), at(1'000)},
                                     "pending",
                                     haven::domain::ReservationStatus::PendingApproval);
-    repository_->save(organization, pending);
+    static_cast<void>(repository_->insert(organization, pending));
 
     const auto by_creator = repository_->find_by_creator(organization, creator);
     const auto approvals = repository_->find_pending_approvals(organization);
@@ -291,7 +291,7 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
                                       haven::domain::UserId{"creator-" + suffix},
                                       haven::domain::TimeInterval{at(1'100), at(1'200)},
                                       "confirmed");
-    repository_->save(organization, confirmed);
+    static_cast<void>(repository_->insert(organization, confirmed));
     auto pending = make_reservation(organization,
                                     haven::domain::ReservationId{"pending-" + suffix},
                                     resource,
@@ -299,7 +299,7 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
                                     haven::domain::TimeInterval{at(1'300), at(1'400)},
                                     "pending",
                                     haven::domain::ReservationStatus::PendingApproval);
-    repository_->save(organization, pending);
+    static_cast<void>(repository_->insert(organization, pending));
 
     EXPECT_TRUE(repository_->has_conflict(
         organization, resource, haven::domain::TimeInterval{at(1'150), at(1'250)}));
@@ -326,21 +326,21 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
                                         haven::domain::TimeInterval{at(1'500), at(1'700)},
                                         "overlap",
                                         haven::domain::ReservationStatus::Cancelled);
-    repository_->save(organization, overlapping);
+    static_cast<void>(repository_->insert(organization, overlapping));
     auto adjacent = make_reservation(organization,
                                      haven::domain::ReservationId{"adjacent-" + suffix},
                                      resource,
                                      creator,
                                      haven::domain::TimeInterval{at(1'700), at(1'800)},
                                      "adjacent");
-    repository_->save(organization, adjacent);
+    static_cast<void>(repository_->insert(organization, adjacent));
     auto other_resource = make_reservation(organization,
                                            haven::domain::ReservationId{"other-" + suffix},
                                            haven::domain::ResourceId{"other-resource-" + suffix},
                                            creator,
                                            haven::domain::TimeInterval{at(1'550), at(1'650)},
                                            "other");
-    repository_->save(organization, other_resource);
+    static_cast<void>(repository_->insert(organization, other_resource));
 
     const auto results = repository_->find_by_resource_and_interval(
         organization, resource, haven::domain::TimeInterval{at(1'600), at(1'700)});

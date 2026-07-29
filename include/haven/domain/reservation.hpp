@@ -38,32 +38,30 @@ public:
     /**
      * @brief Creates an immediately confirmed reservation.
      */
-    [[nodiscard]] static Reservation create_confirmed(
-        OrganizationId organization_id,
-        ReservationId reservation_id,
-        ResourceId resource_id,
-        UserId created_by,
-        TimeInterval interval,
-        Purpose purpose,
-        ReservationKind kind,
-        EventId created_event_id,
-        EventId confirmed_event_id,
-        TimePoint occurred_at);
+    [[nodiscard]] static Reservation create_confirmed(OrganizationId organization_id,
+                                                      ReservationId reservation_id,
+                                                      ResourceId resource_id,
+                                                      UserId created_by,
+                                                      TimeInterval interval,
+                                                      Purpose purpose,
+                                                      ReservationKind kind,
+                                                      EventId created_event_id,
+                                                      EventId confirmed_event_id,
+                                                      TimePoint occurred_at);
 
     /**
      * @brief Creates a reservation awaiting approval.
      */
-    [[nodiscard]] static Reservation create_pending_approval(
-        OrganizationId organization_id,
-        ReservationId reservation_id,
-        ResourceId resource_id,
-        UserId created_by,
-        TimeInterval interval,
-        Purpose purpose,
-        ReservationKind kind,
-        EventId created_event_id,
-        EventId approval_requested_event_id,
-        TimePoint occurred_at);
+    [[nodiscard]] static Reservation create_pending_approval(OrganizationId organization_id,
+                                                             ReservationId reservation_id,
+                                                             ResourceId resource_id,
+                                                             UserId created_by,
+                                                             TimeInterval interval,
+                                                             Purpose purpose,
+                                                             ReservationKind kind,
+                                                             EventId created_event_id,
+                                                             EventId approval_requested_event_id,
+                                                             TimePoint occurred_at);
 
     /**
      * @brief Restores a reservation from previously persisted state.
@@ -85,17 +83,16 @@ public:
      *
      * @return Rehydrated reservation without uncommitted domain events.
      */
-    [[nodiscard]] static Reservation rehydrate(
-        OrganizationId organization_id,
-        ReservationId reservation_id,
-        ResourceId resource_id,
-        UserId created_by,
-        TimeInterval interval,
-        Purpose purpose,
-        ReservationKind kind,
-        ReservationStatus status,
-        std::optional<ApprovalInfo> approval_info,
-        Version version);
+    [[nodiscard]] static Reservation rehydrate(OrganizationId organization_id,
+                                               ReservationId reservation_id,
+                                               ResourceId resource_id,
+                                               UserId created_by,
+                                               TimeInterval interval,
+                                               Purpose purpose,
+                                               ReservationKind kind,
+                                               ReservationStatus status,
+                                               std::optional<ApprovalInfo> approval_info,
+                                               Version version);
 
     /**
      * @brief Returns the organization that owns the reservation.
@@ -157,16 +154,6 @@ public:
     [[nodiscard]] std::vector<ReservationDomainEvent> release_domain_events() noexcept;
 
     /**
-     * @brief Records the version assigned by successful persistence.
-     *
-     * This operation does not represent a business state transition and therefore
-     * does not emit a domain event.
-     *
-     * @param version Newly persisted optimistic concurrency version.
-     */
-    void record_persisted_version(Version version) noexcept;
-
-    /**
      * @brief Approves a pending reservation.
      */
     void approve(UserId approved_by, TimePoint approved_at, EventId confirmed_event_id);
@@ -184,7 +171,10 @@ public:
     /**
      * @brief Extends a confirmed reservation to a later end time.
      */
-    void extend(TimePoint new_end, UserId extended_by, TimePoint extended_at, EventId extended_event_id);
+    void extend(TimePoint new_end,
+                UserId extended_by,
+                TimePoint extended_at,
+                EventId extended_event_id);
 
     /**
      * @brief Marks a pending or confirmed reservation as expired.
@@ -204,17 +194,16 @@ public:
     void complete(TimePoint completed_at, EventId completed_event_id);
 
 private:
-    Reservation(
-        OrganizationId organization_id,
-        ReservationId reservation_id,
-        ResourceId resource_id,
-        UserId created_by,
-        TimeInterval interval,
-        Purpose purpose,
-        ReservationKind kind,
-        ReservationStatus status,
-        std::optional<ApprovalInfo> approval_info,
-        Version version);
+    Reservation(OrganizationId organization_id,
+                ReservationId reservation_id,
+                ResourceId resource_id,
+                UserId created_by,
+                TimeInterval interval,
+                Purpose purpose,
+                ReservationKind kind,
+                ReservationStatus status,
+                std::optional<ApprovalInfo> approval_info,
+                Version version);
 
     OrganizationId organization_id_;
     ReservationId reservation_id_;

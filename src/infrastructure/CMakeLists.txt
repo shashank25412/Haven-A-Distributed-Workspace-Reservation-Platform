@@ -57,3 +57,5 @@ target_link_libraries(
     PRIVATE
         haven_logging
 )
+
+haven_apply_project_options(haven_infrastructure_couchbase)

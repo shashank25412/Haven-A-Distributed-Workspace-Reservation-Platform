@@ -74,7 +74,7 @@ haven::application::resources::ResourceLookupResult CouchbaseResourceRepository:
     HVN_TRACE_SCOPE();
 
     const auto document_key = resource_document_key(organization_id, resource_id);
-    HVN_DEBUG_LOG("Reading Couchbase resource document with key {}", document_key);
+    HVN_DEBUG_LOG("Reading Couchbase resource document with key ", document_key);
 
     auto collection = connection_->collection(CouchbaseCollections::resources);
     auto [error, result] = collection.get(document_key).get();
@@ -83,9 +83,11 @@ haven::application::resources::ResourceLookupResult CouchbaseResourceRepository:
         return std::nullopt;
     }
     if (error) {
-        HVN_ERROR_LOG("Couchbase resource read failed for organization {} and resource {}: {}",
+        HVN_ERROR_LOG("Couchbase resource read failed for organization ",
                       organization_id.value(),
+                      " and resource ",
                       resource_id.value(),
+                      ": ",
                       error.ec().message());
         throw translate_error(error, "Couchbase resource read");
     }
@@ -102,9 +104,11 @@ haven::application::resources::ResourceLookupResult CouchbaseResourceRepository:
         throw;
     } catch (const std::exception& exception) {
         HVN_ERROR_LOG(
-            "Stored Couchbase resource is invalid for organization {} and resource {}: {}",
+            "Stored Couchbase resource is invalid for organization ",
             organization_id.value(),
+            " and resource ",
             resource_id.value(),
+            ": ",
             exception.what());
         throw ResourceRepositoryError{ResourceRepositoryErrorCode::Persistence,
                                       "Stored Couchbase resource document is invalid"};
@@ -126,8 +130,9 @@ CouchbaseResourceRepository::find_active_by_type(
 
     auto [error, result] = connection_->scope().query(active_resource_query(), options).get();
     if (error) {
-        HVN_ERROR_LOG("Couchbase resource search failed for organization {}: {}",
+        HVN_ERROR_LOG("Couchbase resource search failed for organization ",
                       organization_id.value(),
+                      ": ",
                       error.ec().message());
         throw translate_error(error, "Couchbase resource search");
     }
@@ -147,8 +152,9 @@ CouchbaseResourceRepository::find_active_by_type(
         }
     } catch (const std::exception& exception) {
         HVN_ERROR_LOG(
-            "Couchbase resource search returned an invalid document for organization {}: {}",
+            "Couchbase resource search returned an invalid document for organization ",
             organization_id.value(),
+            ": ",
             exception.what());
         throw ResourceRepositoryError{ResourceRepositoryErrorCode::Persistence,
                                       "Couchbase resource search returned an invalid document"};

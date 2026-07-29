@@ -22,7 +22,9 @@ Install Apple's command-line tools and the required build utilities:
 
 ```bash
 xcode-select --install
-brew install cmake ninja pkgconf
+brew tap couchbaselabs/homebrew-couchbase
+brew install cmake ninja pkgconf couchbase-cxx-client
+export CMAKE_PREFIX_PATH="$(brew --prefix couchbase-cxx-client)"
 ```
 
 LLVM is optional, but provides `clang-format` and `clang-tidy`:
@@ -53,7 +55,8 @@ Open PowerShell as Administrator and install WSL:
 wsl --install -d Ubuntu
 ```
 
-Restart Windows if prompted, open Ubuntu, and install the build tools:
+Restart Windows if prompted, open Ubuntu, and install the build tools and
+Couchbase C++ SDK:
 
 ```bash
 sudo apt update
@@ -63,11 +66,23 @@ sudo apt install -y \
   cmake \
   curl \
   git \
+  gpg \
   ninja-build \
   pkg-config \
   zip \
   unzip \
   tar
+
+DIST_ARCH="$(. /etc/os-release; echo "${VERSION_CODENAME}/$(uname -m)")"
+curl -L \
+  "https://packages.couchbase.com/clients/cxx/repos/deb/${DIST_ARCH}/DEB-GPG-KEY.txt" |
+  sudo gpg --yes --dearmor \
+    -o /usr/share/keyrings/couchbase-archive-keyring.gpg
+sudo curl -L \
+  -o /etc/apt/sources.list.d/couchbase-cxx-client.sources \
+  "https://packages.couchbase.com/clients/cxx/repos/deb/${DIST_ARCH}/couchbase-cxx-client.sources"
+sudo apt update
+sudo apt install -y couchbase-cxx-client couchbase-cxx-client-dev
 ```
 
 Verify the environment from the WSL terminal:
@@ -95,11 +110,14 @@ docker version
 Clone Haven inside the WSL filesystem (for example, under `~/projects`) rather
 than under `/mnt/c` for better build and filesystem performance.
 
+Native Windows builds are not currently part of Haven's supported developer
+workflow. The Windows instructions above build and run Haven inside WSL 2.
+
 ### Linux
 
 #### Ubuntu and Debian
 
-Install the required compiler and build tools:
+Install the required compiler, build tools, and Couchbase C++ SDK:
 
 ```bash
 sudo apt update
@@ -109,16 +127,28 @@ sudo apt install -y \
   cmake \
   curl \
   git \
+  gpg \
   ninja-build \
   pkg-config \
   zip \
   unzip \
   tar
+
+DIST_ARCH="$(. /etc/os-release; echo "${VERSION_CODENAME}/$(uname -m)")"
+curl -L \
+  "https://packages.couchbase.com/clients/cxx/repos/deb/${DIST_ARCH}/DEB-GPG-KEY.txt" |
+  sudo gpg --yes --dearmor \
+    -o /usr/share/keyrings/couchbase-archive-keyring.gpg
+sudo curl -L \
+  -o /etc/apt/sources.list.d/couchbase-cxx-client.sources \
+  "https://packages.couchbase.com/clients/cxx/repos/deb/${DIST_ARCH}/couchbase-cxx-client.sources"
+sudo apt update
+sudo apt install -y couchbase-cxx-client couchbase-cxx-client-dev
 ```
 
 #### Fedora
 
-Install the required compiler and build tools:
+Install the required compiler, build tools, and Couchbase C++ SDK:
 
 ```bash
 sudo dnf install -y \
@@ -132,6 +162,12 @@ sudo dnf install -y \
   tar \
   unzip \
   zip
+
+DIST_ARCH="$(rpm -E '%dist/%_arch' | sed 's/^\.//')"
+sudo curl -L \
+  -o /etc/yum.repos.d/couchbase-cxx-client.repo \
+  "https://packages.couchbase.com/clients/cxx/repos/rpm/${DIST_ARCH}/couchbase-cxx-client.repo"
+sudo dnf install -y couchbase-cxx-client couchbase-cxx-client-devel
 ```
 
 Verify the Linux environment:
@@ -234,25 +270,47 @@ ctest --preset release
 
 ## Docker Compose
 
-Copy the example environment file, then build and start the environment:
+Copy the example environment file, then start and initialize Couchbase Server:
 
 ```bash
 cp .env.example .env
-docker compose up --build -d
+docker compose up --build --detach
 ```
 
-Check the service and follow its logs:
+The one-shot `couchbase-init` service creates the configured `haven` bucket,
+`reservation` scope, `resources` and `reservations` collections, and all
+secondary indexes from [`deploy/couchbase/indexes.sql`](deploy/couchbase/indexes.sql).
+Check the database and initialization result:
+
+```bash
+docker compose ps --all
+docker compose logs couchbase-init
+```
+
+Load the same environment into the shell, then run the native Haven server:
+
+```bash
+set -a
+source .env
+set +a
+./build/dev/apps/server/haven-server
+```
+
+Verify liveness and open the Couchbase Web Console:
 
 ```bash
 curl --fail http://localhost:8080/health/live
-docker compose logs -f haven-api
+open http://localhost:8091
 ```
 
-Stop the environment:
+Stop Couchbase without deleting its named data volume:
 
 ```bash
 docker compose down
 ```
+
+Use `docker compose down --volumes` only when intentionally resetting all
+local Couchbase data.
 
 ## Runtime Configuration
 
@@ -274,6 +332,11 @@ cp .env.example .env
 | `HVN_HTTP_PORT` | `8080` | Integer from `1` to `65535` | TCP port exposed by the HTTP server |
 | `HVN_HTTP_THREADS` | `1` | Positive integer | Number of Drogon event-loop worker threads |
 | `HVN_LOG_LEVEL` | `info` | `trace`, `debug`, `info`, `warn`, `warning`, `error`, `critical` | Minimum application log severity |
+| `HVN_COUCHBASE_CONNECTION_STRING` | Required | Couchbase connection string | Couchbase cluster endpoint |
+| `HVN_COUCHBASE_USERNAME` | Required | Non-empty string | Couchbase user |
+| `HVN_COUCHBASE_PASSWORD` | Required | Non-empty secret | Couchbase password |
+| `HVN_COUCHBASE_BUCKET` | Required | Non-empty bucket name | Bucket containing Haven data |
+| `HVN_COUCHBASE_SCOPE` | Required | Non-empty scope name | Scope containing Haven collections |
 
 Log-level values are case-insensitive, and `warning` is accepted as an alias
 for `warn`.
@@ -285,35 +348,18 @@ HVN_HTTP_ADDRESS=0.0.0.0
 HVN_HTTP_PORT=8080
 HVN_HTTP_THREADS=1
 HVN_LOG_LEVEL=info
+HVN_COUCHBASE_CONNECTION_STRING=couchbase://127.0.0.1
+HVN_COUCHBASE_USERNAME=Administrator
+HVN_COUCHBASE_PASSWORD=password
+HVN_COUCHBASE_BUCKET=haven
+HVN_COUCHBASE_SCOPE=reservation
 ```
 
 One HTTP worker thread is used as a predictable local-development default.
 Production thread-count selection will later be reviewed against container CPU
-limits and workload characteristics.
-
-### Validation Behavior
-
-Configuration is parsed and validated before the HTTP server starts. Invalid
-configuration causes Haven to terminate with a non-zero exit status.
-
-Examples of invalid values:
-
-```dotenv
-HVN_HTTP_ADDRESS="   "
-HVN_HTTP_PORT=0
-HVN_HTTP_PORT=65536
-HVN_HTTP_PORT=8080abc
-HVN_HTTP_THREADS=0
-HVN_HTTP_THREADS=-1
-HVN_HTTP_THREADS=4abc
-HVN_LOG_LEVEL=verbose
-```
-
-Example configuration error:
-
-```text
-Haven configuration error: HVN_HTTP_PORT must be an integer between 1 and 65535
-```
+limits and workload characteristics. Couchbase has no production defaults:
+all five variables are required by the native process. The values above are
+local-only placeholders matching Docker Compose.
 
 ### Native Environment Loading
 
@@ -369,13 +415,19 @@ ApplicationConfiguration
 │   ├── address
 │   ├── port
 │   └── worker_threads
-└── LoggingConfiguration
-    └── level
+├── LoggingConfiguration
+│   └── level
+└── CouchbaseConfiguration
+    ├── connection_string
+    ├── username
+    ├── password
+    ├── bucket_name
+    └── scope_name
 ```
 
-The Haven-owned `LogLevel` type remains independent of Drogon or any future
-logging implementation. The observability/logger module will later map this
-configuration to Haven's logging system.
+The Haven-owned `LogLevel` type remains independent of Drogon. The server
+composition root maps it to Haven's logging system before constructing
+Couchbase infrastructure.
 
 ## Docker
 
@@ -386,42 +438,24 @@ open -a Docker
 docker info
 ```
 
-Build the image:
-
-```bash
-docker buildx build \
-  --load \
-  --tag haven-api:foundation \
-  .
-```
-
-Run the image directly:
-
-```bash
-docker run \
-  --rm \
-  --name haven-api \
-  --publish 8080:8080 \
-  haven-api:foundation
-```
-
-Or use Docker Compose:
+Use Docker Compose to run the local Couchbase Server:
 
 ```bash
 docker compose up --build --detach
-docker compose ps
-docker compose logs --follow haven-api
+docker compose ps --all
+docker compose logs couchbase-init
 ```
 
-Verify the running service, then stop it when finished:
+Run Haven natively as described above, verify it, then stop Couchbase when
+finished:
 
 ```bash
 curl --fail http://localhost:8080/health/live
 docker compose down
 ```
 
-The current Compose topology contains only `haven-api`. Couchbase, Redis, and
-Kafka will be added when their infrastructure adapters exist.
+The current Compose topology contains Couchbase Server and its one-shot
+initializer. Redis and Kafka are not part of the implemented runtime.
 
 ## Health Endpoint
 
@@ -446,23 +480,31 @@ will be exposed separately through the readiness endpoint.
 
 ## Testing
 
-Run all unit tests through CTest:
+Run all tests that do not require Couchbase:
 
 ```bash
-ctest --preset dev
+ctest --preset dev --exclude-regex 'Couchbase.*IntegrationTest'
 ```
 
-Run the GoogleTest executable directly:
+Run Couchbase integration tests after Compose initialization and environment
+loading:
 
 ```bash
-./build/dev/tests/unit/haven_unit_tests
+set -a
+source .env
+set +a
+ctest --preset dev --label-regex couchbase --output-on-failure
 ```
 
-Run a GoogleTest subset:
+The integration suite uses unique tenant/entity identifiers, cleans up its
+documents, and covers resource and reservation round trips, wrong-tenant
+reads, same-ID tenant isolation, and half-open overlap boundaries.
+
+Run either integration executable directly:
 
 ```bash
-./build/dev/tests/unit/haven_unit_tests \
-  --gtest_filter="EnvironmentConfigurationTest.*"
+./build/dev/tests/integration/infrastructure/haven_resource_repository_integration_test
+./build/dev/tests/integration/infrastructure/haven_reservation_repository_integration_test
 ```
 
 Run tests matching a CTest name:
@@ -471,9 +513,9 @@ Run tests matching a CTest name:
 ctest --preset dev -R LiveResponse
 ```
 
-Current unit tests intentionally avoid external services, Docker dependencies,
-network ports, Couchbase, Redis, and Kafka. Infrastructure integration tests
-will be introduced separately.
+Unit tests intentionally avoid external services. Couchbase tests under
+`tests/integration` require the configured live Docker service and skip only
+when the five Couchbase environment variables are absent.
 
 ## Formatting
 

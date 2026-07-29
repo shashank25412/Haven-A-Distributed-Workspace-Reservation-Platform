@@ -5,6 +5,8 @@
 
 #include "haven/infrastructure/persistence/couchbase/resource_document_validator.hpp"
 
+#include "haven/domain/value_objects/resource_status.hpp"
+#include "haven/domain/value_objects/resource_type.hpp"
 #include "haven/logging/logging.hpp"
 
 #include <stdexcept>
@@ -41,6 +43,8 @@ void validate_resource_document(const ResourceDocument& document) {
     require_non_empty(document.name, "name");
     require_non_empty(document.resource_type, "resourceType");
     require_non_empty(document.status, "status");
+    static_cast<void>(haven::domain::resource_type_from_string(document.resource_type));
+    static_cast<void>(haven::domain::resource_status_from_string(document.status));
 
     if (document.version == 0) {
         throw std::invalid_argument(

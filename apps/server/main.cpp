@@ -7,25 +7,81 @@
  * loop. Business logic and configuration parsing must remain outside main().
  */
 
+#include "haven/application/reservations/reservation_repository.hpp"
+#include "haven/application/resources/resource_repository.hpp"
 #include "haven/bootstrap/configuration.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
+#include "haven/logging/logging.hpp"
 #include "haven/presentation/health/live_controller.hpp"
 
 #include <drogon/HttpAppFramework.h>
 
 #include <cstdlib>
 #include <exception>
-#include <iostream>
+#include <memory>
+
+namespace {
+
+[[nodiscard]] haven::logging::LogLevel to_logging_level(
+    const haven::bootstrap::LogLevel level) noexcept {
+    using BootstrapLogLevel = haven::bootstrap::LogLevel;
+    using LoggingLogLevel = haven::logging::LogLevel;
+
+    switch (level) {
+        case BootstrapLogLevel::trace:
+            return LoggingLogLevel::Trace;
+        case BootstrapLogLevel::debug:
+            return LoggingLogLevel::Debug;
+        case BootstrapLogLevel::info:
+            return LoggingLogLevel::Info;
+        case BootstrapLogLevel::warn:
+            return LoggingLogLevel::Warn;
+        case BootstrapLogLevel::error:
+            return LoggingLogLevel::Error;
+        case BootstrapLogLevel::critical:
+            return LoggingLogLevel::Critical;
+    }
+
+    return LoggingLogLevel::Info;
+}
+
+}  // namespace
 
 int main() {
     try {
         const haven::bootstrap::ApplicationConfiguration configuration =
             haven::bootstrap::load_configuration_from_environment();
 
-        haven::presentation::health::register_live_route();
+        haven::logging::Logger::instance().set_level(to_logging_level(configuration.logging.level));
 
-        std::cout << "Starting Haven API on " << configuration.http.address << ':'
-                  << configuration.http.port << " using "
-                  << configuration.http.worker_threads << " HTTP worker thread(s)\n";
+        namespace couchbase_persistence = haven::infrastructure::persistence::couchbase;
+
+        auto couchbase_connection =
+            std::make_shared<couchbase_persistence::CouchbaseConnection>(configuration.couchbase);
+
+        std::shared_ptr<haven::application::resources::ResourceRepository> resource_repository =
+            std::make_shared<couchbase_persistence::CouchbaseResourceRepository>(
+                couchbase_connection);
+
+        std::shared_ptr<haven::application::reservations::ReservationRepository>
+            reservation_repository =
+                std::make_shared<couchbase_persistence::CouchbaseReservationRepository>(
+                    couchbase_connection);
+
+        HVN_INFO_LOG("Couchbase repositories initialized");
+
+        haven::presentation::health::register_live_route();
+        HVN_INFO_LOG("HTTP routes registered");
+
+        HVN_INFO_LOG("Starting Haven API on ",
+                     configuration.http.address,
+                     ':',
+                     configuration.http.port,
+                     " using ",
+                     configuration.http.worker_threads,
+                     " HTTP worker thread(s)");
 
         drogon::app()
             .addListener(configuration.http.address, configuration.http.port)
@@ -33,11 +89,8 @@ int main() {
             .run();
 
         return EXIT_SUCCESS;
-    } catch (const haven::bootstrap::ConfigurationError& error) {
-        std::cerr << "Haven configuration error: " << error.what() << '\n';
-        return EXIT_FAILURE;
     } catch (const std::exception& error) {
-        std::cerr << "Haven failed to start: " << error.what() << '\n';
+        HVN_CRITICAL_LOG("Haven startup failed: ", error.what());
         return EXIT_FAILURE;
     }
 }

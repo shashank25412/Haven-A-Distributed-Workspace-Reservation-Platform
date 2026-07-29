@@ -67,6 +67,16 @@ TEST(ReservationDocumentValidatorTest, RejectsEmptyIdentifiersStatusAndKind) {
     EXPECT_THROW(validate_reservation_document(value), std::invalid_argument);
 }
 
+TEST(ReservationDocumentValidatorTest, RejectsUnknownStatusAndKind) {
+    auto value = valid_document();
+    value.status = "UNKNOWN";
+    EXPECT_THROW(validate_reservation_document(value), std::invalid_argument);
+
+    value = valid_document();
+    value.kind = "UNKNOWN";
+    EXPECT_THROW(validate_reservation_document(value), std::invalid_argument);
+}
+
 TEST(ReservationDocumentValidatorTest, RejectsMalformedStartAndEnd) {
     auto start = valid_document();
     start.start_time = "2026-02-30T04:30:00.000000000Z";

@@ -75,9 +75,10 @@ using ReservationListResult = haven::application::reservations::ReservationListR
             reservations.push_back(std::move(reservation));
         }
     } catch (const std::exception& exception) {
-        HVN_ERROR_LOG("{} returned an invalid document for organization {}: {}",
-                      operation,
+        HVN_ERROR_LOG(operation,
+                      " returned an invalid document for organization ",
                       organization_id.value(),
+                      ": ",
                       exception.what());
         throw ResourceRepositoryError{ResourceRepositoryErrorCode::Persistence,
                                       std::string{operation} + " returned an invalid document"};
@@ -107,7 +108,7 @@ CouchbaseReservationRepository::find_by_id(
     const haven::domain::ReservationId& reservation_id) const {
     HVN_TRACE_SCOPE();
     const auto key = reservation_document_key(organization_id, reservation_id);
-    HVN_DEBUG_LOG("Reading Couchbase reservation document with key {}", key);
+    HVN_DEBUG_LOG("Reading Couchbase reservation document with key ", key);
     auto collection = connection_->collection(CouchbaseCollections::reservations);
     auto [error, result] = collection.get(key).get();
     if (error.ec() == ::couchbase::errc::key_value::document_not_found) {
@@ -115,9 +116,11 @@ CouchbaseReservationRepository::find_by_id(
     }
     if (error) {
         HVN_ERROR_LOG(
-            "Couchbase reservation read failed for organization {} and reservation {}: {}",
+            "Couchbase reservation read failed for organization ",
             organization_id.value(),
+            " and reservation ",
             reservation_id.value(),
+            ": ",
             error.ec().message());
         throw translate_error(error, "Couchbase reservation read");
     }
@@ -131,10 +134,11 @@ CouchbaseReservationRepository::find_by_id(
         return reservation;
     } catch (const std::exception& exception) {
         HVN_ERROR_LOG(
-            "Stored Couchbase reservation is invalid for organization {} and "
-            "reservation {}: {}",
+            "Stored Couchbase reservation is invalid for organization ",
             organization_id.value(),
+            " and reservation ",
             reservation_id.value(),
+            ": ",
             exception.what());
         throw ResourceRepositoryError{ResourceRepositoryErrorCode::Persistence,
                                       "Stored Couchbase reservation document is invalid"};
@@ -153,8 +157,9 @@ ReservationListResult CouchbaseReservationRepository::find_by_creator(
                            "AND reservation.createdBy = $createdBy";
     auto [error, result] = connection_->scope().query(statement, options).get();
     if (error) {
-        HVN_ERROR_LOG("Couchbase reservation creator query failed for organization {}: {}",
+        HVN_ERROR_LOG("Couchbase reservation creator query failed for organization ",
                       organization_id.value(),
+                      ": ",
                       error.ec().message());
         throw translate_error(error, "Couchbase reservation creator query");
     }
@@ -175,8 +180,9 @@ ReservationListResult CouchbaseReservationRepository::find_pending_approvals(
                            "AND reservation.status = $status";
     auto [error, result] = connection_->scope().query(statement, options).get();
     if (error) {
-        HVN_ERROR_LOG("Couchbase pending approval query failed for organization {}: {}",
+        HVN_ERROR_LOG("Couchbase pending approval query failed for organization ",
                       organization_id.value(),
+                      ": ",
                       error.ec().message());
         throw translate_error(error, "Couchbase pending approval query");
     }
@@ -199,10 +205,11 @@ ReservationListResult CouchbaseReservationRepository::find_by_resource_and_inter
     auto [error, result] = connection_->scope().query(statement, options).get();
     if (error) {
         HVN_ERROR_LOG(
-            "Couchbase reservation calendar query failed for organization {} and "
-            "resource {}: {}",
+            "Couchbase reservation calendar query failed for organization ",
             organization_id.value(),
+            " and resource ",
             resource_id.value(),
+            ": ",
             error.ec().message());
         throw translate_error(error, "Couchbase reservation calendar query");
     }
@@ -237,10 +244,11 @@ bool CouchbaseReservationRepository::has_conflict(
     auto [error, result] = connection_->scope().query(statement, options).get();
     if (error) {
         HVN_ERROR_LOG(
-            "Couchbase reservation conflict query failed for organization {} and "
-            "resource {}: {}",
+            "Couchbase reservation conflict query failed for organization ",
             organization_id.value(),
+            " and resource ",
             resource_id.value(),
+            ": ",
             error.ec().message());
         throw translate_error(error, "Couchbase reservation conflict query");
     }
@@ -270,10 +278,11 @@ bool CouchbaseReservationRepository::has_conflict_excluding(
     auto [error, result] = connection_->scope().query(statement, options).get();
     if (error) {
         HVN_ERROR_LOG(
-            "Couchbase excluding conflict query failed for organization {} and "
-            "resource {}: {}",
+            "Couchbase excluding conflict query failed for organization ",
             organization_id.value(),
+            " and resource ",
             resource_id.value(),
+            ": ",
             error.ec().message());
         throw translate_error(error, "Couchbase excluding conflict query");
     }
@@ -288,15 +297,17 @@ void CouchbaseReservationRepository::save(const haven::domain::OrganizationId& o
     }
     const auto key = reservation_document_key(organization_id, reservation.reservation_id());
     const auto json = reservation_document_to_json(to_reservation_document(reservation));
-    HVN_DEBUG_LOG("Upserting Couchbase reservation document with key {}", key);
+    HVN_DEBUG_LOG("Upserting Couchbase reservation document with key ", key);
     auto collection = connection_->collection(CouchbaseCollections::reservations);
     auto [error, result] = collection.upsert(key, json).get();
     static_cast<void>(result);
     if (error) {
         HVN_ERROR_LOG(
-            "Couchbase reservation save failed for organization {} and reservation {}: {}",
+            "Couchbase reservation save failed for organization ",
             organization_id.value(),
+            " and reservation ",
             reservation.reservation_id().value(),
+            ": ",
             error.ec().message());
         throw translate_error(error, "Couchbase reservation save");
     }

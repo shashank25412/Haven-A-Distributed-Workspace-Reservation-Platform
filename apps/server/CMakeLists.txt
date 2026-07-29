@@ -19,6 +19,7 @@ target_link_libraries(
 
     PRIVATE
         haven::bootstrap
+        haven::infrastructure::couchbase
         haven::presentation
         Drogon::Drogon
 )

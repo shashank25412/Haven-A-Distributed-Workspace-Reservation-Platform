@@ -546,6 +546,24 @@ TEST(ReservationTest, Rehydrate_ShouldNotRecordDomainEvents_WhenRestoringPersist
     EXPECT_TRUE(reservation.release_domain_events().empty());
 }
 
+TEST(ReservationTest, Rehydrate_ShouldRejectZeroPersistenceVersion) {
+    const TimeInterval::TimePoint start{};
+
+    EXPECT_THROW(
+        static_cast<void>(Reservation::rehydrate(
+            OrganizationId{"organization-123"},
+            ReservationId{"reservation-123"},
+            ResourceId{"resource-123"},
+            UserId{"user-123"},
+            TimeInterval{start, start + 2h},
+            Purpose{""},
+            ReservationKind::Standard,
+            ReservationStatus::Confirmed,
+            std::nullopt,
+            Version{0})),
+        std::invalid_argument);
+}
+
 TEST(ReservationTest, RecordPersistedVersion_ShouldReplaceVersion_WhenPersistenceSucceeds) {
     Reservation reservation = create_confirmed_reservation();
 

@@ -353,11 +353,25 @@ The shortest native development path is:
 
 ```bash
 ./scripts/bootstrap-vcpkg.sh
+brew tap couchbaselabs/homebrew-couchbase
+brew install couchbase-cxx-client
+export CMAKE_PREFIX_PATH="$(brew --prefix couchbase-cxx-client)"
 cmake --preset dev
 cmake --build --preset dev
-ctest --preset dev
+cp .env.example .env
+docker compose up --build --detach
+set -a
+source .env
+set +a
+ctest --preset dev --output-on-failure
 ./build/dev/apps/server/haven-server
 ```
+
+Local Couchbase data is available in the Web Console at
+`http://localhost:8091`, under bucket `haven`, scope `reservation`, and the
+`resources` and `reservations` collections. Haven document keys are
+`resource::<organizationId>::<resourceId>` and
+`reservation::<organizationId>::<reservationId>`.
 
 ---
 
@@ -376,12 +390,10 @@ Haven uses multiple test layers because correctness cannot be demonstrated throu
 
 ### Integration tests
 
-- Couchbase repositories and indexes;
-- multi-document transactions;
-- schedule-guard conflicts;
-- Redis fallback behavior;
-- Kafka publishing and consumer deduplication;
-- OpenAPI contract validation.
+- Implemented: Couchbase resource/reservation repositories, indexes, tenant
+  isolation, persisted-field round trips, and half-open overlap boundaries.
+- Planned: multi-document transactions, schedule guards, Redis fallback,
+  Kafka publishing/consumer deduplication, and OpenAPI contract validation.
 
 ### Concurrency tests
 

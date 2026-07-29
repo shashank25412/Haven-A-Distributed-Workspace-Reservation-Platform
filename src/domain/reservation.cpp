@@ -127,6 +127,11 @@ Reservation Reservation::rehydrate(
     const Version version) {
     HVN_TRACE_SCOPE();
 
+    if (version.value() == 0) {
+        throw std::invalid_argument(
+            "Persisted reservation version must be greater than zero.");
+    }
+
     Reservation reservation{
         std::move(organization_id),
         std::move(reservation_id),

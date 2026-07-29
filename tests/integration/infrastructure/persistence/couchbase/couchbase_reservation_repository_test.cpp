@@ -194,6 +194,39 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest, MissingAndWrongOrganizatio
     EXPECT_FALSE(repository_->find_by_id(owner, haven::domain::ReservationId{"missing-" + suffix}));
 }
 
+TEST_F(CouchbaseReservationRepositoryIntegrationTest,
+       SameReservationIdIsIsolatedAcrossOrganizations) {
+    const auto suffix = unique_suffix();
+    const auto first_organization = haven::domain::OrganizationId{"first-" + suffix};
+    const auto second_organization = haven::domain::OrganizationId{"second-" + suffix};
+    const auto reservation_id = haven::domain::ReservationId{"shared-" + suffix};
+    const auto resource_id = haven::domain::ResourceId{"resource-" + suffix};
+    const auto creator = haven::domain::UserId{"creator-" + suffix};
+
+    auto first = make_reservation(first_organization,
+                                  reservation_id,
+                                  resource_id,
+                                  creator,
+                                  haven::domain::TimeInterval{at(610), at(620)},
+                                  "first");
+    auto second = make_reservation(second_organization,
+                                   reservation_id,
+                                   resource_id,
+                                   creator,
+                                   haven::domain::TimeInterval{at(630), at(640)},
+                                   "second");
+    repository_->save(first_organization, first);
+    repository_->save(second_organization, second);
+
+    const auto first_found = repository_->find_by_id(first_organization, reservation_id);
+    const auto second_found = repository_->find_by_id(second_organization, reservation_id);
+
+    ASSERT_TRUE(first_found);
+    ASSERT_TRUE(second_found);
+    EXPECT_EQ(first_found->purpose().value(), "first");
+    EXPECT_EQ(second_found->purpose().value(), "second");
+}
+
 TEST_F(CouchbaseReservationRepositoryIntegrationTest, SaveReplacesExistingLifecycleState) {
     const auto suffix = unique_suffix();
     const auto organization = haven::domain::OrganizationId{"organization-" + suffix};

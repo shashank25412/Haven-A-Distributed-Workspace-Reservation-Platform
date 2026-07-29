@@ -48,7 +48,7 @@ CouchbaseConnection::~CouchbaseConnection() {
         cluster_.close().get();
         HVN_INFO_LOG("Closed Couchbase cluster connection");
     } catch (const std::exception& exception) {
-        HVN_ERROR_LOG("Failed to close Couchbase cluster connection: {}", exception.what());
+        HVN_ERROR_LOG("Failed to close Couchbase cluster connection: ", exception.what());
     }
 }
 

@@ -79,6 +79,16 @@ TEST(ResourceDocumentValidatorTest, RejectsEmptyStatus) {
     EXPECT_THROW(validate_resource_document(document), std::invalid_argument);
 }
 
+TEST(ResourceDocumentValidatorTest, RejectsUnknownResourceTypeAndStatus) {
+    auto document = valid_resource_document();
+    document.resource_type = "UNKNOWN";
+    EXPECT_THROW(validate_resource_document(document), std::invalid_argument);
+
+    document = valid_resource_document();
+    document.status = "UNKNOWN";
+    EXPECT_THROW(validate_resource_document(document), std::invalid_argument);
+}
+
 TEST(ResourceDocumentValidatorTest, RejectsZeroVersion) {
     auto document = valid_resource_document();
     document.version = 0;

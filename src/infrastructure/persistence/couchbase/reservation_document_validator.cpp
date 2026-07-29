@@ -5,6 +5,8 @@
 
 #include "haven/infrastructure/persistence/couchbase/reservation_document_validator.hpp"
 
+#include "haven/domain/value_objects/reservation_kind.hpp"
+#include "haven/domain/value_objects/reservation_status.hpp"
 #include "haven/logging/logging.hpp"
 
 #include <charconv>
@@ -111,6 +113,8 @@ void validate_reservation_document(const ReservationDocument& document) {
     require_non_empty(document.created_by, "createdBy");
     require_non_empty(document.status, "status");
     require_non_empty(document.kind, "kind");
+    static_cast<void>(haven::domain::reservation_status_from_string(document.status));
+    static_cast<void>(haven::domain::reservation_kind_from_string(document.kind));
 
     const auto start = reservation_timestamp_from_string(document.start_time);
     const auto end = reservation_timestamp_from_string(document.end_time);

@@ -1,39 +1,21 @@
 # -----------------------------------------------------------------------------
-# Haven Local Runtime
+# Haven Local
 #
-# Runs the current Haven API foundation service.
-#
-# Couchbase, Redis, and Kafka are intentionally excluded until the application
-# has real adapters and readiness policies for those dependencies.
+# Runs and initializes the Couchbase Server used by native Haven development
+# and infrastructure integration tests. The Haven API is built and run on the
+# host because the Couchbase C++ SDK is supplied by Homebrew.
 # -----------------------------------------------------------------------------
 
 services:
-  haven-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    image: haven-api:foundation
-
-    container_name: haven-api
-
-    environment:
-      HVN_HTTP_ADDRESS: "${HVN_HTTP_ADDRESS:-0.0.0.0}"
-      HVN_HTTP_PORT: "${HVN_HTTP_PORT:-8080}"
-      HVN_HTTP_THREADS: "${HVN_HTTP_THREADS:-1}"
-      HVN_LOG_LEVEL: "${HVN_LOG_LEVEL:-info}"
-      HVN_COUCHBASE_CONNECTION_STRING: "${HVN_COUCHBASE_CONNECTION_STRING:-couchbase://127.0.0.1}"
-      HVN_COUCHBASE_USERNAME: "${HVN_COUCHBASE_USERNAME:-Administrator}"
-      HVN_COUCHBASE_PASSWORD: "${HVN_COUCHBASE_PASSWORD:-password}"
-      HVN_COUCHBASE_BUCKET: "${HVN_COUCHBASE_BUCKET:-haven}"
-      HVN_COUCHBASE_SCOPE: "${HVN_COUCHBASE_SCOPE:-reservation}"
+  couchbase:
+    image: couchbase/server:community-8.0.2
 
     ports:
-      - "${HVN_HTTP_PORT:-8080}:${HVN_HTTP_PORT:-8080}"
+      - "8091-8097:8091-8097"
+      - "11210:11210"
 
-    init: true
-
-    restart: unless-stopped
+    volumes:
+      - haven-couchbase-data:/opt/couchbase/var
 
     healthcheck:
       test:
@@ -42,11 +24,27 @@ services:
           "curl",
           "--fail",
           "--silent",
-          "http://127.0.0.1:8080/health/live"
+          "http://127.0.0.1:8091/ui/index.html"
         ]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 5s
+      retries: 30
+      start_period: 10s
 
-    stop_grace_period: 10s
+  couchbase-init:
+    build:
+      context: ./deploy/couchbase
+    image: haven-couchbase-init:local
+
+    depends_on:
+      couchbase:
+        condition: service_healthy
+
+    environment:
+      HVN_COUCHBASE_USERNAME: "${HVN_COUCHBASE_USERNAME:-Administrator}"
+      HVN_COUCHBASE_PASSWORD: "${HVN_COUCHBASE_PASSWORD:-password}"
+      HVN_COUCHBASE_BUCKET: "${HVN_COUCHBASE_BUCKET:-haven}"
+      HVN_COUCHBASE_SCOPE: "${HVN_COUCHBASE_SCOPE:-reservation}"
+
+volumes:
+  haven-couchbase-data:

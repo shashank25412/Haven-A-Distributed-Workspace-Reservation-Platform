@@ -4,6 +4,7 @@
  */
 
 #include "haven/application/resources/get_resource_handler.hpp"
+
 #include "haven/application/resources/resource_repository.hpp"
 #include "haven/domain/resource.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
@@ -23,37 +24,34 @@ namespace {
 
 class InMemoryResourceRepository final : public ResourceRepository {
 public:
-    void add(
-        haven::domain::OrganizationId organization_id,
-        haven::domain::ResourceId resource_id,
-        haven::domain::Resource resource) {
+    void add(haven::domain::OrganizationId organization_id,
+             haven::domain::ResourceId resource_id,
+             haven::domain::Resource resource) {
         resources_.push_back(StoredResource{
-            std::move(organization_id),
-            std::move(resource_id),
-            std::move(resource)});
+            std::move(organization_id), std::move(resource_id), std::move(resource)});
     }
 
     [[nodiscard]] ResourceLookupResult find_by_id(
         const haven::domain::OrganizationId& organization_id,
         const haven::domain::ResourceId& resource_id) const override {
-        const auto resource = std::find_if(
-            resources_.cbegin(),
-            resources_.cend(),
-            [&organization_id, &resource_id](const StoredResource& stored_resource) {
-                return stored_resource.organization_id == organization_id
-                    && stored_resource.resource_id == resource_id;
-            });
+        const auto resource =
+            std::find_if(resources_.cbegin(),
+                         resources_.cend(),
+                         [&organization_id, &resource_id](const StoredResource& stored_resource) {
+                             return stored_resource.organization_id == organization_id &&
+                                    stored_resource.resource_id == resource_id;
+                         });
 
         if (resource == resources_.cend()) {
             return std::nullopt;
         }
 
-        return resource->resource;
+        return LoadedResource{resource->resource,
+                              haven::application::persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ResourceSearchResult find_active_by_type(
-        const haven::domain::OrganizationId&,
-        haven::domain::ResourceType) const override {
+        const haven::domain::OrganizationId&, haven::domain::ResourceType) const override {
         return {};
     }
 
@@ -72,15 +70,13 @@ public:
     explicit TenantLeakingResourceRepository(haven::domain::Resource resource)
         : resource_(std::move(resource)) {}
 
-    [[nodiscard]] ResourceLookupResult find_by_id(
-        const haven::domain::OrganizationId&,
-        const haven::domain::ResourceId&) const override {
-        return resource_;
+    [[nodiscard]] ResourceLookupResult find_by_id(const haven::domain::OrganizationId&,
+                                                  const haven::domain::ResourceId&) const override {
+        return LoadedResource{resource_, haven::application::persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ResourceSearchResult find_active_by_type(
-        const haven::domain::OrganizationId&,
-        haven::domain::ResourceType) const override {
+        const haven::domain::OrganizationId&, haven::domain::ResourceType) const override {
         return {};
     }
 
@@ -91,12 +87,11 @@ private:
 [[nodiscard]] haven::domain::Resource make_resource(
     const haven::domain::ResourceId& resource_id,
     const haven::domain::OrganizationId& organization_id) {
-    return haven::domain::Resource{
-        organization_id,
-        resource_id,
-        haven::domain::ResourceType::MeetingRoom,
-        haven::domain::ResourceStatus::Active,
-        false};
+    return haven::domain::Resource{organization_id,
+                                   resource_id,
+                                   haven::domain::ResourceType::MeetingRoom,
+                                   haven::domain::ResourceStatus::Active,
+                                   false};
 }
 
 TEST(GetResourceHandlerTest, Handle_ShouldReturnResource_WhenResourceBelongsToOrganization) {
@@ -129,9 +124,7 @@ TEST(GetResourceHandlerTest, Handle_ShouldReturnEmpty_WhenResourceBelongsToAnoth
     const auto resource_id = haven::domain::ResourceId{"resource-boardroom"};
     auto repository = InMemoryResourceRepository{};
     repository.add(
-        owner_organization_id,
-        resource_id,
-        make_resource(resource_id, owner_organization_id));
+        owner_organization_id, resource_id, make_resource(resource_id, owner_organization_id));
     const auto handler = GetResourceHandler{repository};
 
     const auto result = handler.handle(GetResourceQuery{caller_organization_id, resource_id});
@@ -143,8 +136,8 @@ TEST(GetResourceHandlerTest, Handle_ShouldReturnEmpty_WhenRepositoryReturnsCross
     const auto caller_organization_id = haven::domain::OrganizationId{"organization-alpha"};
     const auto owner_organization_id = haven::domain::OrganizationId{"organization-beta"};
     const auto resource_id = haven::domain::ResourceId{"resource-boardroom"};
-    auto repository = TenantLeakingResourceRepository{
-        make_resource(resource_id, owner_organization_id)};
+    auto repository =
+        TenantLeakingResourceRepository{make_resource(resource_id, owner_organization_id)};
     const auto handler = GetResourceHandler{repository};
 
     const auto result = handler.handle(GetResourceQuery{caller_organization_id, resource_id});

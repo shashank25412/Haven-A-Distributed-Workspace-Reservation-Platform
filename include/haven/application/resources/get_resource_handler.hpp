@@ -8,6 +8,8 @@
 #include "haven/application/resources/get_resource_query.hpp"
 #include "haven/application/resources/resource_repository.hpp"
 
+#include <optional>
+
 namespace haven::application::resources {
 
 /**
@@ -34,7 +36,8 @@ public:
      * @param query Tenant and resource identifiers for the lookup.
      * @return The visible resource or an empty result.
      */
-    [[nodiscard]] ResourceLookupResult handle(const GetResourceQuery& query) const;
+    [[nodiscard]] std::optional<haven::domain::Resource> handle(
+        const GetResourceQuery& query) const;
 
 private:
     ResourceRepository& resource_repository_;

@@ -24,6 +24,19 @@ public:
         lookup_result_ = std::move(result);
     }
 
+    void set_lookup_result(std::optional<haven::domain::Resource> result) {
+        if (!result) {
+            lookup_result_ = std::nullopt;
+            return;
+        }
+        lookup_result_.emplace(std::move(*result),
+                               haven::application::persistence::PersistenceToken{1});
+    }
+
+    void set_lookup_result(haven::domain::Resource result) {
+        set_lookup_result(std::optional<haven::domain::Resource>{std::move(result)});
+    }
+
     void set_search_result(haven::application::resources::ResourceSearchResult result) {
         search_result_ = std::move(result);
     }

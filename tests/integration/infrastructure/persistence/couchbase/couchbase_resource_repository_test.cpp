@@ -149,14 +149,15 @@ TEST_F(CouchbaseResourceRepositoryIntegrationTest, FindsTenantScopedResourceAndP
     const auto found = repository_->find_by_id(organization_id, resource_id);
 
     ASSERT_TRUE(found);
-    EXPECT_EQ(found->organization_id(), organization_id);
-    EXPECT_EQ(found->resource_id(), resource_id);
-    EXPECT_EQ(found->name(), "Architecture Room");
-    EXPECT_EQ(found->description(), "Quiet room");
-    EXPECT_EQ(found->type(), haven::domain::ResourceType::MeetingRoom);
-    EXPECT_EQ(found->status(), haven::domain::ResourceStatus::Inactive);
-    EXPECT_TRUE(found->requires_approval());
-    EXPECT_EQ(found->version().value(), 7U);
+    const auto& resource = found->aggregate();
+    EXPECT_EQ(resource.organization_id(), organization_id);
+    EXPECT_EQ(resource.resource_id(), resource_id);
+    EXPECT_EQ(resource.name(), "Architecture Room");
+    EXPECT_EQ(resource.description(), "Quiet room");
+    EXPECT_EQ(resource.type(), haven::domain::ResourceType::MeetingRoom);
+    EXPECT_EQ(resource.status(), haven::domain::ResourceStatus::Inactive);
+    EXPECT_TRUE(resource.requires_approval());
+    EXPECT_EQ(resource.version().value(), 7U);
 }
 
 TEST_F(CouchbaseResourceRepositoryIntegrationTest, ReturnsEmptyForMissingAndWrongOrganization) {
@@ -204,9 +205,78 @@ TEST_F(CouchbaseResourceRepositoryIntegrationTest, SameResourceIdIsIsolatedAcros
 
     ASSERT_TRUE(first);
     ASSERT_TRUE(second);
-    EXPECT_EQ(first->name(), "First tenant room");
-    EXPECT_EQ(second->name(), "Second tenant room");
-    EXPECT_NE(first->requires_approval(), second->requires_approval());
+    EXPECT_EQ(first->aggregate().name(), "First tenant room");
+    EXPECT_EQ(second->aggregate().name(), "Second tenant room");
+    EXPECT_NE(first->aggregate().requires_approval(), second->aggregate().requires_approval());
+}
+
+TEST_F(CouchbaseResourceRepositoryIntegrationTest,
+       PointLoadsExposeStableTokenAndPreserveDomainVersion) {
+    const auto suffix = unique_suffix();
+    const auto organization_id = haven::domain::OrganizationId{"organization-" + suffix};
+    const auto resource_id = haven::domain::ResourceId{"resource-" + suffix};
+    store(organization_id,
+          resource_id,
+          "Stable room",
+          "",
+          haven::domain::ResourceType::MeetingRoom,
+          haven::domain::ResourceStatus::Active,
+          false,
+          42);
+
+    const auto first = repository_->find_by_id(organization_id, resource_id);
+    const auto second = repository_->find_by_id(organization_id, resource_id);
+
+    ASSERT_TRUE(first);
+    ASSERT_TRUE(second);
+    EXPECT_EQ(first->persistence_token(), second->persistence_token());
+    EXPECT_EQ(first->aggregate().version().value(), 42U);
+    EXPECT_EQ(second->aggregate().version().value(), 42U);
+}
+
+TEST_F(CouchbaseResourceRepositoryIntegrationTest,
+       ExternalReplacementChangesTokenWithoutChangingDomainVersion) {
+    const auto suffix = unique_suffix();
+    const auto organization_id = haven::domain::OrganizationId{"organization-" + suffix};
+    const auto resource_id = haven::domain::ResourceId{"resource-" + suffix};
+    store(organization_id,
+          resource_id,
+          "Replaceable room",
+          "",
+          haven::domain::ResourceType::MeetingRoom,
+          haven::domain::ResourceStatus::Active,
+          false,
+          9);
+    const auto before = repository_->find_by_id(organization_id, resource_id);
+    ASSERT_TRUE(before);
+
+    const auto key = couchbase_persistence::resource_document_key(organization_id, resource_id);
+    const auto replacement = couchbase_persistence::ResourceDocument{
+        .schema_version = couchbase_persistence::kResourceDocumentSchemaVersion,
+        .resource_id = resource_id.value(),
+        .organization_id = organization_id.value(),
+        .name = "Replaced room",
+        .description = "",
+        .resource_type =
+            std::string{haven::domain::to_string(haven::domain::ResourceType::MeetingRoom)},
+        .status = std::string{haven::domain::to_string(haven::domain::ResourceStatus::Active)},
+        .requires_approval = false,
+        .version = 9,
+    };
+    auto collection =
+        connection_->collection(couchbase_persistence::CouchbaseCollections::resources);
+    auto [error, result] =
+        collection.replace(key, couchbase_persistence::resource_document_to_json(replacement))
+            .get();
+    static_cast<void>(result);
+    ASSERT_FALSE(error) << error.ec().message();
+
+    const auto after = repository_->find_by_id(organization_id, resource_id);
+
+    ASSERT_TRUE(after);
+    EXPECT_NE(before->persistence_token(), after->persistence_token());
+    EXPECT_EQ(after->aggregate().name(), "Replaced room");
+    EXPECT_EQ(after->aggregate().version().value(), 9U);
 }
 
 TEST_F(CouchbaseResourceRepositoryIntegrationTest,

@@ -6,6 +6,7 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 
 #include "haven/application/repository_error.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_cas.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
 #include "haven/infrastructure/persistence/couchbase/resource_document.hpp"
@@ -98,7 +99,8 @@ haven::application::resources::ResourceLookupResult CouchbaseResourceRepository:
             resource.resource_id() != resource_id) {
             throw std::invalid_argument("Stored resource identity does not match its document key");
         }
-        return resource;
+        return haven::application::resources::LoadedResource{std::move(resource),
+                                                             persistence_token_from(result.cas())};
     } catch (const RepositoryError&) {
         throw;
     } catch (const std::exception& exception) {

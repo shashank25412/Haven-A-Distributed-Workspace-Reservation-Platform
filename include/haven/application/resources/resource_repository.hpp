@@ -5,10 +5,11 @@
 
 #pragma once
 
+#include "haven/application/persistence/loaded.hpp"
 #include "haven/domain/resource.hpp"
-#include "haven/domain/value_objects/resource_type.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/resource_id.hpp"
+#include "haven/domain/value_objects/resource_type.hpp"
 
 #include <optional>
 #include <vector>
@@ -21,7 +22,8 @@ namespace haven::application::resources {
  * An empty result means that the resource either does not exist or is not
  * visible within the supplied organization.
  */
-using ResourceLookupResult = std::optional<haven::domain::Resource>;
+using LoadedResource = haven::application::persistence::Loaded<haven::domain::Resource>;
+using ResourceLookupResult = std::optional<LoadedResource>;
 
 /**
  * @brief Represents resources returned by a tenant-scoped search.

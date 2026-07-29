@@ -24,18 +24,21 @@ CreateReservationResult CreateReservationHandler::handle(
     const auto resource =
         resource_repository_.find_by_id(command.organization_id(), command.resource_id());
 
-    if (!resource.has_value() || resource->organization_id() != command.organization_id()) {
+    if (!resource.has_value() ||
+        resource->aggregate().organization_id() != command.organization_id()) {
         HVN_WARN_LOG("Reservation creation rejected because the resource is unavailable");
         return CreateReservationResult::rejected(CreateReservationStatus::RESOURCE_NOT_FOUND);
     }
 
-    if (!resource->is_active()) {
+    const auto& aggregate = resource->aggregate();
+
+    if (!aggregate.is_active()) {
         HVN_WARN_LOG("Reservation creation rejected because the resource is inactive");
         return CreateReservationResult::rejected(CreateReservationStatus::RESOURCE_INACTIVE);
     }
 
     const auto policy_result =
-        reservation_creation_policy_.evaluate(*resource,
+        reservation_creation_policy_.evaluate(aggregate,
                                               command.interval(),
                                               command.reservation_kind(),
                                               command.maintenance_authorized());
@@ -52,7 +55,7 @@ CreateReservationResult CreateReservationHandler::handle(
         return CreateReservationResult::rejected(CreateReservationStatus::SCHEDULE_CONFLICT);
     }
 
-    if (resource->requires_approval()) {
+    if (aggregate.requires_approval()) {
         auto reservation = haven::domain::Reservation::create_pending_approval(
             command.organization_id(),
             command.reservation_id(),

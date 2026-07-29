@@ -71,7 +71,8 @@ public:
             return std::nullopt;
         }
 
-        return *resource;
+        return haven::application::resources::LoadedResource{
+            *resource, haven::application::persistence::PersistenceToken{1}};
     }
 
     [[nodiscard]] ResourceSearchResult find_active_by_type(const OrganizationId&,

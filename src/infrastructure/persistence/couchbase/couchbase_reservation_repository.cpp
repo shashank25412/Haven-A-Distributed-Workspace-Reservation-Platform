@@ -7,6 +7,7 @@
 
 #include "haven/application/repository_error.hpp"
 #include "haven/domain/value_objects/reservation_status.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_cas.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
 #include "haven/infrastructure/persistence/couchbase/reservation_document.hpp"
@@ -32,17 +33,6 @@ namespace {
 using haven::application::RepositoryError;
 using haven::application::RepositoryErrorCode;
 using ReservationListResult = haven::application::reservations::ReservationListResult;
-
-[[nodiscard]] haven::application::persistence::PersistenceToken persistence_token_from(
-    const ::couchbase::cas cas) {
-    return haven::application::persistence::PersistenceToken{cas.value()};
-}
-
-[[nodiscard]] ::couchbase::cas couchbase_cas_from(
-    const haven::application::persistence::PersistenceToken& token) {
-    return ::couchbase::cas{
-        haven::application::persistence::PersistenceTokenAccess::representation(token)};
-}
 
 [[nodiscard]] RepositoryError translate_error(const ::couchbase::error& error,
                                               const std::string_view operation) {

@@ -229,6 +229,7 @@ The exact contract is documented in [`docs/05-api-design.md`](docs/05-api-design
 
 | Method | Endpoint | Purpose |
 |---|---|---|
+| `GET` | `/api/v1/organizations/{organizationId}/resources/{resourceId}` | Read implemented tenant-scoped Resource details |
 | `GET` | `/v1/resources/search` | Search resources and derive availability |
 | `PUT` | `/v1/reservations` | Create an idempotent reservation |
 | `POST` | `/v1/reservations/{id}/approve` | Approve a pending reservation |
@@ -238,6 +239,11 @@ The exact contract is documented in [`docs/05-api-design.md`](docs/05-api-design
 | `GET` | `/v1/reservations/{id}` | Read a tenant-scoped reservation |
 | `GET` | `/health/live` | Process liveness |
 | `GET` | `/health/ready` | Traffic readiness |
+
+The Resource detail route is the currently implemented Resource API. A missing
+Resource and a Resource owned by another organization both return `404` so the
+tenant boundary does not disclose cross-organization existence. Resource
+search, Resource mutation, and Redis caching remain planned.
 
 ### Example create request
 

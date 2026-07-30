@@ -19,6 +19,10 @@ add_library(
 
     health/live_controller.cpp
     health/live_response.cpp
+
+    resources/get_resource_controller.cpp
+    resources/resource_error_response.cpp
+    resources/resource_response.cpp
 )
 
 # Preferred namespace-qualified target used throughout the project.
@@ -41,6 +45,9 @@ target_link_libraries(
     PRIVATE
         haven_logging
         Drogon::Drogon
+
+    PUBLIC
+        haven::application
 )
 
 # Apply Haven compiler policies.

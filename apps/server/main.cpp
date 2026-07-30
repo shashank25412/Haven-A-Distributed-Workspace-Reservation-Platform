@@ -8,6 +8,7 @@
  */
 
 #include "haven/application/reservations/reservation_repository.hpp"
+#include "haven/application/resources/get_resource_handler.hpp"
 #include "haven/application/resources/resource_repository.hpp"
 #include "haven/bootstrap/configuration.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
@@ -15,6 +16,7 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/health/live_controller.hpp"
+#include "haven/presentation/resources/get_resource_controller.hpp"
 
 #include <drogon/HttpAppFramework.h>
 
@@ -72,7 +74,13 @@ int main() {
 
         HVN_INFO_LOG("Couchbase repositories initialized");
 
+        auto get_resource_handler =
+            std::make_shared<haven::application::resources::GetResourceHandler>(
+                *resource_repository);
+
         haven::presentation::health::register_live_route();
+        haven::presentation::resources::register_get_resource_route(
+            std::move(get_resource_handler));
         HVN_INFO_LOG("HTTP routes registered");
 
         HVN_INFO_LOG("Starting Haven API on ",

@@ -200,7 +200,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
-  /api/v1/resources/{resourceId}:
+  /api/v1/organizations/{organizationId}/resources/{resourceId}:
     get:
       tags:
       - Resources
@@ -209,6 +209,7 @@ paths:
         interval.
       operationId: getResource
       parameters:
+      - $ref: '#/components/parameters/OrganizationIdPath'
       - $ref: '#/components/parameters/ResourceIdPath'
       responses:
         '200':
@@ -223,19 +224,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResourceDetails'
               example:
+                organizationId: org_01J2H6M5J5W7P3C7Q9R8T6V4B2
                 resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
                 name: Orion
                 description: Eight-seat meeting room near reception.
                 resourceType: MEETING_ROOM
-                capacity: 8
                 status: ACTIVE
-                location:
-                  building: Tower A
-                  floor: '5'
-                  zone: East
-                features:
-                - PROJECTOR
-                - WHITEBOARD
+                requiresApproval: true
+                version: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -945,6 +943,13 @@ components:
         minimum: 1
       example: 30
   parameters:
+    OrganizationIdPath:
+      name: organizationId
+      in: path
+      required: true
+      description: Opaque organization identifier establishing the tenant scope.
+      schema:
+        $ref: '#/components/schemas/OrganizationId'
     ResourceIdPath:
       name: resourceId
       in: path
@@ -1012,9 +1017,17 @@ components:
         minLength: 1
       example: idem_01J2H6M5J5W7P3C7Q9R8T6V4B2
   schemas:
+    OrganizationId:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Opaque organization identifier.
+      examples:
+      - org_01J2H6M5J5W7P3C7Q9R8T6V4B2
     ResourceId:
       type: string
       minLength: 1
+      maxLength: 255
       description: Opaque server-owned resource identifier.
       examples:
       - res_01J2H6M5J5W7P3C7Q9R8T6V4B2
@@ -1041,7 +1054,7 @@ components:
       type: string
       enum:
       - MEETING_ROOM
-      - DESK
+      - OFFICE_DESK
       - PARKING_SLOT
       - HOTEL_ROOM
       - GAME_ZONE
@@ -1154,14 +1167,36 @@ components:
       description: Selection metadata for a resource available in the requested search snapshot. The response does
         not guarantee the resource remains available until creation.
     ResourceDetails:
-      allOf:
-      - $ref: '#/components/schemas/ResourceSummary'
-      - type: object
-        properties:
-          status:
-            $ref: '#/components/schemas/ResourceStatus'
-        required:
-        - status
+      type: object
+      properties:
+        organizationId:
+          $ref: '#/components/schemas/OrganizationId'
+        resourceId:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        resourceType:
+          $ref: '#/components/schemas/ResourceType'
+        status:
+          $ref: '#/components/schemas/ResourceStatus'
+        requiresApproval:
+          type: boolean
+        version:
+          type: integer
+          format: uint64
+          minimum: 1
+      required:
+      - organizationId
+      - resourceId
+      - name
+      - description
+      - resourceType
+      - status
+      - requiresApproval
+      - version
       description: Resource metadata. It does not assert availability for an unspecified interval.
     ResourceSearchResponse:
       type: object

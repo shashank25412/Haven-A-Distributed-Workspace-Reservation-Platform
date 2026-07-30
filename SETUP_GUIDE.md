@@ -457,6 +457,27 @@ docker compose down
 The current Compose topology contains Couchbase Server and its one-shot
 initializer. Redis and Kafka are not part of the implemented runtime.
 
+## Resource Detail Endpoint
+
+After Couchbase initialization has seeded or an administrator has inserted a
+Resource document, start Haven and request that Resource within its owning
+organization:
+
+```bash
+curl \
+  --request GET \
+  http://localhost:8080/api/v1/organizations/<organizationId>/resources/<resourceId>
+```
+
+A matching tenant-scoped Resource returns `200 OK` and its current public
+metadata. A missing Resource or the same Resource ID under a different
+organization returns `404 Not Found`. Malformed path identifiers return
+`400 Bad Request`.
+
+This endpoint reads directly through `GetResourceHandler` and
+`CouchbaseResourceRepository`. Redis caching is not implemented and remains
+planned for Phase 10.2.
+
 ## Health Endpoint
 
 Check process liveness:

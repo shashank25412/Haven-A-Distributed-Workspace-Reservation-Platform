@@ -19,6 +19,7 @@
 #include <cctype>
 #include <exception>
 #include <functional>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -71,11 +72,21 @@ void handle_get_resource_request(
         return;
     }
 
+    std::optional<haven::application::resources::GetResourceQuery> query;
     try {
-        const haven::application::resources::GetResourceQuery query{
+        query.emplace(
             haven::domain::OrganizationId{std::move(organization_id)},
-            haven::domain::ResourceId{std::move(resource_id)}};
-        const auto resource = handler->handle(query);
+            haven::domain::ResourceId{std::move(resource_id)});
+    } catch (const std::invalid_argument&) {
+        callback(error_response(request,
+                                drogon::k400BadRequest,
+                                "INVALID_REQUEST",
+                                "The request contains an invalid identifier."));
+        return;
+    }
+
+    try {
+        const auto resource = handler->handle(*query);
 
         if (!resource.has_value()) {
             callback(error_response(request,
@@ -89,11 +100,6 @@ void handle_get_resource_request(
         auto response = drogon::HttpResponse::newHttpJsonResponse(resource_response.to_json());
         response->setStatusCode(drogon::k200OK);
         callback(response);
-    } catch (const std::invalid_argument&) {
-        callback(error_response(request,
-                                drogon::k400BadRequest,
-                                "INVALID_REQUEST",
-                                "The request contains an invalid identifier."));
     } catch (const std::exception&) {
         HVN_ERROR_LOG("Resource detail request failed unexpectedly");
         callback(error_response(request,

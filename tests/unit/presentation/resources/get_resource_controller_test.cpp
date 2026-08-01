@@ -50,16 +50,47 @@ DROGON_TEST(GetResource_ShouldReturnCompleteResource_WhenTenantScopedResourceExi
         });
 }
 
-DROGON_TEST(GetResource_ShouldReturnNotFound_ForMissingOrWrongTenantResource) {
+DROGON_TEST(GetResource_ShouldReturnNotFound_WhenResourceIsMissingForCorrectOrganization) {
+    send_get(
+        "/api/v1/organizations/organization-1/resources/missing-resource",
+        [TEST_CTX](const drogon::ReqResult result, const drogon::HttpResponsePtr& response) {
+            REQUIRE(result == drogon::ReqResult::Ok);
+            REQUIRE(response != nullptr);
+            CHECK(response->getStatusCode() == drogon::k404NotFound);
+            CHECK(response->getHeader("Content-Type") == "application/problem+json");
+            const auto body = response->getJsonObject();
+            REQUIRE(body != nullptr);
+            CHECK((*body)["code"].asString() == "RESOURCE_NOT_FOUND");
+        });
+}
+
+DROGON_TEST(GetResource_ShouldReturnNotFound_ForWrongTenantResource) {
     send_get(
         "/api/v1/organizations/organization-2/resources/resource-1",
         [TEST_CTX](const drogon::ReqResult result, const drogon::HttpResponsePtr& response) {
             REQUIRE(result == drogon::ReqResult::Ok);
             REQUIRE(response != nullptr);
             CHECK(response->getStatusCode() == drogon::k404NotFound);
+            CHECK(response->getHeader("Content-Type") == "application/problem+json");
             const auto body = response->getJsonObject();
             REQUIRE(body != nullptr);
             CHECK((*body)["code"].asString() == "RESOURCE_NOT_FOUND");
+        });
+}
+
+DROGON_TEST(GetResource_ShouldReturnInternalError_WhenDownstreamThrowsInvalidArgument) {
+    send_get(
+        "/api/v1/organizations/organization-1/resources/invalid-argument-failure",
+        [TEST_CTX](const drogon::ReqResult result, const drogon::HttpResponsePtr& response) {
+            REQUIRE(result == drogon::ReqResult::Ok);
+            REQUIRE(response != nullptr);
+            CHECK(response->getStatusCode() == drogon::k500InternalServerError);
+            CHECK(response->getHeader("Content-Type") == "application/problem+json");
+            const auto body = response->getJsonObject();
+            REQUIRE(body != nullptr);
+            CHECK((*body)["code"].asString() == "INTERNAL_ERROR");
+            CHECK(body->toStyledString().find("Injected downstream invalid argument") ==
+                  std::string::npos);
         });
 }
 

@@ -11,6 +11,7 @@
 #include "haven/domain/value_objects/version.hpp"
 
 #include <optional>
+#include <stdexcept>
 
 namespace haven::presentation::resources::test {
 
@@ -24,6 +25,10 @@ public:
             throw haven::application::RepositoryError{
                 haven::application::RepositoryErrorCode::Persistence,
                 "Sensitive test persistence details"};
+        }
+
+        if (resource_id.value() == "invalid-argument-failure") {
+            throw std::invalid_argument{"Injected downstream invalid argument"};
         }
 
         if (organization_id.value() != "organization-1" || resource_id.value() != "resource-1") {

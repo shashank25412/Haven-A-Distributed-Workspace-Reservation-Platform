@@ -7,6 +7,17 @@
 # -----------------------------------------------------------------------------
 
 services:
+  redis:
+    image: redis:7.4.2-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   couchbase:
     image: couchbase/server:community-8.0.2
 

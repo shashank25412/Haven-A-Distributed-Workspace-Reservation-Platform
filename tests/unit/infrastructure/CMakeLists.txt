@@ -31,3 +31,10 @@ target_link_libraries(
 haven_apply_project_options(haven_couchbase_configuration_test)
 
 gtest_discover_tests(haven_couchbase_configuration_test)
+
+add_executable(haven_redis_cache_tests
+    cache/redis/redis_resource_detail_cache_test.cpp
+)
+target_link_libraries(haven_redis_cache_tests PRIVATE haven::infrastructure::redis GTest::gtest_main)
+haven_apply_project_options(haven_redis_cache_tests)
+gtest_discover_tests(haven_redis_cache_tests)

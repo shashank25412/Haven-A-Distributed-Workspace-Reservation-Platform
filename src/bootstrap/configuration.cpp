@@ -27,6 +27,11 @@ constexpr std::string_view kDefaultHttpAddress{"0.0.0.0"};
 constexpr std::string_view kDefaultHttpPort{"8080"};
 constexpr std::string_view kDefaultHttpThreads{"1"};
 constexpr std::string_view kDefaultLogLevel{"info"};
+constexpr std::string_view kDefaultRedisEnabled{"false"};
+constexpr std::string_view kDefaultRedisUri{"tcp://127.0.0.1:6379"};
+constexpr std::string_view kDefaultRedisConnectTimeout{"100"};
+constexpr std::string_view kDefaultRedisCommandTimeout{"100"};
+constexpr std::string_view kDefaultRedisResourceTtl{"300"};
 
 constexpr std::string_view kHttpAddressVariable{"HVN_HTTP_ADDRESS"};
 constexpr std::string_view kHttpPortVariable{"HVN_HTTP_PORT"};
@@ -37,6 +42,43 @@ constexpr std::string_view kCouchbaseUsernameVariable{"HVN_COUCHBASE_USERNAME"};
 constexpr std::string_view kCouchbasePasswordVariable{"HVN_COUCHBASE_PASSWORD"};
 constexpr std::string_view kCouchbaseBucketVariable{"HVN_COUCHBASE_BUCKET"};
 constexpr std::string_view kCouchbaseScopeVariable{"HVN_COUCHBASE_SCOPE"};
+constexpr std::string_view kRedisEnabledVariable{"HVN_REDIS_ENABLED"};
+constexpr std::string_view kRedisUriVariable{"HVN_REDIS_URI"};
+constexpr std::string_view kRedisPasswordVariable{"HVN_REDIS_PASSWORD"};
+constexpr std::string_view kRedisConnectTimeoutVariable{"HVN_REDIS_CONNECT_TIMEOUT_MS"};
+constexpr std::string_view kRedisCommandTimeoutVariable{"HVN_REDIS_COMMAND_TIMEOUT_MS"};
+constexpr std::string_view kRedisResourceTtlVariable{"HVN_REDIS_RESOURCE_TTL_SECONDS"};
+
+[[nodiscard]] bool parse_bool(std::string value, const std::string_view variable) {
+    std::transform(value.begin(), value.end(), value.begin(), [](const unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+    if (value == "true" || value == "1") {
+        return true;
+    }
+    if (value == "false" || value == "0") {
+        return false;
+    }
+    throw ConfigurationError{std::string{variable} + " must be true, false, 1, or 0"};
+}
+
+template <typename Duration>
+[[nodiscard]] Duration parse_positive_duration(const std::string_view value,
+                                               const std::string_view variable) {
+    std::uint64_t parsed = 0;
+    const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), parsed);
+    if (error != std::errc{} || end != value.data() + value.size() || parsed == 0U) {
+        throw ConfigurationError{std::string{variable} + " must be a positive integer"};
+    }
+    return Duration{parsed};
+}
+
+[[nodiscard]] std::string parse_redis_uri(std::string value) {
+    if (!value.starts_with("tcp://") || value.size() <= std::string_view{"tcp://"}.size()) {
+        throw ConfigurationError{"HVN_REDIS_URI must be a non-empty tcp:// URI"};
+    }
+    return value;
+}
 
 /**
  * @brief Reads an environment variable or returns its default value.
@@ -234,6 +276,7 @@ ApplicationConfiguration load_configuration_from_environment() {
 
     std::string log_level = environment_or_default(kLogLevelVariable, kDefaultLogLevel);
 
+    using infrastructure::cache::redis::RedisConfiguration;
     using infrastructure::persistence::couchbase::CouchbaseConfiguration;
 
     return ApplicationConfiguration{
@@ -254,6 +297,25 @@ ApplicationConfiguration load_configuration_from_environment() {
                 .password = required_environment(kCouchbasePasswordVariable),
                 .bucket_name = required_environment(kCouchbaseBucketVariable),
                 .scope_name = required_environment(kCouchbaseScopeVariable),
+            },
+        .redis =
+            RedisConfiguration{
+                .enabled =
+                    parse_bool(environment_or_default(kRedisEnabledVariable, kDefaultRedisEnabled),
+                               kRedisEnabledVariable),
+                .uri = parse_redis_uri(environment_or_default(kRedisUriVariable, kDefaultRedisUri)),
+                .password = environment_or_default(kRedisPasswordVariable, ""),
+                .connect_timeout = parse_positive_duration<std::chrono::milliseconds>(
+                    environment_or_default(kRedisConnectTimeoutVariable,
+                                           kDefaultRedisConnectTimeout),
+                    kRedisConnectTimeoutVariable),
+                .command_timeout = parse_positive_duration<std::chrono::milliseconds>(
+                    environment_or_default(kRedisCommandTimeoutVariable,
+                                           kDefaultRedisCommandTimeout),
+                    kRedisCommandTimeoutVariable),
+                .resource_detail_ttl = parse_positive_duration<std::chrono::seconds>(
+                    environment_or_default(kRedisResourceTtlVariable, kDefaultRedisResourceTtl),
+                    kRedisResourceTtlVariable),
             },
     };
 }

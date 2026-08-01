@@ -10,6 +10,24 @@ find_package(
     CONFIG
     REQUIRED
 )
+find_package(hiredis CONFIG REQUIRED)
+find_package(redis++ CONFIG REQUIRED)
+find_package(jsoncpp CONFIG REQUIRED)
+
+add_library(haven_infrastructure_redis
+    cache/redis/redis_connection.cpp
+    cache/redis/resource_detail_cache_key.cpp
+    cache/redis/cached_resource_record.cpp
+    cache/redis/redis_resource_detail_cache.cpp
+)
+add_library(haven::infrastructure::redis ALIAS haven_infrastructure_redis)
+target_include_directories(haven_infrastructure_redis PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_compile_features(haven_infrastructure_redis PUBLIC cxx_std_20)
+target_link_libraries(haven_infrastructure_redis
+    PUBLIC haven_application haven_domain
+    PRIVATE haven_logging redis++::redis++_static JsonCpp::JsonCpp
+)
+haven_apply_project_options(haven_infrastructure_redis)
 
 add_library(
     haven_infrastructure_couchbase

@@ -8,9 +8,14 @@
  */
 
 #include "haven/application/reservations/reservation_repository.hpp"
+#include "haven/application/resources/authoritative_resource_query_repository.hpp"
+#include "haven/application/resources/cached_resource_query_repository.hpp"
 #include "haven/application/resources/get_resource_handler.hpp"
+#include "haven/application/resources/resource_query_repository.hpp"
 #include "haven/application/resources/resource_repository.hpp"
 #include "haven/bootstrap/configuration.hpp"
+#include "haven/infrastructure/cache/redis/redis_connection.hpp"
+#include "haven/infrastructure/cache/redis/redis_resource_detail_cache.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
@@ -74,9 +79,30 @@ int main() {
 
         HVN_INFO_LOG("Couchbase repositories initialized");
 
-        auto get_resource_handler =
-            std::make_shared<haven::application::resources::GetResourceHandler>(
+        auto authoritative_query =
+            std::make_shared<haven::application::resources::AuthoritativeResourceQueryRepository>(
                 *resource_repository);
+        std::shared_ptr<haven::application::resources::ResourceQueryRepository> resource_query =
+            authoritative_query;
+        std::shared_ptr<haven::infrastructure::cache::redis::RedisConnection> redis_connection;
+        std::shared_ptr<haven::application::resources::ResourceDetailCache> resource_cache;
+        if (configuration.redis.enabled) {
+            redis_connection =
+                std::make_shared<haven::infrastructure::cache::redis::RedisConnection>(
+                    configuration.redis);
+            resource_cache =
+                std::make_shared<haven::infrastructure::cache::redis::RedisResourceDetailCache>(
+                    redis_connection, configuration.redis);
+            resource_query =
+                std::make_shared<haven::application::resources::CachedResourceQueryRepository>(
+                    *resource_cache, *authoritative_query);
+            HVN_INFO_LOG("Redis Resource detail cache enabled");
+        } else {
+            HVN_INFO_LOG("Redis Resource detail cache disabled");
+        }
+
+        auto get_resource_handler =
+            std::make_shared<haven::application::resources::GetResourceHandler>(*resource_query);
 
         haven::presentation::health::register_live_route();
         haven::presentation::resources::register_get_resource_route(

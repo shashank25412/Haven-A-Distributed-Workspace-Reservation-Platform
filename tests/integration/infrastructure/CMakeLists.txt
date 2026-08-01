@@ -23,6 +23,15 @@ gtest_discover_tests(
     PROPERTIES LABELS "integration;couchbase"
 )
 
+add_executable(haven_redis_cache_integration_test
+    cache/redis/redis_resource_detail_cache_test.cpp
+)
+target_link_libraries(haven_redis_cache_integration_test
+    PRIVATE haven::infrastructure::redis GTest::gtest_main
+)
+haven_apply_project_options(haven_redis_cache_integration_test)
+gtest_discover_tests(haven_redis_cache_integration_test PROPERTIES LABELS "integration;redis")
+
 add_executable(
     haven_reservation_repository_integration_test
 

@@ -5,7 +5,7 @@
 
 #include "haven/application/resources/get_resource_handler.hpp"
 
-#include "haven/application/resources/resource_repository.hpp"
+#include "haven/application/resources/resource_query_repository.hpp"
 #include "haven/domain/resource.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/resource_id.hpp"
@@ -22,7 +22,7 @@
 namespace haven::application::resources {
 namespace {
 
-class InMemoryResourceRepository final : public ResourceRepository {
+class InMemoryResourceRepository final : public ResourceQueryRepository {
 public:
     void add(haven::domain::OrganizationId organization_id,
              haven::domain::ResourceId resource_id,
@@ -31,7 +31,7 @@ public:
             std::move(organization_id), std::move(resource_id), std::move(resource)});
     }
 
-    [[nodiscard]] ResourceLookupResult find_by_id(
+    [[nodiscard]] ResourceQueryResult find_by_id(
         const haven::domain::OrganizationId& organization_id,
         const haven::domain::ResourceId& resource_id) const override {
         const auto resource =
@@ -46,13 +46,7 @@ public:
             return std::nullopt;
         }
 
-        return LoadedResource{resource->resource,
-                              haven::application::persistence::PersistenceToken{1}};
-    }
-
-    [[nodiscard]] ResourceSearchResult find_active_by_type(
-        const haven::domain::OrganizationId&, haven::domain::ResourceType) const override {
-        return {};
+        return resource->resource;
     }
 
 private:
@@ -65,19 +59,14 @@ private:
     std::vector<StoredResource> resources_;
 };
 
-class TenantLeakingResourceRepository final : public ResourceRepository {
+class TenantLeakingResourceRepository final : public ResourceQueryRepository {
 public:
     explicit TenantLeakingResourceRepository(haven::domain::Resource resource)
         : resource_(std::move(resource)) {}
 
-    [[nodiscard]] ResourceLookupResult find_by_id(const haven::domain::OrganizationId&,
-                                                  const haven::domain::ResourceId&) const override {
-        return LoadedResource{resource_, haven::application::persistence::PersistenceToken{1}};
-    }
-
-    [[nodiscard]] ResourceSearchResult find_active_by_type(
-        const haven::domain::OrganizationId&, haven::domain::ResourceType) const override {
-        return {};
+    [[nodiscard]] ResourceQueryResult find_by_id(const haven::domain::OrganizationId&,
+                                                 const haven::domain::ResourceId&) const override {
+        return resource_;
     }
 
 private:

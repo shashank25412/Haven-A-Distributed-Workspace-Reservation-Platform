@@ -11,6 +11,7 @@
 #pragma once
 
 #include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
+#include "haven/infrastructure/cache/redis/redis_configuration.hpp"
 
 #include <cstdint>
 #include <stdexcept>
@@ -85,6 +86,7 @@ struct ApplicationConfiguration final {
     HttpConfiguration http;
     LoggingConfiguration logging;
     infrastructure::persistence::couchbase::CouchbaseConfiguration couchbase;
+    infrastructure::cache::redis::RedisConfiguration redis;
 };
 
 /**

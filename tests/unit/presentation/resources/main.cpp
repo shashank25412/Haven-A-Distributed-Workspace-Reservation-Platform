@@ -4,13 +4,14 @@
  */
 
 #define DROGON_TEST_MAIN
-#include <drogon/drogon_test.h>
-
+#include "haven/application/resources/authoritative_resource_query_repository.hpp"
 #include "haven/application/resources/get_resource_handler.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
+
 #include "resources/test_resource_repository.hpp"
 
 #include <drogon/HttpAppFramework.h>
+#include <drogon/drogon_test.h>
 
 #include <cstdint>
 #include <future>
@@ -32,9 +33,11 @@ constexpr std::size_t kTestWorkerThreads = 1;
 }  // namespace
 
 int main(int argc, char** argv) {
-    auto handler =
-        std::make_shared<haven::application::resources::GetResourceHandler>(
-            haven::presentation::resources::test::repository);
+    auto handler = [&]() {
+        static haven::application::resources::AuthoritativeResourceQueryRepository query{
+            haven::presentation::resources::test::repository};
+        return std::make_shared<haven::application::resources::GetResourceHandler>(query);
+    }();
     haven::presentation::resources::register_get_resource_route(std::move(handler));
 
     drogon::app().addListener(kTestServerAddress, kTestServerPort).setThreadNum(kTestWorkerThreads);

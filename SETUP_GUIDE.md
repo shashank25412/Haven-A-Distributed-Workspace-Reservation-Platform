@@ -658,3 +658,9 @@ the build directory:
 rm -rf build
 cmake --preset dev
 ```
+# Optional Redis Resource detail cache
+
+Run `docker compose up --detach redis` and set `HVN_REDIS_ENABLED=true` to enable the optional
+Resource detail cache. Redis failure never prevents startup or authoritative Couchbase reads.
+Run its live tests with `ctest --preset dev --label-regex redis --output-on-failure`. Set
+`HVN_REDIS_ENABLED=false` to bypass Redis completely.

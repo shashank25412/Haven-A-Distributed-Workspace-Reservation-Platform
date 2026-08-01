@@ -12,7 +12,7 @@
 namespace haven::application::resources {
 
 haven::application::resources::GetResourceHandler::GetResourceHandler(
-    haven::application::resources::ResourceRepository& resource_repository) noexcept
+    haven::application::resources::ResourceQueryRepository& resource_repository) noexcept
     : resource_repository_(resource_repository) {}
 
 std::optional<haven::domain::Resource> haven::application::resources::GetResourceHandler::handle(
@@ -25,12 +25,12 @@ std::optional<haven::domain::Resource> haven::application::resources::GetResourc
         return std::nullopt;
     }
 
-    if (resource->aggregate().organization_id() != query.organization_id()) {
+    if (resource->organization_id() != query.organization_id()) {
         HVN_WARN_LOG("Resource repository returned a resource outside the requested tenant scope");
         return std::nullopt;
     }
 
-    return std::move(resource->aggregate());
+    return resource;
 }
 
 }  // namespace haven::application::resources

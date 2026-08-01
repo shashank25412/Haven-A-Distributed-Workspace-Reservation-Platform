@@ -8,6 +8,8 @@ add_library(haven_application
     repository_error.cpp
 
     resources/get_resource_handler.cpp
+    resources/authoritative_resource_query_repository.cpp
+    resources/cached_resource_query_repository.cpp
     resources/search_resources_handler.cpp
     resources/search_available_resources_handler.cpp
     resources/get_resource_calendar_handler.cpp

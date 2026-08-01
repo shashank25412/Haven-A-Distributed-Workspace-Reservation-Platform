@@ -31,6 +31,11 @@ constexpr const char* kCouchbaseUsernameVariable = "HVN_COUCHBASE_USERNAME";
 constexpr const char* kCouchbasePasswordVariable = "HVN_COUCHBASE_PASSWORD";
 constexpr const char* kCouchbaseBucketVariable = "HVN_COUCHBASE_BUCKET";
 constexpr const char* kCouchbaseScopeVariable = "HVN_COUCHBASE_SCOPE";
+constexpr const char* kRedisEnabledVariable = "HVN_REDIS_ENABLED";
+constexpr const char* kRedisUriVariable = "HVN_REDIS_URI";
+constexpr const char* kRedisConnectTimeoutVariable = "HVN_REDIS_CONNECT_TIMEOUT_MS";
+constexpr const char* kRedisCommandTimeoutVariable = "HVN_REDIS_COMMAND_TIMEOUT_MS";
+constexpr const char* kRedisResourceTtlVariable = "HVN_REDIS_RESOURCE_TTL_SECONDS";
 constexpr std::string_view kTestPassword{"test-secret-password"};
 
 /**
@@ -49,13 +54,24 @@ protected:
         original_http_port_ = read_environment_variable(kHttpPortVariable);
         original_http_threads_ = read_environment_variable(kHttpThreadsVariable);
         original_log_level_ = read_environment_variable(kLogLevelVariable);
-        original_couchbase_connection_string_ = read_environment_variable(kCouchbaseConnectionStringVariable);
+        original_couchbase_connection_string_ =
+            read_environment_variable(kCouchbaseConnectionStringVariable);
         original_couchbase_username_ = read_environment_variable(kCouchbaseUsernameVariable);
         original_couchbase_password_ = read_environment_variable(kCouchbasePasswordVariable);
         original_couchbase_bucket_ = read_environment_variable(kCouchbaseBucketVariable);
         original_couchbase_scope_ = read_environment_variable(kCouchbaseScopeVariable);
+        original_redis_enabled_ = read_environment_variable(kRedisEnabledVariable);
+        original_redis_uri_ = read_environment_variable(kRedisUriVariable);
+        original_redis_connect_timeout_ = read_environment_variable(kRedisConnectTimeoutVariable);
+        original_redis_command_timeout_ = read_environment_variable(kRedisCommandTimeoutVariable);
+        original_redis_resource_ttl_ = read_environment_variable(kRedisResourceTtlVariable);
 
         set_valid_couchbase_configuration();
+        ASSERT_TRUE(unset_environment_variable(kRedisEnabledVariable));
+        ASSERT_TRUE(unset_environment_variable(kRedisUriVariable));
+        ASSERT_TRUE(unset_environment_variable(kRedisConnectTimeoutVariable));
+        ASSERT_TRUE(unset_environment_variable(kRedisCommandTimeoutVariable));
+        ASSERT_TRUE(unset_environment_variable(kRedisResourceTtlVariable));
     }
 
     void TearDown() override {
@@ -63,11 +79,24 @@ protected:
         EXPECT_TRUE(restore_environment_variable(kHttpPortVariable, original_http_port_));
         EXPECT_TRUE(restore_environment_variable(kHttpThreadsVariable, original_http_threads_));
         EXPECT_TRUE(restore_environment_variable(kLogLevelVariable, original_log_level_));
-        EXPECT_TRUE(restore_environment_variable(kCouchbaseConnectionStringVariable, original_couchbase_connection_string_));
-        EXPECT_TRUE(restore_environment_variable(kCouchbaseUsernameVariable, original_couchbase_username_));
-        EXPECT_TRUE(restore_environment_variable(kCouchbasePasswordVariable, original_couchbase_password_));
-        EXPECT_TRUE(restore_environment_variable(kCouchbaseBucketVariable, original_couchbase_bucket_));
-        EXPECT_TRUE(restore_environment_variable(kCouchbaseScopeVariable, original_couchbase_scope_));
+        EXPECT_TRUE(restore_environment_variable(kCouchbaseConnectionStringVariable,
+                                                 original_couchbase_connection_string_));
+        EXPECT_TRUE(
+            restore_environment_variable(kCouchbaseUsernameVariable, original_couchbase_username_));
+        EXPECT_TRUE(
+            restore_environment_variable(kCouchbasePasswordVariable, original_couchbase_password_));
+        EXPECT_TRUE(
+            restore_environment_variable(kCouchbaseBucketVariable, original_couchbase_bucket_));
+        EXPECT_TRUE(
+            restore_environment_variable(kCouchbaseScopeVariable, original_couchbase_scope_));
+        EXPECT_TRUE(restore_environment_variable(kRedisEnabledVariable, original_redis_enabled_));
+        EXPECT_TRUE(restore_environment_variable(kRedisUriVariable, original_redis_uri_));
+        EXPECT_TRUE(restore_environment_variable(kRedisConnectTimeoutVariable,
+                                                 original_redis_connect_timeout_));
+        EXPECT_TRUE(restore_environment_variable(kRedisCommandTimeoutVariable,
+                                                 original_redis_command_timeout_));
+        EXPECT_TRUE(
+            restore_environment_variable(kRedisResourceTtlVariable, original_redis_resource_ttl_));
     }
 
     /**
@@ -84,7 +113,8 @@ protected:
      * @brief Sets deterministic valid Couchbase configuration for a test.
      */
     void set_valid_couchbase_configuration() {
-        ASSERT_TRUE(set_environment_variable(kCouchbaseConnectionStringVariable, "couchbase://127.0.0.1?network=external"));
+        ASSERT_TRUE(set_environment_variable(kCouchbaseConnectionStringVariable,
+                                             "couchbase://127.0.0.1?network=external"));
         ASSERT_TRUE(set_environment_variable(kCouchbaseUsernameVariable, "test-user"));
         ASSERT_TRUE(set_environment_variable(kCouchbasePasswordVariable, kTestPassword));
         ASSERT_TRUE(set_environment_variable(kCouchbaseBucketVariable, "test-bucket"));
@@ -150,7 +180,43 @@ private:
     std::optional<std::string> original_couchbase_password_;
     std::optional<std::string> original_couchbase_bucket_;
     std::optional<std::string> original_couchbase_scope_;
+    std::optional<std::string> original_redis_enabled_;
+    std::optional<std::string> original_redis_uri_;
+    std::optional<std::string> original_redis_connect_timeout_;
+    std::optional<std::string> original_redis_command_timeout_;
+    std::optional<std::string> original_redis_resource_ttl_;
 };
+
+TEST_F(EnvironmentConfigurationTest, LoadsDocumentedRedisDefaults) {
+    const auto configuration = load_configuration_from_environment();
+    EXPECT_FALSE(configuration.redis.enabled);
+    EXPECT_EQ(configuration.redis.uri, "tcp://127.0.0.1:6379");
+    EXPECT_EQ(configuration.redis.connect_timeout, std::chrono::milliseconds{100});
+    EXPECT_EQ(configuration.redis.command_timeout, std::chrono::milliseconds{100});
+    EXPECT_EQ(configuration.redis.resource_detail_ttl, std::chrono::seconds{300});
+}
+
+TEST_F(EnvironmentConfigurationTest, LoadsConfiguredRedisValues) {
+    ASSERT_TRUE(set_environment_variable(kRedisEnabledVariable, "true"));
+    ASSERT_TRUE(set_environment_variable(kRedisUriVariable, "tcp://redis.local:6380"));
+    ASSERT_TRUE(set_environment_variable(kRedisConnectTimeoutVariable, "25"));
+    ASSERT_TRUE(set_environment_variable(kRedisCommandTimeoutVariable, "50"));
+    ASSERT_TRUE(set_environment_variable(kRedisResourceTtlVariable, "600"));
+    const auto configuration = load_configuration_from_environment();
+    EXPECT_TRUE(configuration.redis.enabled);
+    EXPECT_EQ(configuration.redis.resource_detail_ttl, std::chrono::seconds{600});
+}
+
+TEST_F(EnvironmentConfigurationTest, RejectsInvalidRedisConfiguration) {
+    ASSERT_TRUE(set_environment_variable(kRedisResourceTtlVariable, "0"));
+    EXPECT_THROW(load_configuration_from_environment(), ConfigurationError);
+    ASSERT_TRUE(set_environment_variable(kRedisResourceTtlVariable, "300"));
+    ASSERT_TRUE(set_environment_variable(kRedisConnectTimeoutVariable, "invalid"));
+    EXPECT_THROW(load_configuration_from_environment(), ConfigurationError);
+    ASSERT_TRUE(set_environment_variable(kRedisConnectTimeoutVariable, "100"));
+    ASSERT_TRUE(set_environment_variable(kRedisUriVariable, "not-a-redis-uri"));
+    EXPECT_THROW(load_configuration_from_environment(), ConfigurationError);
+}
 
 TEST_F(EnvironmentConfigurationTest, UsesDocumentedDefaultsWhenVariablesAreAbsent) {
     unset_all_configuration_variables();

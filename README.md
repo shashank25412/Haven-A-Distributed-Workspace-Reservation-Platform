@@ -563,3 +563,11 @@ A license will be added before the first public release.
 **Haven — reserve shared resources with confidence.**
 
 </div>
+# Resource detail cache
+
+Redis is an optional, failure-open cache for only
+`GET /api/v1/organizations/{organizationId}/resources/{resourceId}`. Couchbase remains the
+source of truth; reservations, conflict checks, calendars, and Resource searches are never
+cached. Caching is disabled by default and cached entries expire after 300 seconds. Start the
+local Redis service with `docker compose up --detach redis`, then set `HVN_REDIS_ENABLED=true`.
+See `docs/09-caching.md` for configuration and test commands.

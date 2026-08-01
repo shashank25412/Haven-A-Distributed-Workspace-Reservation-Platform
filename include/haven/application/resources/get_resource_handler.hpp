@@ -6,7 +6,7 @@
 #pragma once
 
 #include "haven/application/resources/get_resource_query.hpp"
-#include "haven/application/resources/resource_repository.hpp"
+#include "haven/application/resources/resource_query_repository.hpp"
 
 #include <optional>
 
@@ -25,7 +25,7 @@ public:
      *
      * @param resource_repository Tenant-aware resource repository.
      */
-    explicit GetResourceHandler(ResourceRepository& resource_repository) noexcept;
+    explicit GetResourceHandler(ResourceQueryRepository& resource_repository) noexcept;
 
     /**
      * @brief Executes the tenant-scoped resource lookup.
@@ -40,7 +40,7 @@ public:
         const GetResourceQuery& query) const;
 
 private:
-    ResourceRepository& resource_repository_;
+    ResourceQueryRepository& resource_repository_;
 };
 
 }  // namespace haven::application::resources

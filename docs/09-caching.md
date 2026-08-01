@@ -343,3 +343,23 @@ It never owns confirmed allocation state.
 ```text
 docs/10-security.md
 ```
+# Implemented Resource detail caching
+
+Haven uses Redis only as a positive, cache-aside optimization for the tenant-scoped Resource
+detail GET. Couchbase remains authoritative. Reservation data, availability, conflicts,
+calendars, pending approvals, caller lists, and Resource searches are not cached.
+
+The key is `haven:v1:org:<encoded organizationId>:resource:<encoded resourceId>`. Delimiters and
+Redis glob characters are percent-encoded. Values use cache schema version 1 and contain
+organization ID, Resource ID, name, description, type, status, approval requirement, and domain
+version. They never contain Couchbase CAS or `PersistenceToken`.
+
+Configuration uses `HVN_REDIS_ENABLED` (default `false`), `HVN_REDIS_URI` (default
+`tcp://127.0.0.1:6379`), `HVN_REDIS_PASSWORD`, `HVN_REDIS_CONNECT_TIMEOUT_MS` (default `100`),
+`HVN_REDIS_COMMAND_TIMEOUT_MS` (default `100`), and `HVN_REDIS_RESOURCE_TTL_SECONDS` (default
+`300`). Timeouts and TTL must be positive. Credentials and complete keys are not logged.
+
+On a miss, timeout, unavailable Redis, or invalid cached payload, Haven reads Couchbase. A found
+Resource is stored best-effort with the configured TTL. Missing Resources are not cached. Start
+Redis with `docker compose up --detach redis`; run live tests with
+`ctest --preset dev --label-regex redis --output-on-failure`.

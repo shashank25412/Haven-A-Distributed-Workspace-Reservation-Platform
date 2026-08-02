@@ -5,6 +5,7 @@
 
 add_executable(haven_application_tests
     idempotency/idempotency_contract_test.cpp
+    idempotency/test_idempotency_repository_test.cpp
 
     resources/get_resource_handler_test.cpp
     resources/cached_resource_query_repository_test.cpp

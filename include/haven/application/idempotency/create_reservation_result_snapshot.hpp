@@ -52,6 +52,8 @@ public:
     [[nodiscard]] const std::optional<haven::domain::Version>& initial_version() const noexcept;
     [[nodiscard]] const std::optional<TimePoint>& created_at() const noexcept;
 
+    bool operator==(const CreateReservationResultSnapshot&) const = default;
+
 private:
     CreateReservationResultSnapshot(
         haven::application::reservations::CreateReservationStatus creation_status,

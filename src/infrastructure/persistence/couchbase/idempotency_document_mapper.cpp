@@ -34,6 +34,9 @@ std::string_view creation_status_to_string(const CreateStatus status) {
             return "SCHEDULE_CONFLICT";
         case POLICY_REJECTED:
             return "POLICY_REJECTED";
+        case IDEMPOTENCY_CONFLICT:
+        case IDEMPOTENCY_IN_PROGRESS:
+            break;
     }
     throw std::invalid_argument("Unsupported create reservation status");
 }
@@ -62,8 +65,13 @@ std::optional<IdempotencyResultDocument> to_result_document(
     IdempotencyResultDocument document{
         .creation_status = std::string{creation_status_to_string(result->creation_status())}};
     if (result->is_success()) {
+        document.organization_id = result->organization_id()->value();
         document.reservation_id = result->reservation_id()->value();
         document.resource_id = result->resource_id()->value();
+        document.creator_id = result->creator_id()->value();
+        document.interval_start = reservation_timestamp_to_string(result->interval()->start());
+        document.interval_end = reservation_timestamp_to_string(result->interval()->end());
+        document.purpose = result->purpose()->value();
         document.reservation_status =
             std::string{haven::domain::to_string(*result->reservation_status())};
         document.reservation_kind =
@@ -83,8 +91,13 @@ haven::application::idempotency::CreateReservationResultSnapshot to_snapshot(
     }
     return haven::application::idempotency::CreateReservationResultSnapshot::successful(
         status,
+        haven::domain::OrganizationId{*result.organization_id},
         haven::domain::ReservationId{*result.reservation_id},
         haven::domain::ResourceId{*result.resource_id},
+        haven::domain::UserId{*result.creator_id},
+        haven::domain::TimeInterval{reservation_timestamp_from_string(*result.interval_start),
+                                    reservation_timestamp_from_string(*result.interval_end)},
+        haven::domain::Purpose{*result.purpose},
         haven::domain::reservation_status_from_string(*result.reservation_status),
         haven::domain::reservation_kind_from_string(*result.reservation_kind),
         haven::domain::Version{*result.initial_version},

@@ -27,6 +27,8 @@ using haven::application::reservations::CreateReservationStatus;
             return true;
         case CreateReservationStatus::CREATED_CONFIRMED:
         case CreateReservationStatus::CREATED_PENDING_APPROVAL:
+        case CreateReservationStatus::IDEMPOTENCY_CONFLICT:
+        case CreateReservationStatus::IDEMPOTENCY_IN_PROGRESS:
             return false;
     }
     return false;
@@ -36,8 +38,12 @@ using haven::application::reservations::CreateReservationStatus;
 
 CreateReservationResultSnapshot CreateReservationResultSnapshot::successful(
     const CreateReservationStatus creation_status,
+    haven::domain::OrganizationId organization_id,
     haven::domain::ReservationId reservation_id,
     haven::domain::ResourceId resource_id,
+    haven::domain::UserId creator_id,
+    haven::domain::TimeInterval interval,
+    haven::domain::Purpose purpose,
     const haven::domain::ReservationStatus reservation_status,
     const haven::domain::ReservationKind reservation_kind,
     const haven::domain::Version initial_version,
@@ -58,12 +64,37 @@ CreateReservationResultSnapshot CreateReservationResultSnapshot::successful(
         throw std::invalid_argument("Successful idempotency snapshot requires a positive version");
     }
     return CreateReservationResultSnapshot{creation_status,
+                                           std::move(organization_id),
                                            std::move(reservation_id),
                                            std::move(resource_id),
+                                           std::move(creator_id),
+                                           std::move(interval),
+                                           std::move(purpose),
                                            reservation_status,
                                            reservation_kind,
                                            initial_version,
                                            created_at};
+}
+
+CreateReservationResultSnapshot CreateReservationResultSnapshot::successful(
+    const CreateReservationStatus creation_status,
+    haven::domain::ReservationId reservation_id,
+    haven::domain::ResourceId resource_id,
+    const haven::domain::ReservationStatus reservation_status,
+    const haven::domain::ReservationKind reservation_kind,
+    const haven::domain::Version initial_version,
+    const TimePoint created_at) {
+    return successful(creation_status,
+                      haven::domain::OrganizationId{"snapshot-organization"},
+                      std::move(reservation_id),
+                      std::move(resource_id),
+                      haven::domain::UserId{"snapshot-creator"},
+                      haven::domain::TimeInterval{created_at, created_at + std::chrono::seconds{1}},
+                      haven::domain::Purpose{""},
+                      reservation_status,
+                      reservation_kind,
+                      initial_version,
+                      created_at);
 }
 
 CreateReservationResultSnapshot CreateReservationResultSnapshot::permanent_rejection(
@@ -77,20 +108,32 @@ CreateReservationResultSnapshot CreateReservationResultSnapshot::permanent_rejec
                                            std::nullopt,
                                            std::nullopt,
                                            std::nullopt,
+                                           std::nullopt,
+                                           std::nullopt,
+                                           std::nullopt,
+                                           std::nullopt,
                                            std::nullopt};
 }
 
 CreateReservationResultSnapshot::CreateReservationResultSnapshot(
     const CreateReservationStatus creation_status,
+    std::optional<haven::domain::OrganizationId> organization_id,
     std::optional<haven::domain::ReservationId> reservation_id,
     std::optional<haven::domain::ResourceId> resource_id,
+    std::optional<haven::domain::UserId> creator_id,
+    std::optional<haven::domain::TimeInterval> interval,
+    std::optional<haven::domain::Purpose> purpose,
     std::optional<haven::domain::ReservationStatus> reservation_status,
     std::optional<haven::domain::ReservationKind> reservation_kind,
     std::optional<haven::domain::Version> initial_version,
     std::optional<TimePoint> created_at)
     : creation_status_(creation_status),
+      organization_id_(std::move(organization_id)),
       reservation_id_(std::move(reservation_id)),
       resource_id_(std::move(resource_id)),
+      creator_id_(std::move(creator_id)),
+      interval_(std::move(interval)),
+      purpose_(std::move(purpose)),
       reservation_status_(reservation_status),
       reservation_kind_(reservation_kind),
       initial_version_(initial_version),
@@ -102,6 +145,10 @@ bool CreateReservationResultSnapshot::is_success() const noexcept {
 CreateReservationStatus CreateReservationResultSnapshot::creation_status() const noexcept {
     return creation_status_;
 }
+const std::optional<haven::domain::OrganizationId>&
+CreateReservationResultSnapshot::organization_id() const noexcept {
+    return organization_id_;
+}
 const std::optional<haven::domain::ReservationId>& CreateReservationResultSnapshot::reservation_id()
     const noexcept {
     return reservation_id_;
@@ -109,6 +156,18 @@ const std::optional<haven::domain::ReservationId>& CreateReservationResultSnapsh
 const std::optional<haven::domain::ResourceId>& CreateReservationResultSnapshot::resource_id()
     const noexcept {
     return resource_id_;
+}
+const std::optional<haven::domain::UserId>& CreateReservationResultSnapshot::creator_id()
+    const noexcept {
+    return creator_id_;
+}
+const std::optional<haven::domain::TimeInterval>& CreateReservationResultSnapshot::interval()
+    const noexcept {
+    return interval_;
+}
+const std::optional<haven::domain::Purpose>& CreateReservationResultSnapshot::purpose()
+    const noexcept {
+    return purpose_;
 }
 const std::optional<haven::domain::ReservationStatus>&
 CreateReservationResultSnapshot::reservation_status() const noexcept {

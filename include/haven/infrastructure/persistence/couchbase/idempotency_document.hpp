@@ -12,8 +12,13 @@ inline constexpr const char* kIdempotencyDocumentType{"idempotency"};
 
 struct IdempotencyResultDocument {
     std::string creation_status;
+    std::optional<std::string> organization_id;
     std::optional<std::string> reservation_id;
     std::optional<std::string> resource_id;
+    std::optional<std::string> creator_id;
+    std::optional<std::string> interval_start;
+    std::optional<std::string> interval_end;
+    std::optional<std::string> purpose;
     std::optional<std::string> reservation_status;
     std::optional<std::string> reservation_kind;
     std::optional<std::uint64_t> initial_version;

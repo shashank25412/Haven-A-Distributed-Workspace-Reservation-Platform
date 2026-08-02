@@ -21,7 +21,9 @@ enum class CreateReservationStatus {
     RESOURCE_NOT_FOUND,
     RESOURCE_INACTIVE,
     SCHEDULE_CONFLICT,
-    POLICY_REJECTED
+    POLICY_REJECTED,
+    IDEMPOTENCY_CONFLICT,
+    IDEMPOTENCY_IN_PROGRESS
 };
 
 /**
@@ -35,11 +37,9 @@ public:
     /**
      * @brief Creates a successful result containing a confirmed reservation.
      */
-    [[nodiscard]] static CreateReservationResult confirmed(
-        haven::domain::Reservation reservation) {
-        return CreateReservationResult{
-            CreateReservationStatus::CREATED_CONFIRMED,
-            std::move(reservation)};
+    [[nodiscard]] static CreateReservationResult confirmed(haven::domain::Reservation reservation) {
+        return CreateReservationResult{CreateReservationStatus::CREATED_CONFIRMED,
+                                       std::move(reservation)};
     }
 
     /**
@@ -47,9 +47,8 @@ public:
      */
     [[nodiscard]] static CreateReservationResult pending_approval(
         haven::domain::Reservation reservation) {
-        return CreateReservationResult{
-            CreateReservationStatus::CREATED_PENDING_APPROVAL,
-            std::move(reservation)};
+        return CreateReservationResult{CreateReservationStatus::CREATED_PENDING_APPROVAL,
+                                       std::move(reservation)};
     }
 
     /**
@@ -57,8 +56,7 @@ public:
      *
      * @param status Rejection status.
      */
-    [[nodiscard]] static CreateReservationResult rejected(
-        const CreateReservationStatus status) {
+    [[nodiscard]] static CreateReservationResult rejected(const CreateReservationStatus status) {
         return CreateReservationResult{status, std::nullopt};
     }
 
@@ -77,11 +75,9 @@ public:
     }
 
 private:
-    CreateReservationResult(
-        const CreateReservationStatus status,
-        std::optional<haven::domain::Reservation> reservation)
-        : status_(status),
-          reservation_(std::move(reservation)) {}
+    CreateReservationResult(const CreateReservationStatus status,
+                            std::optional<haven::domain::Reservation> reservation)
+        : status_(status), reservation_(std::move(reservation)) {}
 
     CreateReservationStatus status_;
     std::optional<haven::domain::Reservation> reservation_;

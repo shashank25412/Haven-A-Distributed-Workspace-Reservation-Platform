@@ -95,8 +95,13 @@ protected:
                                             std::string resource = "resource") {
         return CreateReservationResultSnapshot::successful(
             CreateReservationStatus::CREATED_CONFIRMED,
+            record.scope().organization_id(),
             record.generated_identifiers().reservation_id,
             haven::domain::ResourceId{resource},
+            record.scope().creator_id(),
+            haven::domain::TimeInterval{record.created_at(),
+                                        record.created_at() + std::chrono::hours{1}},
+            haven::domain::Purpose{"purpose"},
             haven::domain::ReservationStatus::Confirmed,
             haven::domain::ReservationKind::Standard,
             haven::domain::Version{1},

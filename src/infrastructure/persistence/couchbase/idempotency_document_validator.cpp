@@ -107,21 +107,31 @@ void validate_idempotency_document(const IdempotencyDocument& document) {
     if (!document.result.has_value())
         throw std::invalid_argument("Terminal record lacks result");
     const auto& result = *document.result;
-    const bool all_success_fields = result.reservation_id && result.resource_id &&
-                                    result.reservation_status && result.reservation_kind &&
-                                    result.initial_version && result.created_at;
-    const bool any_success_fields = result.reservation_id || result.resource_id ||
-                                    result.reservation_status || result.reservation_kind ||
-                                    result.initial_version || result.created_at;
+    const bool all_success_fields =
+        result.organization_id && result.reservation_id && result.resource_id &&
+        result.creator_id && result.interval_start && result.interval_end && result.purpose &&
+        result.reservation_status && result.reservation_kind && result.initial_version &&
+        result.created_at;
+    const bool any_success_fields =
+        result.organization_id || result.reservation_id || result.resource_id ||
+        result.creator_id || result.interval_start || result.interval_end || result.purpose ||
+        result.reservation_status || result.reservation_kind || result.initial_version ||
+        result.created_at;
     if (status == Succeeded) {
         if (!successful_status(result.creation_status) || !all_success_fields ||
-            *result.reservation_id != document.reservation_id || *result.initial_version == 0) {
+            *result.organization_id != document.organization_id ||
+            *result.reservation_id != document.reservation_id ||
+            *result.creator_id != document.creator_id || *result.initial_version == 0) {
             throw std::invalid_argument("Invalid successful idempotency result");
         }
         static_cast<void>(
             haven::domain::reservation_status_from_string(*result.reservation_status));
         static_cast<void>(haven::domain::reservation_kind_from_string(*result.reservation_kind));
         static_cast<void>(reservation_timestamp_from_string(*result.created_at));
+        const auto start = reservation_timestamp_from_string(*result.interval_start);
+        const auto end = reservation_timestamp_from_string(*result.interval_end);
+        if (start >= end)
+            throw std::invalid_argument("Successful result interval is invalid");
         if (*result.created_at != document.created_at)
             throw std::invalid_argument("Successful result creation time does not match record");
     } else if (!rejection_status(result.creation_status) || any_success_fields) {

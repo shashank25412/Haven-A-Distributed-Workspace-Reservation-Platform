@@ -84,6 +84,11 @@ public:
         }
         const auto lock = std::scoped_lock{mutex_};
         ++successful_completion_call_count_;
+        if (force_successful_completion_failure_) {
+            throw haven::application::RepositoryError{
+                haven::application::RepositoryErrorCode::Persistence,
+                "Forced idempotency completion failure"};
+        }
         throw_if_forced();
         auto existing = require_matching_record(scope, expected_fingerprint);
         if (existing->status() == IdempotencyStatus::Succeeded && existing->result() == snapshot) {
@@ -122,6 +127,11 @@ public:
     void force_repository_failure(const bool enabled = true) {
         const auto lock = std::scoped_lock{mutex_};
         force_repository_failure_ = enabled;
+    }
+
+    void force_successful_completion_failure(const bool enabled = true) {
+        const auto lock = std::scoped_lock{mutex_};
+        force_successful_completion_failure_ = enabled;
     }
 
     [[nodiscard]] std::size_t claim_call_count() const {
@@ -199,6 +209,7 @@ private:
     mutable std::mutex mutex_;
     Records records_;
     bool force_repository_failure_{false};
+    bool force_successful_completion_failure_{false};
     std::size_t claim_call_count_{};
     mutable std::size_t find_call_count_{};
     std::size_t successful_completion_call_count_{};

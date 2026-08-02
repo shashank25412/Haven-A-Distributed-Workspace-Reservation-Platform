@@ -5,11 +5,12 @@
 
 #pragma once
 
-#include "haven/domain/value_objects/reservation_kind.hpp"
 #include "haven/domain/value_objects/event_id.hpp"
+#include "haven/domain/value_objects/idempotency_key.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
 #include "haven/domain/value_objects/reservation_id.hpp"
+#include "haven/domain/value_objects/reservation_kind.hpp"
 #include "haven/domain/value_objects/resource_id.hpp"
 #include "haven/domain/value_objects/time_interval.hpp"
 #include "haven/domain/value_objects/user_id.hpp"
@@ -45,20 +46,21 @@ public:
      * @param approval_requested_event_id Identifier for a possible approval-requested event.
      * @param occurred_at Timestamp applied to generated domain events.
      */
-    CreateReservationCommand(
-        haven::domain::OrganizationId organization_id,
-        haven::domain::ReservationId reservation_id,
-        haven::domain::ResourceId resource_id,
-        haven::domain::UserId creator_id,
-        haven::domain::TimeInterval interval,
-        haven::domain::Purpose purpose,
-        haven::domain::ReservationKind reservation_kind,
-        bool maintenance_authorized,
-        haven::domain::EventId created_event_id,
-        haven::domain::EventId confirmed_event_id,
-        haven::domain::EventId approval_requested_event_id,
-        TimePoint occurred_at)
+    CreateReservationCommand(haven::domain::OrganizationId organization_id,
+                             haven::domain::IdempotencyKey idempotency_key,
+                             haven::domain::ReservationId reservation_id,
+                             haven::domain::ResourceId resource_id,
+                             haven::domain::UserId creator_id,
+                             haven::domain::TimeInterval interval,
+                             haven::domain::Purpose purpose,
+                             haven::domain::ReservationKind reservation_kind,
+                             bool maintenance_authorized,
+                             haven::domain::EventId created_event_id,
+                             haven::domain::EventId confirmed_event_id,
+                             haven::domain::EventId approval_requested_event_id,
+                             TimePoint occurred_at)
         : organization_id_(std::move(organization_id)),
+          idempotency_key_(std::move(idempotency_key)),
           reservation_id_(std::move(reservation_id)),
           resource_id_(std::move(resource_id)),
           creator_id_(std::move(creator_id)),
@@ -76,6 +78,10 @@ public:
      */
     [[nodiscard]] const haven::domain::OrganizationId& organization_id() const noexcept {
         return organization_id_;
+    }
+
+    [[nodiscard]] const haven::domain::IdempotencyKey& idempotency_key() const noexcept {
+        return idempotency_key_;
     }
 
     /**
@@ -154,6 +160,7 @@ public:
 
 private:
     haven::domain::OrganizationId organization_id_;
+    haven::domain::IdempotencyKey idempotency_key_;
     haven::domain::ReservationId reservation_id_;
     haven::domain::ResourceId resource_id_;
     haven::domain::UserId creator_id_;

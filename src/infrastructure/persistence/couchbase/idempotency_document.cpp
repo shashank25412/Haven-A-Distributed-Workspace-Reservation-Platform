@@ -35,8 +35,13 @@ std::optional<IdempotencyResultDocument> result_from_json(const tao::json::value
     };
     return IdempotencyResultDocument{
         .creation_status = result.at("creationStatus").get_string(),
+        .organization_id = optional_string("organizationId"),
         .reservation_id = optional_string("reservationId"),
         .resource_id = optional_string("resourceId"),
+        .creator_id = optional_string("creatorId"),
+        .interval_start = optional_string("intervalStart"),
+        .interval_end = optional_string("intervalEnd"),
+        .purpose = optional_string("purpose"),
         .reservation_status = optional_string("reservationStatus"),
         .reservation_kind = optional_string("reservationKind"),
         .initial_version = optional_unsigned("initialVersion"),
@@ -63,8 +68,13 @@ tao::json::value idempotency_document_to_json(const IdempotencyDocument& documen
                           {"createdAt", document.created_at}};
     if (document.result.has_value()) {
         tao::json::value result{{"creationStatus", document.result->creation_status}};
+        add_optional(result, "organizationId", document.result->organization_id);
         add_optional(result, "reservationId", document.result->reservation_id);
         add_optional(result, "resourceId", document.result->resource_id);
+        add_optional(result, "creatorId", document.result->creator_id);
+        add_optional(result, "intervalStart", document.result->interval_start);
+        add_optional(result, "intervalEnd", document.result->interval_end);
+        add_optional(result, "purpose", document.result->purpose);
         add_optional(result, "reservationStatus", document.result->reservation_status);
         add_optional(result, "reservationKind", document.result->reservation_kind);
         add_optional(result, "initialVersion", document.result->initial_version);

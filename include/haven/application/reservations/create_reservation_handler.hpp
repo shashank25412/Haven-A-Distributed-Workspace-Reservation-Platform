@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "haven/application/idempotency/idempotency_repository.hpp"
 #include "haven/application/reservations/create_reservation_command.hpp"
 #include "haven/application/reservations/create_reservation_result.hpp"
 #include "haven/application/reservations/reservation_repository.hpp"
@@ -31,6 +32,7 @@ public:
     CreateReservationHandler(
         haven::application::resources::ResourceRepository& resource_repository,
         ReservationRepository& reservation_repository,
+        haven::application::idempotency::IdempotencyRepository& idempotency_repository,
         const haven::domain::ReservationCreationPolicy& reservation_creation_policy) noexcept;
 
     /**
@@ -39,12 +41,12 @@ public:
      * @param command Reservation creation input.
      * @return Successful or rejected application result.
      */
-    [[nodiscard]] CreateReservationResult handle(
-        const CreateReservationCommand& command) const;
+    [[nodiscard]] CreateReservationResult handle(const CreateReservationCommand& command) const;
 
 private:
     haven::application::resources::ResourceRepository& resource_repository_;
     ReservationRepository& reservation_repository_;
+    haven::application::idempotency::IdempotencyRepository& idempotency_repository_;
     const haven::domain::ReservationCreationPolicy& reservation_creation_policy_;
 };
 

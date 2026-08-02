@@ -34,8 +34,14 @@ IdempotencyRecord processing() {
 CreateReservationResultSnapshot success() {
     return CreateReservationResultSnapshot::successful(
         CreateReservationStatus::CREATED_CONFIRMED,
+        haven::domain::OrganizationId{"org"},
         haven::domain::ReservationId{"reservation"},
         haven::domain::ResourceId{"resource"},
+        haven::domain::UserId{"user"},
+        haven::domain::TimeInterval{
+            CreateReservationResultSnapshot::TimePoint{std::chrono::seconds{1'800'000'000}},
+            CreateReservationResultSnapshot::TimePoint{std::chrono::seconds{1'800'000'100}}},
+        haven::domain::Purpose{"purpose"},
         haven::domain::ReservationStatus::Confirmed,
         haven::domain::ReservationKind::Standard,
         haven::domain::Version{1},

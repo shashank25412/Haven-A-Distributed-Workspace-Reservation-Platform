@@ -4,6 +4,8 @@
 # infrastructure or presentation frameworks.
 
 add_executable(haven_application_tests
+    idempotency/idempotency_contract_test.cpp
+
     resources/get_resource_handler_test.cpp
     resources/cached_resource_query_repository_test.cpp
     resources/search_resources_handler_test.cpp

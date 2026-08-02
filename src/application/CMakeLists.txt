@@ -7,6 +7,11 @@
 add_library(haven_application
     repository_error.cpp
 
+    idempotency/create_reservation_fingerprint.cpp
+    idempotency/create_reservation_result_snapshot.cpp
+    idempotency/idempotency_fingerprint.cpp
+    idempotency/idempotency_record.cpp
+
     resources/get_resource_handler.cpp
     resources/authoritative_resource_query_repository.cpp
     resources/cached_resource_query_repository.cpp
@@ -24,6 +29,8 @@ add_library(haven_application
     reservations/reject_reservation_handler.cpp
 )
 
+find_package(OpenSSL REQUIRED)
+
 add_library(haven::application ALIAS haven_application)
 
 target_include_directories(
@@ -40,6 +47,7 @@ target_link_libraries(
         haven::domain
     PRIVATE
         haven_logging
+        OpenSSL::Crypto
 )
 
 target_compile_features(haven_application

@@ -68,7 +68,7 @@ if ! "${couchbase_cli}" collection-manage \
         --create-scope "${HVN_COUCHBASE_SCOPE}"
 fi
 
-for collection_name in resources reservations idempotency; do
+for collection_name in resources reservations idempotency outbox; do
     if ! "${couchbase_cli}" collection-manage \
         "${common_arguments[@]}" \
         --bucket "${HVN_COUCHBASE_BUCKET}" \

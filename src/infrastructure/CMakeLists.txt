@@ -46,6 +46,7 @@ add_library(
     persistence/couchbase/couchbase_idempotency_repository.cpp
     persistence/couchbase/couchbase_resource_repository.cpp
     persistence/couchbase/couchbase_reservation_repository.cpp
+    persistence/couchbase/couchbase_reservation_creation_store.cpp
     persistence/couchbase/resource_document.cpp
     persistence/couchbase/resource_document_mapper.cpp
     persistence/couchbase/resource_document_validator.cpp

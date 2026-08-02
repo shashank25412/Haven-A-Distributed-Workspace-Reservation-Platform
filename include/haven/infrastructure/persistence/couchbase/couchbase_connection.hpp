@@ -10,6 +10,7 @@
 #include <couchbase/cluster.hxx>
 #include <couchbase/collection.hxx>
 #include <couchbase/scope.hxx>
+#include <memory>
 #include <string_view>
 
 namespace haven::infrastructure::persistence::couchbase {
@@ -61,6 +62,9 @@ public:
      * @return Couchbase SDK scope handle used by infrastructure queries.
      */
     [[nodiscard]] ::couchbase::scope scope();
+
+    /** @brief Returns the transaction manager for the owned cluster connection. */
+    [[nodiscard]] std::shared_ptr<::couchbase::transactions::transactions> transactions() const;
 
 private:
     static void validate_configuration(const CouchbaseConfiguration& configuration);

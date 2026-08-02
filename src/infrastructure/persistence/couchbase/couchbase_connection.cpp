@@ -70,6 +70,10 @@ CouchbaseConnection::~CouchbaseConnection() {
     return cluster_.bucket(configuration_.bucket_name).scope(configuration_.scope_name);
 }
 
+std::shared_ptr<::couchbase::transactions::transactions> CouchbaseConnection::transactions() const {
+    return cluster_.transactions();
+}
+
 void CouchbaseConnection::validate_configuration(const CouchbaseConfiguration& configuration) {
     HVN_TRACE_SCOPE();
 

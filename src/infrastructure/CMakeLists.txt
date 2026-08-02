@@ -43,6 +43,8 @@ add_library(
     persistence/couchbase/outbox_document.cpp
     persistence/couchbase/outbox_document_mapper.cpp
     persistence/couchbase/outbox_document_validator.cpp
+    persistence/couchbase/outbox_message_mapper.cpp
+    persistence/couchbase/couchbase_outbox_repository.cpp
     persistence/couchbase/couchbase_idempotency_repository.cpp
     persistence/couchbase/couchbase_resource_repository.cpp
     persistence/couchbase/couchbase_reservation_repository.cpp

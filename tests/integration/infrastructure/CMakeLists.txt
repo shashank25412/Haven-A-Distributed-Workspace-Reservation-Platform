@@ -75,6 +75,14 @@ gtest_discover_tests(haven_reservation_creation_event_store_integration_test
     PROPERTIES LABELS "integration;couchbase;outbox"
 )
 
+add_executable(haven_outbox_repository_integration_test
+    persistence/couchbase/couchbase_outbox_repository_test.cpp)
+target_link_libraries(haven_outbox_repository_integration_test
+    PRIVATE haven::infrastructure::couchbase GTest::gtest_main)
+haven_apply_project_options(haven_outbox_repository_integration_test)
+gtest_discover_tests(haven_outbox_repository_integration_test
+    PROPERTIES LABELS "integration;couchbase;outbox")
+
 add_executable(haven_idempotency_repository_integration_test
     persistence/couchbase/couchbase_idempotency_repository_test.cpp
 )

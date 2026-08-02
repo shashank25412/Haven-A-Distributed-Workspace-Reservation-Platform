@@ -18,3 +18,7 @@ WHERE `documentType` = "reservation";
 CREATE INDEX IF NOT EXISTS `idx_reservations_tenant_status`
 ON `{{BUCKET}}`.`{{SCOPE}}`.`reservations`(`organizationId`, `status`)
 WHERE `documentType` = "reservation";
+
+CREATE INDEX IF NOT EXISTS `idx_outbox_pending_order`
+ON `{{BUCKET}}`.`{{SCOPE}}`.`outbox`(`status`, `occurredAt`, `eventId`)
+WHERE `documentType` = "outbox";

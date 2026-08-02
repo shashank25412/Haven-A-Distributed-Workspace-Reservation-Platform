@@ -11,6 +11,7 @@ add_executable(
     persistence/couchbase/couchbase_connection_test.cpp
     persistence/couchbase/couchbase_document_key_test.cpp
     persistence/couchbase/idempotency_persistence_test.cpp
+    persistence/couchbase/outbox_document_test.cpp
     persistence/couchbase/couchbase_resource_repository_test.cpp
     persistence/couchbase/couchbase_reservation_repository_test.cpp
     persistence/couchbase/resource_document_test.cpp

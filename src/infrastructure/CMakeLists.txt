@@ -39,6 +39,10 @@ add_library(
     persistence/couchbase/idempotency_document.cpp
     persistence/couchbase/idempotency_document_mapper.cpp
     persistence/couchbase/idempotency_document_validator.cpp
+    persistence/couchbase/outbox_status.cpp
+    persistence/couchbase/outbox_document.cpp
+    persistence/couchbase/outbox_document_mapper.cpp
+    persistence/couchbase/outbox_document_validator.cpp
     persistence/couchbase/couchbase_idempotency_repository.cpp
     persistence/couchbase/couchbase_resource_repository.cpp
     persistence/couchbase/couchbase_reservation_repository.cpp

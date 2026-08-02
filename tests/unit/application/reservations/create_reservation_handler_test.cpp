@@ -29,7 +29,9 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <future>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -84,7 +86,7 @@ public:
     }
 
     [[nodiscard]] std::size_t find_call_count() const noexcept {
-        return find_call_count_;
+        return find_call_count_.load();
     }
 
     [[nodiscard]] ResourceSearchResult find_active_by_type(const OrganizationId&,
@@ -94,13 +96,17 @@ public:
 
 private:
     std::vector<Resource> resources_;
-    mutable std::size_t find_call_count_{};
+    mutable std::atomic_size_t find_call_count_{};
 };
 
 class InMemoryReservationRepository final : public ReservationRepository {
 public:
     void set_conflict(const bool conflict) noexcept {
         conflict_ = conflict;
+    }
+
+    void store(Reservation reservation) {
+        saved_reservation_ = std::move(reservation);
     }
 
     [[nodiscard]] bool has_conflict(const OrganizationId&,
@@ -140,9 +146,14 @@ public:
         return saved_reservation_;
     }
 
-    [[nodiscard]] ReservationLookupResult find_by_id(const OrganizationId&,
-                                                     const ReservationId&) const override {
+    [[nodiscard]] ReservationLookupResult find_by_id(
+        const OrganizationId& organization_id, const ReservationId& reservation_id) const override {
         ++find_call_count_;
+        if (saved_reservation_ && saved_reservation_->organization_id() == organization_id &&
+            saved_reservation_->reservation_id() == reservation_id) {
+            return haven::application::reservations::LoadedReservation{
+                *saved_reservation_, haven::application::persistence::PersistenceToken{1}};
+        }
         return std::nullopt;
     }
 
@@ -153,7 +164,7 @@ public:
         return insert_call_count_;
     }
     [[nodiscard]] std::size_t find_call_count() const noexcept {
-        return find_call_count_;
+        return find_call_count_.load();
     }
 
     [[nodiscard]] ReservationListResult find_by_creator(const OrganizationId&,
@@ -177,7 +188,7 @@ private:
     std::optional<Reservation> saved_reservation_;
     mutable std::size_t conflict_call_count_{};
     std::size_t insert_call_count_{};
-    mutable std::size_t find_call_count_{};
+    mutable std::atomic_size_t find_call_count_{};
 };
 
 [[nodiscard]] auto make_time_point(const int hour) {
@@ -478,7 +489,7 @@ TEST(CreateReservationHandlerTest, RejectionReplayRemainsPermanentAfterCondition
     EXPECT_EQ(idempotency.permanent_failure_completion_call_count(), 1);
 }
 
-TEST(CreateReservationHandlerTest, CompletionFailurePropagatesAfterExactlyOneInsert) {
+TEST(CreateReservationHandlerTest, CompletionFailureRecoversOnNextInvocation) {
     const auto organization = OrganizationId{"organization-alpha"};
     const auto resource = ResourceId{"resource-boardroom"};
     auto resources = InMemoryResourceRepository{};
@@ -495,6 +506,123 @@ TEST(CreateReservationHandlerTest, CompletionFailurePropagatesAfterExactlyOneIns
     ASSERT_TRUE(idempotency.find(processing_for(command).scope()));
     EXPECT_EQ(idempotency.find(processing_for(command).scope())->status(),
               haven::application::idempotency::IdempotencyStatus::Processing);
+
+    const auto recovered = handler.handle(command);
+
+    EXPECT_EQ(recovered.status(), CreateReservationStatus::CREATED_CONFIRMED);
+    EXPECT_EQ(resources.find_call_count(), 1);
+    EXPECT_EQ(reservations.conflict_call_count(), 1);
+    EXPECT_EQ(reservations.insert_call_count(), 1);
+    EXPECT_EQ(reservations.find_call_count(), 1);
+    EXPECT_EQ(idempotency.find(processing_for(command).scope())->status(),
+              haven::application::idempotency::IdempotencyStatus::Succeeded);
+}
+
+TEST(CreateReservationHandlerTest, RecoveryRejectsExactPurposeMismatchWithoutInsert) {
+    const auto organization = OrganizationId{"organization-alpha"};
+    const auto resource = ResourceId{"resource-boardroom"};
+    auto resources = InMemoryResourceRepository{};
+    auto reservations = InMemoryReservationRepository{};
+    auto idempotency = TestIdempotencyRepository{};
+    const auto policy = ReservationCreationPolicy{};
+    const auto command = make_command(organization, resource);
+    static_cast<void>(idempotency.claim(processing_for(command)));
+    reservations.store(Reservation::create_confirmed(organization,
+                                                     command.reservation_id(),
+                                                     resource,
+                                                     command.creator_id(),
+                                                     command.interval(),
+                                                     Purpose{" Planning meeting"},
+                                                     command.reservation_kind(),
+                                                     command.created_event_id(),
+                                                     command.confirmed_event_id(),
+                                                     command.occurred_at()));
+    const auto handler = CreateReservationHandler{resources, reservations, idempotency, policy};
+
+    EXPECT_EQ(handler.handle(command).status(), CreateReservationStatus::IDEMPOTENCY_CONFLICT);
+    EXPECT_EQ(resources.find_call_count(), 0);
+    EXPECT_EQ(reservations.insert_call_count(), 0);
+    EXPECT_EQ(idempotency.successful_completion_call_count(), 0);
+}
+
+TEST(CreateReservationHandlerTest, PendingCompletionFailureRecoversPendingResult) {
+    const auto organization = OrganizationId{"organization-alpha"};
+    const auto resource = ResourceId{"resource-boardroom"};
+    auto resources = InMemoryResourceRepository{};
+    auto reservations = InMemoryReservationRepository{};
+    auto idempotency = TestIdempotencyRepository{};
+    const auto policy = ReservationCreationPolicy{};
+    resources.add(make_resource(resource, organization, true));
+    idempotency.force_successful_completion_failure();
+    const auto handler = CreateReservationHandler{resources, reservations, idempotency, policy};
+    const auto command = make_command(organization, resource);
+    EXPECT_THROW(static_cast<void>(handler.handle(command)), haven::application::RepositoryError);
+
+    const auto recovered = handler.handle(command);
+
+    EXPECT_EQ(recovered.status(), CreateReservationStatus::CREATED_PENDING_APPROVAL);
+    EXPECT_EQ(reservations.insert_call_count(), 1);
+    EXPECT_EQ(resources.find_call_count(), 1);
+}
+
+TEST(CreateReservationHandlerTest, RecoveryRejectsReservationApprovedAfterPendingCreation) {
+    const auto organization = OrganizationId{"organization-alpha"};
+    const auto resource = ResourceId{"resource-boardroom"};
+    auto resources = InMemoryResourceRepository{};
+    auto reservations = InMemoryReservationRepository{};
+    auto idempotency = TestIdempotencyRepository{};
+    const auto policy = ReservationCreationPolicy{};
+    const auto command = make_command(organization, resource);
+    static_cast<void>(idempotency.claim(processing_for(command)));
+    auto mutated = Reservation::create_pending_approval(organization,
+                                                        command.reservation_id(),
+                                                        resource,
+                                                        command.creator_id(),
+                                                        command.interval(),
+                                                        command.purpose(),
+                                                        command.reservation_kind(),
+                                                        command.created_event_id(),
+                                                        command.approval_requested_event_id(),
+                                                        command.occurred_at());
+    mutated.approve(UserId{"approver"}, command.occurred_at() + 1h, EventId{"approved"});
+    reservations.store(std::move(mutated));
+    const auto handler = CreateReservationHandler{resources, reservations, idempotency, policy};
+
+    EXPECT_EQ(handler.handle(command).status(), CreateReservationStatus::IDEMPOTENCY_CONFLICT);
+    EXPECT_EQ(reservations.insert_call_count(), 0);
+}
+
+TEST(CreateReservationHandlerTest, ConcurrentRecoveryReturnsSuccessWithoutAnotherInsert) {
+    const auto organization = OrganizationId{"organization-alpha"};
+    const auto resource = ResourceId{"resource-boardroom"};
+    auto resources = InMemoryResourceRepository{};
+    auto reservations = InMemoryReservationRepository{};
+    auto idempotency = TestIdempotencyRepository{};
+    const auto policy = ReservationCreationPolicy{};
+    const auto command = make_command(organization, resource);
+    static_cast<void>(idempotency.claim(processing_for(command)));
+    reservations.store(Reservation::create_confirmed(organization,
+                                                     command.reservation_id(),
+                                                     resource,
+                                                     command.creator_id(),
+                                                     command.interval(),
+                                                     command.purpose(),
+                                                     command.reservation_kind(),
+                                                     command.created_event_id(),
+                                                     command.confirmed_event_id(),
+                                                     command.occurred_at()));
+    const auto handler = CreateReservationHandler{resources, reservations, idempotency, policy};
+    std::vector<std::future<CreateReservationStatus>> calls;
+    for (int index = 0; index < 8; ++index) {
+        calls.push_back(std::async(
+            std::launch::async, [&handler, &command] { return handler.handle(command).status(); }));
+    }
+    for (auto& call : calls) {
+        EXPECT_EQ(call.get(), CreateReservationStatus::CREATED_CONFIRMED);
+    }
+    EXPECT_EQ(reservations.insert_call_count(), 0);
+    EXPECT_EQ(idempotency.find(processing_for(command).scope())->status(),
+              haven::application::idempotency::IdempotencyStatus::Succeeded);
 }
 
 }  // namespace

@@ -56,6 +56,30 @@ CreateReservationResultSnapshot snapshot_for(const CreateReservationResult& resu
                                                        created_at);
 }
 
+bool matches_original_operation(const haven::domain::Reservation& reservation,
+                                const IdempotencyRecord& record,
+                                const CreateReservationCommand& command) {
+    const auto creation_compatible =
+        reservation.status() == haven::domain::ReservationStatus::PendingApproval ||
+        (reservation.status() == haven::domain::ReservationStatus::Confirmed &&
+         !reservation.approval_info().has_value());
+    return creation_compatible &&
+           reservation.organization_id() == record.scope().organization_id() &&
+           reservation.reservation_id() == record.generated_identifiers().reservation_id &&
+           reservation.resource_id() == command.resource_id() &&
+           reservation.created_by() == command.creator_id() &&
+           reservation.interval() == command.interval() &&
+           reservation.purpose() == command.purpose() &&
+           reservation.kind() == command.reservation_kind();
+}
+
+CreateReservationResult result_for_recovered(haven::domain::Reservation reservation) {
+    if (reservation.status() == haven::domain::ReservationStatus::Confirmed) {
+        return CreateReservationResult::confirmed(std::move(reservation));
+    }
+    return CreateReservationResult::pending_approval(std::move(reservation));
+}
+
 }  // namespace
 
 CreateReservationHandler::CreateReservationHandler(
@@ -93,7 +117,24 @@ CreateReservationResult CreateReservationHandler::handle(
     const auto claim = idempotency_repository_.claim(processing_record);
     switch (claim.status()) {
         case IdempotencyClaimStatus::ExistingProcessing:
-            HVN_DEBUG_LOG("Reservation creation idempotency request is already processing");
+            HVN_DEBUG_LOG("Reservation creation processing record found; attempting recovery");
+            if (const auto loaded = reservation_repository_.find_by_id(
+                    claim.record().scope().organization_id(),
+                    claim.record().generated_identifiers().reservation_id)) {
+                if (!matches_original_operation(loaded->aggregate(), claim.record(), command)) {
+                    HVN_WARN_LOG("Reservation creation recovery identity mismatch");
+                    return CreateReservationResult::rejected(
+                        CreateReservationStatus::IDEMPOTENCY_CONFLICT);
+                }
+                auto recovered = result_for_recovered(loaded->aggregate());
+                idempotency_repository_.record_succeeded(
+                    claim.record().scope(),
+                    claim.record().fingerprint(),
+                    snapshot_for(recovered, claim.record().created_at()));
+                HVN_DEBUG_LOG("Reservation creation recovery completion succeeded");
+                return recovered;
+            }
+            HVN_DEBUG_LOG("Reservation creation processing record remains active");
             return CreateReservationResult::rejected(
                 CreateReservationStatus::IDEMPOTENCY_IN_PROGRESS);
         case IdempotencyClaimStatus::FingerprintMismatch:

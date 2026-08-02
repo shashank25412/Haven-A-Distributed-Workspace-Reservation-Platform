@@ -1,8 +1,14 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_idempotency_repository.hpp"
 
+#include "haven/application/idempotency/create_reservation_fingerprint_input.hpp"
 #include "haven/application/idempotency/idempotency_repository_error.hpp"
+#include "haven/application/reservations/create_reservation_handler.hpp"
+#include "haven/application/resources/resource_repository.hpp"
+#include "haven/domain/policies/reservation_creation_policy.hpp"
 #include "haven/domain/value_objects/version.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/idempotency_document_key.hpp"
 
 #include <gtest/gtest.h>
@@ -22,6 +28,20 @@ namespace {
 namespace persistence = haven::infrastructure::persistence::couchbase;
 using namespace haven::application::idempotency;
 using namespace haven::application::reservations;
+
+class RecoveryResourceRepository final : public haven::application::resources::ResourceRepository {
+public:
+    haven::application::resources::ResourceLookupResult find_by_id(
+        const haven::domain::OrganizationId&, const haven::domain::ResourceId&) const override {
+        ++calls;
+        return std::nullopt;
+    }
+    haven::application::resources::ResourceSearchResult find_active_by_type(
+        const haven::domain::OrganizationId&, haven::domain::ResourceType) const override {
+        return {};
+    }
+    mutable std::atomic_size_t calls{};
+};
 
 std::optional<std::string> env(const char* name) {
     const char* value = std::getenv(name);
@@ -70,6 +90,14 @@ protected:
             if (error && error.ec() != ::couchbase::errc::key_value::document_not_found)
                 ADD_FAILURE() << error.ec().message();
         }
+        auto reservations =
+            connection_->collection(persistence::CouchbaseCollections::reservations);
+        for (const auto& key : reservation_keys_) {
+            auto [error, result] = reservations.remove(key).get();
+            static_cast<void>(result);
+            if (error && error.ec() != ::couchbase::errc::key_value::document_not_found)
+                ADD_FAILURE() << error.ec().message();
+        }
     }
 
     IdempotencyRecord record(std::string fingerprint = std::string(64, 'a'),
@@ -112,6 +140,7 @@ protected:
     std::shared_ptr<persistence::CouchbaseConnection> connection_;
     std::unique_ptr<persistence::CouchbaseIdempotencyRepository> repository_;
     std::vector<std::string> keys_;
+    std::vector<std::string> reservation_keys_;
 };
 
 TEST_F(IdempotencyRepositoryIntegrationTest, ClaimsAndClassifiesExistingRecord) {
@@ -199,6 +228,73 @@ TEST_F(IdempotencyRepositoryIntegrationTest, CompletionPreservesInitialExpiry) {
     // shortly after the exact deadline.
     std::this_thread::sleep_for(std::chrono::milliseconds{2700});
     EXPECT_FALSE(short_lived.find(initial.scope()).has_value());
+}
+
+TEST_F(IdempotencyRepositoryIntegrationTest, HandlerRecoversPersistedReservationAfterRestart) {
+    const auto suffix = unique();
+    const auto organization = haven::domain::OrganizationId{"recovery-org-" + suffix};
+    const auto creator = haven::domain::UserId{"recovery-user-" + suffix};
+    const auto resource = haven::domain::ResourceId{"recovery-resource-" + suffix};
+    const auto reservation_id = haven::domain::ReservationId{"recovery-reservation-" + suffix};
+    const auto interval = haven::domain::TimeInterval{
+        IdempotencyRecord::TimePoint{std::chrono::seconds{1'800'000'000}},
+        IdempotencyRecord::TimePoint{std::chrono::seconds{1'800'003'600}}};
+    const auto command =
+        CreateReservationCommand{organization,
+                                 haven::domain::IdempotencyKey{"recovery-key-" + suffix},
+                                 reservation_id,
+                                 resource,
+                                 creator,
+                                 interval,
+                                 haven::domain::Purpose{" recovery purpose "},
+                                 haven::domain::ReservationKind::Standard,
+                                 false,
+                                 haven::domain::EventId{"created-" + suffix},
+                                 haven::domain::EventId{"confirmed-" + suffix},
+                                 haven::domain::EventId{"approval-" + suffix},
+                                 interval.start()};
+    const auto scope = IdempotencyScope{
+        organization, creator, IdempotencyOperation::CreateReservation, command.idempotency_key()};
+    const auto fingerprint = create_reservation_fingerprint(CreateReservationFingerprintInput{
+        resource, creator, interval, command.purpose(), command.reservation_kind(), false});
+    const auto processing = IdempotencyRecord::processing(scope,
+                                                          fingerprint,
+                                                          {reservation_id,
+                                                           command.created_event_id(),
+                                                           command.confirmed_event_id(),
+                                                           command.approval_requested_event_id()},
+                                                          command.occurred_at());
+    keys_.push_back(persistence::idempotency_document_key(scope));
+    reservation_keys_.push_back(
+        persistence::reservation_document_key(organization, reservation_id));
+    static_cast<void>(repository_->claim(processing));
+    persistence::CouchbaseReservationRepository reservation_repository(connection_);
+    const auto reservation =
+        haven::domain::Reservation::create_confirmed(organization,
+                                                     reservation_id,
+                                                     resource,
+                                                     creator,
+                                                     interval,
+                                                     command.purpose(),
+                                                     command.reservation_kind(),
+                                                     command.created_event_id(),
+                                                     command.confirmed_event_id(),
+                                                     command.occurred_at());
+    static_cast<void>(reservation_repository.insert(organization, reservation));
+
+    auto fresh_idempotency =
+        persistence::CouchbaseIdempotencyRepository{connection_, std::chrono::seconds{30}};
+    auto fresh_reservations = persistence::CouchbaseReservationRepository{connection_};
+    auto resources = RecoveryResourceRepository{};
+    const auto policy = haven::domain::ReservationCreationPolicy{};
+    const auto handler =
+        CreateReservationHandler{resources, fresh_reservations, fresh_idempotency, policy};
+    const auto result = handler.handle(command);
+
+    EXPECT_EQ(result.status(), CreateReservationStatus::CREATED_CONFIRMED);
+    EXPECT_EQ(resources.calls.load(), 0);
+    EXPECT_EQ(fresh_idempotency.find(scope)->status(), IdempotencyStatus::Succeeded);
+    EXPECT_TRUE(fresh_reservations.find_by_id(organization, reservation_id));
 }
 
 }  // namespace

@@ -85,6 +85,7 @@ public:
         const auto lock = std::scoped_lock{mutex_};
         ++successful_completion_call_count_;
         if (force_successful_completion_failure_) {
+            force_successful_completion_failure_ = false;
             throw haven::application::RepositoryError{
                 haven::application::RepositoryErrorCode::Persistence,
                 "Forced idempotency completion failure"};

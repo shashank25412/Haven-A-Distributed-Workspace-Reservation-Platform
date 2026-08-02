@@ -21,6 +21,8 @@
 #include "haven/infrastructure/cache/redis/redis_resource_detail_cache.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_idempotency_repository.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_event_store.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_store.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/logging/logging.hpp"
@@ -85,6 +87,12 @@ int main() {
         auto idempotency_repository =
             std::make_shared<couchbase_persistence::CouchbaseIdempotencyRepository>(
                 couchbase_connection, configuration.couchbase.idempotency_retention);
+        auto reservation_creation_store =
+            std::make_shared<couchbase_persistence::CouchbaseReservationCreationStore>(
+                couchbase_connection);
+        auto reservation_creation_event_store =
+            std::make_shared<couchbase_persistence::CouchbaseReservationCreationEventStore>(
+                couchbase_connection);
 
         HVN_INFO_LOG("Couchbase repositories initialized");
 
@@ -118,6 +126,8 @@ int main() {
             std::make_shared<haven::application::reservations::CreateReservationHandler>(
                 *resource_repository,
                 *reservation_repository,
+                *reservation_creation_store,
+                *reservation_creation_event_store,
                 *idempotency_repository,
                 *reservation_creation_policy);
 

@@ -13,6 +13,8 @@
 #include "haven/domain/value_objects/version.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_event_store.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_store.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/idempotency_document_key.hpp"
 
@@ -103,6 +105,13 @@ protected:
             if (error && error.ec() != ::couchbase::errc::key_value::document_not_found)
                 ADD_FAILURE() << error.ec().message();
         }
+        auto outbox = connection_->collection(persistence::CouchbaseCollections::outbox);
+        for (const auto& key : outbox_keys_) {
+            auto [error, result] = outbox.remove(key).get();
+            static_cast<void>(result);
+            if (error && error.ec() != ::couchbase::errc::key_value::document_not_found)
+                ADD_FAILURE() << error.ec().message();
+        }
     }
 
     IdempotencyRecord record(std::string fingerprint = std::string(64, 'a'),
@@ -146,6 +155,7 @@ protected:
     std::unique_ptr<persistence::CouchbaseIdempotencyRepository> repository_;
     std::vector<std::string> keys_;
     std::vector<std::string> reservation_keys_;
+    std::vector<std::string> outbox_keys_;
 };
 
 TEST_F(IdempotencyRepositoryIntegrationTest, ClaimsAndClassifiesExistingRecord) {
@@ -273,27 +283,30 @@ TEST_F(IdempotencyRepositoryIntegrationTest, HandlerRecoversPersistedReservation
     reservation_keys_.push_back(
         persistence::reservation_document_key(organization, reservation_id));
     static_cast<void>(repository_->claim(processing));
-    persistence::CouchbaseReservationRepository reservation_repository(connection_);
-    const auto reservation =
-        haven::domain::Reservation::create_confirmed(organization,
-                                                     reservation_id,
-                                                     resource,
-                                                     creator,
-                                                     interval,
-                                                     command.purpose(),
-                                                     command.reservation_kind(),
-                                                     command.created_event_id(),
-                                                     command.confirmed_event_id(),
-                                                     command.occurred_at());
-    static_cast<void>(reservation_repository.insert(organization, reservation));
+    auto reservation = haven::domain::Reservation::create_confirmed(organization,
+                                                                    reservation_id,
+                                                                    resource,
+                                                                    creator,
+                                                                    interval,
+                                                                    command.purpose(),
+                                                                    command.reservation_kind(),
+                                                                    command.created_event_id(),
+                                                                    command.confirmed_event_id(),
+                                                                    command.occurred_at());
+    auto events = reservation.release_domain_events();
+    for (const auto& event_id : {command.created_event_id(), command.confirmed_event_id()})
+        outbox_keys_.push_back(persistence::outbox_document_key(organization, event_id));
+    auto creation_store = persistence::CouchbaseReservationCreationStore{connection_};
+    static_cast<void>(creation_store.persist(organization, reservation, std::move(events)));
 
     auto fresh_idempotency =
         persistence::CouchbaseIdempotencyRepository{connection_, std::chrono::seconds{30}};
     auto fresh_reservations = persistence::CouchbaseReservationRepository{connection_};
     auto resources = RecoveryResourceRepository{};
     const auto policy = haven::domain::ReservationCreationPolicy{};
-    const auto handler =
-        CreateReservationHandler{resources, fresh_reservations, fresh_idempotency, policy};
+    auto event_store = persistence::CouchbaseReservationCreationEventStore{connection_};
+    const auto handler = CreateReservationHandler{
+        resources, fresh_reservations, creation_store, event_store, fresh_idempotency, policy};
     const auto result = handler.handle(command);
 
     EXPECT_EQ(result.status(), CreateReservationStatus::CREATED_CONFIRMED);

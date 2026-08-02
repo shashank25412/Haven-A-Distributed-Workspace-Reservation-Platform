@@ -8,6 +8,8 @@
 #include "haven/application/idempotency/idempotency_repository.hpp"
 #include "haven/application/reservations/create_reservation_command.hpp"
 #include "haven/application/reservations/create_reservation_result.hpp"
+#include "haven/application/reservations/reservation_creation_event_store.hpp"
+#include "haven/application/reservations/reservation_creation_store.hpp"
 #include "haven/application/reservations/reservation_repository.hpp"
 #include "haven/application/resources/resource_repository.hpp"
 #include "haven/domain/policies/reservation_creation_policy.hpp"
@@ -32,6 +34,8 @@ public:
     CreateReservationHandler(
         haven::application::resources::ResourceRepository& resource_repository,
         ReservationRepository& reservation_repository,
+        ReservationCreationStore& reservation_creation_store,
+        ReservationCreationEventStore& reservation_creation_event_store,
         haven::application::idempotency::IdempotencyRepository& idempotency_repository,
         const haven::domain::ReservationCreationPolicy& reservation_creation_policy) noexcept;
 
@@ -46,6 +50,8 @@ public:
 private:
     haven::application::resources::ResourceRepository& resource_repository_;
     ReservationRepository& reservation_repository_;
+    ReservationCreationStore& reservation_creation_store_;
+    ReservationCreationEventStore& reservation_creation_event_store_;
     haven::application::idempotency::IdempotencyRepository& idempotency_repository_;
     const haven::domain::ReservationCreationPolicy& reservation_creation_policy_;
 };

@@ -11,6 +11,8 @@
 
 #include <stdexcept>
 #include <utility>
+#include <variant>
+#include <vector>
 
 namespace haven::application::reservations {
 namespace {
@@ -81,15 +83,39 @@ CreateReservationResult result_for_recovered(haven::domain::Reservation reservat
     return CreateReservationResult::pending_approval(std::move(reservation), created_at);
 }
 
+std::vector<haven::domain::EventId> expected_event_ids(
+    const haven::domain::Reservation& reservation, const IdempotencyRecord& record) {
+    const auto& identifiers = record.generated_identifiers();
+    if (reservation.status() == haven::domain::ReservationStatus::Confirmed)
+        return {identifiers.created_event_id, identifiers.confirmed_event_id};
+    return {identifiers.created_event_id, identifiers.approval_requested_event_id};
+}
+
+void validate_creation_events(const std::vector<haven::domain::ReservationDomainEvent>& events,
+                              const bool pending_approval) {
+    if (events.size() != 2)
+        throw std::logic_error("Reservation creation produced an invalid domain-event sequence");
+    const auto valid_second =
+        pending_approval
+            ? std::holds_alternative<haven::domain::ReservationApprovalRequestedEvent>(events[1])
+            : std::holds_alternative<haven::domain::ReservationConfirmedEvent>(events[1]);
+    if (!std::holds_alternative<haven::domain::ReservationCreatedEvent>(events[0]) || !valid_second)
+        throw std::logic_error("Reservation creation produced an invalid domain-event sequence");
+}
+
 }  // namespace
 
 CreateReservationHandler::CreateReservationHandler(
     haven::application::resources::ResourceRepository& resource_repository,
     ReservationRepository& reservation_repository,
+    ReservationCreationStore& reservation_creation_store,
+    ReservationCreationEventStore& reservation_creation_event_store,
     IdempotencyRepository& idempotency_repository,
     const haven::domain::ReservationCreationPolicy& reservation_creation_policy) noexcept
     : resource_repository_(resource_repository),
       reservation_repository_(reservation_repository),
+      reservation_creation_store_(reservation_creation_store),
+      reservation_creation_event_store_(reservation_creation_event_store),
       idempotency_repository_(idempotency_repository),
       reservation_creation_policy_(reservation_creation_policy) {}
 
@@ -126,6 +152,14 @@ CreateReservationResult CreateReservationHandler::handle(
                     HVN_WARN_LOG("Reservation creation recovery identity mismatch");
                     return CreateReservationResult::rejected(
                         CreateReservationStatus::IDEMPOTENCY_CONFLICT);
+                }
+                const auto event_ids = expected_event_ids(loaded->aggregate(), claim.record());
+                if (!reservation_creation_event_store_.contains_all(
+                        claim.record().scope().organization_id(),
+                        claim.record().generated_identifiers().reservation_id,
+                        event_ids)) {
+                    return CreateReservationResult::rejected(
+                        CreateReservationStatus::IDEMPOTENCY_IN_PROGRESS);
                 }
                 auto recovered =
                     result_for_recovered(loaded->aggregate(), claim.record().created_at());
@@ -213,14 +247,15 @@ CreateReservationResult CreateReservationHandler::handle(
                                                            command.created_event_id(),
                                                            command.confirmed_event_id(),
                                                            command.occurred_at());
-    static_cast<void>(reservation_repository_.insert(command.organization_id(), reservation));
+    auto domain_events = reservation.release_domain_events();
+    validate_creation_events(domain_events, aggregate.requires_approval());
+    static_cast<void>(reservation_creation_store_.persist(
+        command.organization_id(), reservation, std::move(domain_events)));
     auto result =
         aggregate.requires_approval()
             ? CreateReservationResult::pending_approval(std::move(reservation),
                                                         command.occurred_at())
             : CreateReservationResult::confirmed(std::move(reservation), command.occurred_at());
-    // If completion fails, the inserted reservation remains durable while the
-    // claim remains Processing. Recovery is deliberately deferred to a later slice.
     idempotency_repository_.record_succeeded(
         scope, fingerprint, snapshot_for(result, command.occurred_at()));
     return result;

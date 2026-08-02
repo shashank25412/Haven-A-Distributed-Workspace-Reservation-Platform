@@ -1,3 +1,8 @@
+/**
+ * @file resource_detail_cache.hpp
+ * @brief Declares the application port for cached Resource details.
+ */
+
 #pragma once
 
 #include "haven/domain/resource.hpp"

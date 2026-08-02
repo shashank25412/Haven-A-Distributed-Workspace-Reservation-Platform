@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_document_key.hpp
+ * @brief Declares deterministic Couchbase keys for idempotency records.
+ */
+
 #pragma once
 
 #include "haven/application/idempotency/idempotency_scope.hpp"

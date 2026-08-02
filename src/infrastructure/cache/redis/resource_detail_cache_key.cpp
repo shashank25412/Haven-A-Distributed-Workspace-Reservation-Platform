@@ -1,3 +1,8 @@
+/**
+ * @file resource_detail_cache_key.cpp
+ * @brief Implements tenant-safe Redis Resource cache keys.
+ */
+
 #include "haven/infrastructure/cache/redis/resource_detail_cache_key.hpp"
 
 #include <cctype>

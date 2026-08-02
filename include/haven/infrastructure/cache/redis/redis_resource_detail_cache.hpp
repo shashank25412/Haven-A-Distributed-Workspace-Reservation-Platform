@@ -1,3 +1,8 @@
+/**
+ * @file redis_resource_detail_cache.hpp
+ * @brief Declares the Redis implementation of the Resource detail cache.
+ */
+
 #pragma once
 
 #include "haven/application/resources/resource_detail_cache.hpp"

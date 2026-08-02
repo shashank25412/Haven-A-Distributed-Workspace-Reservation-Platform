@@ -1,3 +1,8 @@
+/**
+ * @file redis_connection.hpp
+ * @brief Declares the shared Redis connection wrapper.
+ */
+
 #pragma once
 
 #include "haven/infrastructure/cache/redis/redis_configuration.hpp"

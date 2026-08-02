@@ -1,3 +1,8 @@
+/**
+ * @file create_reservation_controller.hpp
+ * @brief Declares route registration for reservation creation.
+ */
+
 #pragma once
 
 #include "haven/application/reservations/create_reservation_handler.hpp"

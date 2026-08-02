@@ -1,3 +1,8 @@
+/**
+ * @file api_error_response.hpp
+ * @brief Declares the generic HTTP API error response DTO.
+ */
+
 #pragma once
 
 #include <json/value.h>

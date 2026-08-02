@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_document_validator.cpp
+ * @brief Implements validation for persisted idempotency documents.
+ */
+
 #include "haven/infrastructure/persistence/couchbase/idempotency_document_validator.hpp"
 
 #include "haven/application/reservations/create_reservation_result.hpp"

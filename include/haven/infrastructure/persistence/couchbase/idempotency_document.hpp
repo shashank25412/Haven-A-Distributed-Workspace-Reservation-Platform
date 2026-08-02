@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_document.hpp
+ * @brief Defines the persisted Couchbase idempotency document model.
+ */
+
 #pragma once
 
 #include <cstdint>

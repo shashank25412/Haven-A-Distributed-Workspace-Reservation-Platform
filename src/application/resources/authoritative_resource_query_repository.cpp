@@ -1,3 +1,8 @@
+/**
+ * @file authoritative_resource_query_repository.cpp
+ * @brief Implements authoritative Resource queries.
+ */
+
 #include "haven/application/resources/authoritative_resource_query_repository.hpp"
 
 #include <utility>

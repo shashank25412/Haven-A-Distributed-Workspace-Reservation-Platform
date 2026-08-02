@@ -1,3 +1,8 @@
+/**
+ * @file cached_resource_query_repository.hpp
+ * @brief Declares the cache-backed Resource query repository adapter.
+ */
+
 #pragma once
 
 #include "haven/application/resources/resource_detail_cache.hpp"

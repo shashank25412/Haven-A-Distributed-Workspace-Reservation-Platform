@@ -1,3 +1,8 @@
+/**
+ * @file cached_resource_query_repository_test.cpp
+ * @brief Tests cache-backed Resource query orchestration.
+ */
+
 #include "haven/application/resources/cached_resource_query_repository.hpp"
 
 #include <gtest/gtest.h>

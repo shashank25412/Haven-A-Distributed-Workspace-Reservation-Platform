@@ -1,3 +1,8 @@
+/**
+ * @file redis_resource_detail_cache.cpp
+ * @brief Implements Redis persistence for cached Resource details.
+ */
+
 #include "haven/infrastructure/cache/redis/redis_resource_detail_cache.hpp"
 
 #include "haven/infrastructure/cache/redis/cached_resource_record.hpp"

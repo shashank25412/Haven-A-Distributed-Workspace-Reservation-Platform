@@ -1,3 +1,8 @@
+/**
+ * @file create_reservation_response.cpp
+ * @brief Implements reservation creation HTTP response serialization.
+ */
+
 #include "haven/presentation/reservations/create_reservation_response.hpp"
 
 #include "haven/domain/value_objects/reservation_status.hpp"

@@ -1,3 +1,8 @@
+/**
+ * @file api_error_response.cpp
+ * @brief Implements generic HTTP API error response serialization.
+ */
+
 #include "haven/presentation/api_error_response.hpp"
 
 #include <utility>

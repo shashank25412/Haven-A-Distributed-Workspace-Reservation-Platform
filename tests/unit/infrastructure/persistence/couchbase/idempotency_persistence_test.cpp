@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_persistence_test.cpp
+ * @brief Tests Couchbase idempotency document mapping, validation, and keys.
+ */
+
 #include "haven/domain/value_objects/version.hpp"
 #include "haven/infrastructure/persistence/couchbase/idempotency_document.hpp"
 #include "haven/infrastructure/persistence/couchbase/idempotency_document_key.hpp"

@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_document_key.cpp
+ * @brief Implements deterministic Couchbase idempotency document keys.
+ */
+
 #include "haven/infrastructure/persistence/couchbase/idempotency_document_key.hpp"
 
 #include "haven/infrastructure/persistence/couchbase/idempotency_document_validator.hpp"

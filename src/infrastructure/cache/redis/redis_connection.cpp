@@ -1,3 +1,8 @@
+/**
+ * @file redis_connection.cpp
+ * @brief Implements the shared Redis connection wrapper.
+ */
+
 #include "haven/infrastructure/cache/redis/redis_connection.hpp"
 
 #include <sw/redis++/redis++.h>

@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_document_validator.hpp
+ * @brief Declares validation for persisted Couchbase idempotency documents.
+ */
+
 #pragma once
 
 #include "haven/application/idempotency/idempotency_scope.hpp"

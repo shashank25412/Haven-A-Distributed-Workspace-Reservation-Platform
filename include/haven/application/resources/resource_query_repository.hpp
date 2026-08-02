@@ -1,3 +1,8 @@
+/**
+ * @file resource_query_repository.hpp
+ * @brief Declares the read-only Resource query repository port.
+ */
+
 #pragma once
 
 #include "haven/domain/resource.hpp"

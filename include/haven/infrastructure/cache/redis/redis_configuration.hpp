@@ -1,3 +1,8 @@
+/**
+ * @file redis_configuration.hpp
+ * @brief Defines Redis connection and cache configuration.
+ */
+
 #pragma once
 
 #include <chrono>

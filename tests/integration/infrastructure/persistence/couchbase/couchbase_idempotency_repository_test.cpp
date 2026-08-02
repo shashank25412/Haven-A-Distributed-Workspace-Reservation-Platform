@@ -1,3 +1,8 @@
+/**
+ * @file couchbase_idempotency_repository_test.cpp
+ * @brief Tests durable idempotency behavior against Couchbase.
+ */
+
 #include "haven/infrastructure/persistence/couchbase/couchbase_idempotency_repository.hpp"
 
 #include "haven/application/idempotency/create_reservation_fingerprint_input.hpp"

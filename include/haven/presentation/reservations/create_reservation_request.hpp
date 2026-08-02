@@ -1,3 +1,8 @@
+/**
+ * @file create_reservation_request.hpp
+ * @brief Declares the reservation creation HTTP request DTO.
+ */
+
 #pragma once
 
 #include "haven/domain/value_objects/purpose.hpp"

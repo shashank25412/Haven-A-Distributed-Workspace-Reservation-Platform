@@ -1,3 +1,8 @@
+/**
+ * @file create_reservation_request.cpp
+ * @brief Implements reservation creation HTTP request parsing.
+ */
+
 #include "haven/presentation/reservations/create_reservation_request.hpp"
 
 #include <algorithm>

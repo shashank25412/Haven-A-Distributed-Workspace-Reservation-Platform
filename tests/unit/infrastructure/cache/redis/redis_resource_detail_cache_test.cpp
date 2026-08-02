@@ -1,3 +1,8 @@
+/**
+ * @file redis_resource_detail_cache_test.cpp
+ * @brief Tests Redis Resource detail cache behavior.
+ */
+
 #include "haven/infrastructure/cache/redis/cached_resource_record.hpp"
 #include "haven/infrastructure/cache/redis/resource_detail_cache_key.hpp"
 

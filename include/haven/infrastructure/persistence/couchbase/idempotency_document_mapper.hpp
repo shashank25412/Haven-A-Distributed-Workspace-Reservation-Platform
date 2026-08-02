@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_document_mapper.hpp
+ * @brief Declares mappings between idempotency records and Couchbase documents.
+ */
+
 #pragma once
 
 #include "haven/application/idempotency/idempotency_record.hpp"

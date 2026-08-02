@@ -1,3 +1,8 @@
+/**
+ * @file couchbase_idempotency_repository.cpp
+ * @brief Implements durable Couchbase idempotency persistence.
+ */
+
 #include "haven/infrastructure/persistence/couchbase/couchbase_idempotency_repository.hpp"
 
 #include "haven/application/idempotency/idempotency_repository_error.hpp"

@@ -1,3 +1,8 @@
+/**
+ * @file create_reservation_response.hpp
+ * @brief Declares the reservation creation HTTP response DTO.
+ */
+
 #pragma once
 
 #include "haven/application/reservations/create_reservation_result.hpp"

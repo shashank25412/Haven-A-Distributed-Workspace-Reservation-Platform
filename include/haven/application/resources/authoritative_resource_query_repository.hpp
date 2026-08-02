@@ -1,3 +1,8 @@
+/**
+ * @file authoritative_resource_query_repository.hpp
+ * @brief Declares the authoritative Resource query repository adapter.
+ */
+
 #pragma once
 
 #include "haven/application/resources/resource_query_repository.hpp"

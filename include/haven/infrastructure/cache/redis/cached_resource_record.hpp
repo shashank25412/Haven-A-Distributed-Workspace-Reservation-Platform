@@ -1,3 +1,8 @@
+/**
+ * @file cached_resource_record.hpp
+ * @brief Declares serialization helpers for Redis Resource cache records.
+ */
+
 #pragma once
 
 #include "haven/domain/resource.hpp"

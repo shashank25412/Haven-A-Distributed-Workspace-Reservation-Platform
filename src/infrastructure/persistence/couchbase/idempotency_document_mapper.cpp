@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_document_mapper.cpp
+ * @brief Implements idempotency record and Couchbase document mappings.
+ */
+
 #include "haven/infrastructure/persistence/couchbase/idempotency_document_mapper.hpp"
 
 #include "haven/application/reservations/create_reservation_result.hpp"

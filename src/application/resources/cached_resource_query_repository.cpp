@@ -1,3 +1,8 @@
+/**
+ * @file cached_resource_query_repository.cpp
+ * @brief Implements cache-backed Resource queries.
+ */
+
 #include "haven/application/resources/cached_resource_query_repository.hpp"
 
 #include "haven/logging/logging.hpp"

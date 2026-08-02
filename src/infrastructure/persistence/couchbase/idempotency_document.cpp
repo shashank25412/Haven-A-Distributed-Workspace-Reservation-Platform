@@ -1,3 +1,8 @@
+/**
+ * @file idempotency_document.cpp
+ * @brief Implements the persisted Couchbase idempotency document model.
+ */
+
 #include "haven/infrastructure/persistence/couchbase/idempotency_document.hpp"
 
 #include "haven/infrastructure/persistence/couchbase/idempotency_document_validator.hpp"

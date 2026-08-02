@@ -1,3 +1,8 @@
+/**
+ * @file redis_resource_detail_cache_test.cpp
+ * @brief Tests Redis Resource detail caching against a live service.
+ */
+
 #include "haven/infrastructure/cache/redis/redis_resource_detail_cache.hpp"
 
 #include "haven/application/resources/cached_resource_query_repository.hpp"

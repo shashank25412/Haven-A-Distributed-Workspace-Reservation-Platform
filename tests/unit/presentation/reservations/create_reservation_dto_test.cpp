@@ -1,3 +1,8 @@
+/**
+ * @file create_reservation_dto_test.cpp
+ * @brief Tests reservation creation HTTP request and response DTOs.
+ */
+
 #include "haven/domain/reservation.hpp"
 #include "haven/presentation/reservations/create_reservation_request.hpp"
 #include "haven/presentation/reservations/create_reservation_response.hpp"

@@ -1,3 +1,8 @@
+/**
+ * @file create_reservation_controller.cpp
+ * @brief Implements the reservation creation HTTP route.
+ */
+
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
 
 #include "haven/application/idempotency/idempotency_repository_error.hpp"

@@ -1,3 +1,8 @@
+/**
+ * @file resource_detail_cache_key.hpp
+ * @brief Declares tenant-safe Redis keys for cached Resource details.
+ */
+
 #pragma once
 
 #include "haven/domain/value_objects/organization_id.hpp"

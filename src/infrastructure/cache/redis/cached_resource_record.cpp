@@ -1,3 +1,8 @@
+/**
+ * @file cached_resource_record.cpp
+ * @brief Implements Redis Resource cache record serialization.
+ */
+
 #include "haven/infrastructure/cache/redis/cached_resource_record.hpp"
 
 #include "haven/domain/value_objects/resource_status.hpp"

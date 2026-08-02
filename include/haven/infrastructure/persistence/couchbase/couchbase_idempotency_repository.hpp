@@ -1,3 +1,8 @@
+/**
+ * @file couchbase_idempotency_repository.hpp
+ * @brief Declares the Couchbase idempotency repository implementation.
+ */
+
 #pragma once
 
 #include "haven/application/idempotency/idempotency_repository.hpp"

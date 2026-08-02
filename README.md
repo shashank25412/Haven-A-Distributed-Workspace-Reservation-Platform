@@ -6,6 +6,11 @@
 
 Haven is a backend platform for discovering and reserving shared resources such as meeting rooms, office desks, parking slots, and other bookable assets—without double bookings, duplicate commands, or unreliable event delivery.
 
+The implemented `POST /api/v1/reservations` endpoint requires `Idempotency-Key`
+and temporary `X-Haven-Organization-Id` / `X-Haven-User-Id` development headers.
+Identical retries replay the original result; mismatched reuse and active
+processing return explicit `409` problem responses.
+
 <p>
   <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white">
   <img alt="CMake" src="https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white">

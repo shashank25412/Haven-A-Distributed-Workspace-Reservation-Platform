@@ -7,6 +7,8 @@
  * loop. Business logic and configuration parsing must remain outside main().
  */
 
+#include "haven/application/idempotency/idempotency_repository.hpp"
+#include "haven/application/reservations/create_reservation_handler.hpp"
 #include "haven/application/reservations/reservation_repository.hpp"
 #include "haven/application/resources/authoritative_resource_query_repository.hpp"
 #include "haven/application/resources/cached_resource_query_repository.hpp"
@@ -14,13 +16,16 @@
 #include "haven/application/resources/resource_query_repository.hpp"
 #include "haven/application/resources/resource_repository.hpp"
 #include "haven/bootstrap/configuration.hpp"
+#include "haven/domain/policies/reservation_creation_policy.hpp"
 #include "haven/infrastructure/cache/redis/redis_connection.hpp"
 #include "haven/infrastructure/cache/redis/redis_resource_detail_cache.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_idempotency_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/health/live_controller.hpp"
+#include "haven/presentation/reservations/create_reservation_controller.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
 
 #include <drogon/HttpAppFramework.h>
@@ -77,6 +82,10 @@ int main() {
                 std::make_shared<couchbase_persistence::CouchbaseReservationRepository>(
                     couchbase_connection);
 
+        auto idempotency_repository =
+            std::make_shared<couchbase_persistence::CouchbaseIdempotencyRepository>(
+                couchbase_connection, configuration.couchbase.idempotency_retention);
+
         HVN_INFO_LOG("Couchbase repositories initialized");
 
         auto authoritative_query =
@@ -103,10 +112,20 @@ int main() {
 
         auto get_resource_handler =
             std::make_shared<haven::application::resources::GetResourceHandler>(*resource_query);
+        auto reservation_creation_policy =
+            std::make_shared<haven::domain::ReservationCreationPolicy>();
+        auto create_reservation_handler =
+            std::make_shared<haven::application::reservations::CreateReservationHandler>(
+                *resource_repository,
+                *reservation_repository,
+                *idempotency_repository,
+                *reservation_creation_policy);
 
         haven::presentation::health::register_live_route();
         haven::presentation::resources::register_get_resource_route(
             std::move(get_resource_handler));
+        haven::presentation::reservations::register_create_reservation_route(
+            std::move(create_reservation_handler));
         HVN_INFO_LOG("HTTP routes registered");
 
         HVN_INFO_LOG("Starting Haven API on ",

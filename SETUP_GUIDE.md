@@ -304,6 +304,24 @@ curl --fail http://localhost:8080/health/live
 open http://localhost:8091
 ```
 
+Create a reservation with the required idempotency key and temporary
+pre-authentication identity headers:
+
+```bash
+curl --request POST http://localhost:8080/api/v1/reservations \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: local-example-1' \
+  --header 'X-Haven-Organization-Id: organization-1' \
+  --header 'X-Haven-User-Id: user-1' \
+  --data '{"resourceId":"resource-1","startTime":"2026-08-01T10:00:00Z","endTime":"2026-08-01T11:00:00Z","purpose":"Planning"}'
+```
+
+Identical retries replay the original result. Reusing the key with another
+payload returns `IDEMPOTENCY_KEY_MISMATCH`; an operation still processing
+returns `IDEMPOTENCY_REQUEST_IN_PROGRESS` with `Retry-After: 1`. Processing
+without a Reservation has no lease takeover, and different keys do not
+serialize the existing schedule race.
+
 Stop Couchbase without deleting its named data volume:
 
 ```bash

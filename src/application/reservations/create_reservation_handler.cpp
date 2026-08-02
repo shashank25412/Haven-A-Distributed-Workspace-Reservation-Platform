@@ -32,9 +32,9 @@ CreateReservationResult replay(const CreateReservationResultSnapshot& snapshot) 
                                                              std::nullopt,
                                                              *snapshot.initial_version());
     if (snapshot.creation_status() == CreateReservationStatus::CREATED_CONFIRMED) {
-        return CreateReservationResult::confirmed(std::move(reservation));
+        return CreateReservationResult::confirmed(std::move(reservation), snapshot.created_at());
     }
-    return CreateReservationResult::pending_approval(std::move(reservation));
+    return CreateReservationResult::pending_approval(std::move(reservation), snapshot.created_at());
 }
 
 CreateReservationResultSnapshot snapshot_for(const CreateReservationResult& result,
@@ -73,11 +73,12 @@ bool matches_original_operation(const haven::domain::Reservation& reservation,
            reservation.kind() == command.reservation_kind();
 }
 
-CreateReservationResult result_for_recovered(haven::domain::Reservation reservation) {
+CreateReservationResult result_for_recovered(haven::domain::Reservation reservation,
+                                             const IdempotencyRecord::TimePoint created_at) {
     if (reservation.status() == haven::domain::ReservationStatus::Confirmed) {
-        return CreateReservationResult::confirmed(std::move(reservation));
+        return CreateReservationResult::confirmed(std::move(reservation), created_at);
     }
-    return CreateReservationResult::pending_approval(std::move(reservation));
+    return CreateReservationResult::pending_approval(std::move(reservation), created_at);
 }
 
 }  // namespace
@@ -126,7 +127,8 @@ CreateReservationResult CreateReservationHandler::handle(
                     return CreateReservationResult::rejected(
                         CreateReservationStatus::IDEMPOTENCY_CONFLICT);
                 }
-                auto recovered = result_for_recovered(loaded->aggregate());
+                auto recovered =
+                    result_for_recovered(loaded->aggregate(), claim.record().created_at());
                 idempotency_repository_.record_succeeded(
                     claim.record().scope(),
                     claim.record().fingerprint(),
@@ -212,9 +214,11 @@ CreateReservationResult CreateReservationHandler::handle(
                                                            command.confirmed_event_id(),
                                                            command.occurred_at());
     static_cast<void>(reservation_repository_.insert(command.organization_id(), reservation));
-    auto result = aggregate.requires_approval()
-                      ? CreateReservationResult::pending_approval(std::move(reservation))
-                      : CreateReservationResult::confirmed(std::move(reservation));
+    auto result =
+        aggregate.requires_approval()
+            ? CreateReservationResult::pending_approval(std::move(reservation),
+                                                        command.occurred_at())
+            : CreateReservationResult::confirmed(std::move(reservation), command.occurred_at());
     // If completion fails, the inserted reservation remains durable while the
     // claim remains Processing. Recovery is deliberately deferred to a later slice.
     idempotency_repository_.record_succeeded(

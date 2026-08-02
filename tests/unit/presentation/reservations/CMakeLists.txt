@@ -1,0 +1,8 @@
+add_executable(haven_create_reservation_presentation_test
+    create_reservation_dto_test.cpp
+)
+target_link_libraries(haven_create_reservation_presentation_test
+    PRIVATE haven::presentation GTest::gtest_main
+)
+haven_apply_project_options(haven_create_reservation_presentation_test)
+gtest_discover_tests(haven_create_reservation_presentation_test)

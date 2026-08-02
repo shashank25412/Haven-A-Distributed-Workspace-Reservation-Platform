@@ -7,6 +7,7 @@
 
 #include "haven/domain/reservation.hpp"
 
+#include <chrono>
 #include <optional>
 #include <utility>
 
@@ -34,21 +35,25 @@ enum class CreateReservationStatus {
  */
 class CreateReservationResult final {
 public:
+    using TimePoint = std::chrono::system_clock::time_point;
     /**
      * @brief Creates a successful result containing a confirmed reservation.
      */
-    [[nodiscard]] static CreateReservationResult confirmed(haven::domain::Reservation reservation) {
-        return CreateReservationResult{CreateReservationStatus::CREATED_CONFIRMED,
-                                       std::move(reservation)};
+    [[nodiscard]] static CreateReservationResult confirmed(
+        haven::domain::Reservation reservation,
+        std::optional<TimePoint> created_at = std::nullopt) {
+        return CreateReservationResult{
+            CreateReservationStatus::CREATED_CONFIRMED, std::move(reservation), created_at};
     }
 
     /**
      * @brief Creates a successful result containing a pending reservation.
      */
     [[nodiscard]] static CreateReservationResult pending_approval(
-        haven::domain::Reservation reservation) {
-        return CreateReservationResult{CreateReservationStatus::CREATED_PENDING_APPROVAL,
-                                       std::move(reservation)};
+        haven::domain::Reservation reservation,
+        std::optional<TimePoint> created_at = std::nullopt) {
+        return CreateReservationResult{
+            CreateReservationStatus::CREATED_PENDING_APPROVAL, std::move(reservation), created_at};
     }
 
     /**
@@ -57,7 +62,7 @@ public:
      * @param status Rejection status.
      */
     [[nodiscard]] static CreateReservationResult rejected(const CreateReservationStatus status) {
-        return CreateReservationResult{status, std::nullopt};
+        return CreateReservationResult{status, std::nullopt, std::nullopt};
     }
 
     /**
@@ -73,14 +78,19 @@ public:
     [[nodiscard]] const std::optional<haven::domain::Reservation>& reservation() const noexcept {
         return reservation_;
     }
+    [[nodiscard]] const std::optional<TimePoint>& created_at() const noexcept {
+        return created_at_;
+    }
 
 private:
     CreateReservationResult(const CreateReservationStatus status,
-                            std::optional<haven::domain::Reservation> reservation)
-        : status_(status), reservation_(std::move(reservation)) {}
+                            std::optional<haven::domain::Reservation> reservation,
+                            std::optional<TimePoint> created_at)
+        : status_(status), reservation_(std::move(reservation)), created_at_(created_at) {}
 
     CreateReservationStatus status_;
     std::optional<haven::domain::Reservation> reservation_;
+    std::optional<TimePoint> created_at_;
 };
 
 }  // namespace haven::application::reservations

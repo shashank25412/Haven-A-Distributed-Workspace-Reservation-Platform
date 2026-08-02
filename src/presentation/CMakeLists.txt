@@ -20,6 +20,12 @@ add_library(
     health/live_controller.cpp
     health/live_response.cpp
 
+    api_error_response.cpp
+
+    reservations/create_reservation_controller.cpp
+    reservations/create_reservation_request.cpp
+    reservations/create_reservation_response.cpp
+
     resources/get_resource_controller.cpp
     resources/resource_error_response.cpp
     resources/resource_response.cpp

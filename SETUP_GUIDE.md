@@ -278,8 +278,9 @@ docker compose up --build --detach
 ```
 
 The one-shot `couchbase-init` service creates the configured `haven` bucket,
-`reservation` scope, `resources` and `reservations` collections, and all
-secondary indexes from [`deploy/couchbase/indexes.sql`](deploy/couchbase/indexes.sql).
+`reservation` scope, `resources`, `reservations`, and `idempotency` collections,
+and all secondary indexes from
+[`deploy/couchbase/indexes.sql`](deploy/couchbase/indexes.sql).
 Check the database and initialization result:
 
 ```bash
@@ -337,6 +338,7 @@ cp .env.example .env
 | `HVN_COUCHBASE_PASSWORD` | Required | Non-empty secret | Couchbase password |
 | `HVN_COUCHBASE_BUCKET` | Required | Non-empty bucket name | Bucket containing Haven data |
 | `HVN_COUCHBASE_SCOPE` | Required | Non-empty scope name | Scope containing Haven collections |
+| `HVN_IDEMPOTENCY_RETENTION_SECONDS` | `86400` | Positive integer | Retention from initial idempotency claim |
 
 Log-level values are case-insensitive, and `warning` is accepted as an alias
 for `warn`.
@@ -353,6 +355,7 @@ HVN_COUCHBASE_USERNAME=Administrator
 HVN_COUCHBASE_PASSWORD=password
 HVN_COUCHBASE_BUCKET=haven
 HVN_COUCHBASE_SCOPE=reservation
+HVN_IDEMPOTENCY_RETENTION_SECONDS=86400
 ```
 
 One HTTP worker thread is used as a predictable local-development default.

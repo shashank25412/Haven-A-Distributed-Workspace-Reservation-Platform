@@ -31,6 +31,7 @@ constexpr const char* kCouchbaseUsernameVariable = "HVN_COUCHBASE_USERNAME";
 constexpr const char* kCouchbasePasswordVariable = "HVN_COUCHBASE_PASSWORD";
 constexpr const char* kCouchbaseBucketVariable = "HVN_COUCHBASE_BUCKET";
 constexpr const char* kCouchbaseScopeVariable = "HVN_COUCHBASE_SCOPE";
+constexpr const char* kIdempotencyRetentionVariable = "HVN_IDEMPOTENCY_RETENTION_SECONDS";
 constexpr const char* kRedisEnabledVariable = "HVN_REDIS_ENABLED";
 constexpr const char* kRedisUriVariable = "HVN_REDIS_URI";
 constexpr const char* kRedisConnectTimeoutVariable = "HVN_REDIS_CONNECT_TIMEOUT_MS";
@@ -60,6 +61,7 @@ protected:
         original_couchbase_password_ = read_environment_variable(kCouchbasePasswordVariable);
         original_couchbase_bucket_ = read_environment_variable(kCouchbaseBucketVariable);
         original_couchbase_scope_ = read_environment_variable(kCouchbaseScopeVariable);
+        original_idempotency_retention_ = read_environment_variable(kIdempotencyRetentionVariable);
         original_redis_enabled_ = read_environment_variable(kRedisEnabledVariable);
         original_redis_uri_ = read_environment_variable(kRedisUriVariable);
         original_redis_connect_timeout_ = read_environment_variable(kRedisConnectTimeoutVariable);
@@ -72,6 +74,7 @@ protected:
         ASSERT_TRUE(unset_environment_variable(kRedisConnectTimeoutVariable));
         ASSERT_TRUE(unset_environment_variable(kRedisCommandTimeoutVariable));
         ASSERT_TRUE(unset_environment_variable(kRedisResourceTtlVariable));
+        ASSERT_TRUE(unset_environment_variable(kIdempotencyRetentionVariable));
     }
 
     void TearDown() override {
@@ -89,6 +92,8 @@ protected:
             restore_environment_variable(kCouchbaseBucketVariable, original_couchbase_bucket_));
         EXPECT_TRUE(
             restore_environment_variable(kCouchbaseScopeVariable, original_couchbase_scope_));
+        EXPECT_TRUE(restore_environment_variable(kIdempotencyRetentionVariable,
+                                                 original_idempotency_retention_));
         EXPECT_TRUE(restore_environment_variable(kRedisEnabledVariable, original_redis_enabled_));
         EXPECT_TRUE(restore_environment_variable(kRedisUriVariable, original_redis_uri_));
         EXPECT_TRUE(restore_environment_variable(kRedisConnectTimeoutVariable,
@@ -180,6 +185,7 @@ private:
     std::optional<std::string> original_couchbase_password_;
     std::optional<std::string> original_couchbase_bucket_;
     std::optional<std::string> original_couchbase_scope_;
+    std::optional<std::string> original_idempotency_retention_;
     std::optional<std::string> original_redis_enabled_;
     std::optional<std::string> original_redis_uri_;
     std::optional<std::string> original_redis_connect_timeout_;
@@ -251,6 +257,21 @@ TEST_F(EnvironmentConfigurationTest, LoadsAllCouchbaseEnvironmentVariablesExactl
     EXPECT_EQ(configuration.couchbase.password, kTestPassword);
     EXPECT_EQ(configuration.couchbase.bucket_name, "test-bucket");
     EXPECT_EQ(configuration.couchbase.scope_name, "test-scope");
+    EXPECT_EQ(configuration.couchbase.idempotency_retention, std::chrono::seconds{86400});
+}
+
+TEST_F(EnvironmentConfigurationTest, LoadsConfiguredIdempotencyRetention) {
+    ASSERT_TRUE(set_environment_variable(kIdempotencyRetentionVariable, "90"));
+    EXPECT_EQ(load_configuration_from_environment().couchbase.idempotency_retention,
+              std::chrono::seconds{90});
+}
+
+TEST_F(EnvironmentConfigurationTest, RejectsInvalidIdempotencyRetention) {
+    for (const auto value : {"0", "-1", "invalid", "9223372036854775808",
+                             "18446744073709551616"}) {
+        ASSERT_TRUE(set_environment_variable(kIdempotencyRetentionVariable, value));
+        EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+    }
 }
 
 TEST_F(EnvironmentConfigurationTest, RejectsMissingCouchbaseEnvironmentVariables) {

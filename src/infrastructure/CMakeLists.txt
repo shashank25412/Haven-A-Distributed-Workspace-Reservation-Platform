@@ -13,6 +13,7 @@ find_package(
 find_package(hiredis CONFIG REQUIRED)
 find_package(redis++ CONFIG REQUIRED)
 find_package(jsoncpp CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 add_library(haven_infrastructure_redis
     cache/redis/redis_connection.cpp
@@ -34,6 +35,11 @@ add_library(
 
     persistence/couchbase/couchbase_connection.cpp
     persistence/couchbase/couchbase_document_key.cpp
+    persistence/couchbase/idempotency_document_key.cpp
+    persistence/couchbase/idempotency_document.cpp
+    persistence/couchbase/idempotency_document_mapper.cpp
+    persistence/couchbase/idempotency_document_validator.cpp
+    persistence/couchbase/couchbase_idempotency_repository.cpp
     persistence/couchbase/couchbase_resource_repository.cpp
     persistence/couchbase/couchbase_reservation_repository.cpp
     persistence/couchbase/resource_document.cpp
@@ -74,6 +80,7 @@ target_link_libraries(
 
     PRIVATE
         haven_logging
+        OpenSSL::Crypto
 )
 
 haven_apply_project_options(haven_infrastructure_couchbase)

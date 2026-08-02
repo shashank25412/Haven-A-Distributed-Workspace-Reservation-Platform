@@ -15,6 +15,7 @@
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -32,6 +33,7 @@ constexpr std::string_view kDefaultRedisUri{"tcp://127.0.0.1:6379"};
 constexpr std::string_view kDefaultRedisConnectTimeout{"100"};
 constexpr std::string_view kDefaultRedisCommandTimeout{"100"};
 constexpr std::string_view kDefaultRedisResourceTtl{"300"};
+constexpr std::string_view kDefaultIdempotencyRetention{"86400"};
 
 constexpr std::string_view kHttpAddressVariable{"HVN_HTTP_ADDRESS"};
 constexpr std::string_view kHttpPortVariable{"HVN_HTTP_PORT"};
@@ -42,6 +44,7 @@ constexpr std::string_view kCouchbaseUsernameVariable{"HVN_COUCHBASE_USERNAME"};
 constexpr std::string_view kCouchbasePasswordVariable{"HVN_COUCHBASE_PASSWORD"};
 constexpr std::string_view kCouchbaseBucketVariable{"HVN_COUCHBASE_BUCKET"};
 constexpr std::string_view kCouchbaseScopeVariable{"HVN_COUCHBASE_SCOPE"};
+constexpr std::string_view kIdempotencyRetentionVariable{"HVN_IDEMPOTENCY_RETENTION_SECONDS"};
 constexpr std::string_view kRedisEnabledVariable{"HVN_REDIS_ENABLED"};
 constexpr std::string_view kRedisUriVariable{"HVN_REDIS_URI"};
 constexpr std::string_view kRedisPasswordVariable{"HVN_REDIS_PASSWORD"};
@@ -67,7 +70,8 @@ template <typename Duration>
                                                const std::string_view variable) {
     std::uint64_t parsed = 0;
     const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), parsed);
-    if (error != std::errc{} || end != value.data() + value.size() || parsed == 0U) {
+    if (error != std::errc{} || end != value.data() + value.size() || parsed == 0U ||
+        parsed > static_cast<std::uint64_t>(Duration::max().count())) {
         throw ConfigurationError{std::string{variable} + " must be a positive integer"};
     }
     return Duration{parsed};
@@ -297,6 +301,10 @@ ApplicationConfiguration load_configuration_from_environment() {
                 .password = required_environment(kCouchbasePasswordVariable),
                 .bucket_name = required_environment(kCouchbaseBucketVariable),
                 .scope_name = required_environment(kCouchbaseScopeVariable),
+                .idempotency_retention = parse_positive_duration<std::chrono::seconds>(
+                    environment_or_default(kIdempotencyRetentionVariable,
+                                           kDefaultIdempotencyRetention),
+                    kIdempotencyRetentionVariable),
             },
         .redis =
             RedisConfiguration{

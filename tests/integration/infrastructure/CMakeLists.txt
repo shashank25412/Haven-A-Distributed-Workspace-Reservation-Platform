@@ -52,3 +52,14 @@ gtest_discover_tests(
     haven_reservation_repository_integration_test
     PROPERTIES LABELS "integration;couchbase"
 )
+
+add_executable(haven_idempotency_repository_integration_test
+    persistence/couchbase/couchbase_idempotency_repository_test.cpp
+)
+target_link_libraries(haven_idempotency_repository_integration_test
+    PRIVATE haven::infrastructure::couchbase GTest::gtest_main
+)
+haven_apply_project_options(haven_idempotency_repository_integration_test)
+gtest_discover_tests(haven_idempotency_repository_integration_test
+    PROPERTIES LABELS "integration;couchbase;idempotency"
+)

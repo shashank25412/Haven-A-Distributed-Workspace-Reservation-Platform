@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <string>
 
 namespace haven::infrastructure::persistence::couchbase {
@@ -22,6 +23,7 @@ struct CouchbaseConfiguration {
     std::string password;
     std::string bucket_name;
     std::string scope_name;
+    std::chrono::seconds idempotency_retention{std::chrono::hours{24}};
 };
 
 }  // namespace haven::infrastructure::persistence::couchbase

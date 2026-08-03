@@ -50,6 +50,7 @@ add_library(haven_infrastructure_redis
     cache/redis/resource_detail_cache_key.cpp
     cache/redis/cached_resource_record.cpp
     cache/redis/redis_resource_detail_cache.cpp
+    cache/redis/metrics/redis_resource_cache_metrics.cpp
 )
 add_library(haven::infrastructure::redis ALIAS haven_infrastructure_redis)
 target_include_directories(haven_infrastructure_redis PUBLIC ${PROJECT_SOURCE_DIR}/include)

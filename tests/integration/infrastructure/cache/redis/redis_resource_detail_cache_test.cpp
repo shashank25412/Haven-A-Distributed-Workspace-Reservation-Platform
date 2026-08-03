@@ -8,6 +8,8 @@
 #include "haven/application/resources/cached_resource_query_repository.hpp"
 #include "haven/infrastructure/cache/redis/redis_connection.hpp"
 #include "haven/infrastructure/cache/redis/resource_detail_cache_key.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
+#include "haven/infrastructure/observability/metrics/prometheus_metrics_recorder.hpp"
 
 #include <gtest/gtest.h>
 
@@ -48,11 +50,12 @@ class RedisResourceDetailCacheIntegrationTest : public ::testing::Test {
 protected:
     RedisResourceDetailCacheIntegrationTest()
         : connection(std::make_shared<RedisConnection>(configuration())),
-          cache(connection, configuration()) {}
+          cache(connection, configuration(), metrics) {}
     void SetUp() override {
         connection->client().flushdb();
     }
     std::shared_ptr<RedisConnection> connection;
+    haven::infrastructure::observability::metrics::PrometheusMetricsRecorder metrics;
     RedisResourceDetailCache cache;
 };
 
@@ -65,11 +68,17 @@ TEST_F(RedisResourceDetailCacheIntegrationTest, StoreFindMissingTenantSeparation
     EXPECT_FALSE(cache.find(haven::domain::OrganizationId{"other-org"}, id).has_value());
     cache.erase(org, id);
     EXPECT_FALSE(cache.find(org, id).has_value());
+    const auto output = metrics.collect();
+    EXPECT_NE(output.find("operation=\"find\",outcome=\"hit\""), std::string::npos);
+    EXPECT_NE(output.find("operation=\"find\",outcome=\"miss\""), std::string::npos);
+    EXPECT_NE(output.find("operation=\"store\",outcome=\"success\""), std::string::npos);
+    EXPECT_NE(output.find("operation=\"erase\",outcome=\"success\""), std::string::npos);
 }
 
 TEST(RedisResourceDetailCacheTtlIntegrationTest, EntryExpires) {
     auto connection = std::make_shared<RedisConnection>(configuration(1s));
-    RedisResourceDetailCache cache{connection, configuration(1s)};
+    auto metrics = haven::infrastructure::observability::metrics::NoOpMetricsRecorder{};
+    RedisResourceDetailCache cache{connection, configuration(1s), metrics};
     const haven::domain::OrganizationId org{"redis-test-org"};
     const haven::domain::ResourceId id{"resource-1"};
     connection->client().flushdb();
@@ -92,7 +101,9 @@ TEST_F(RedisResourceDetailCacheIntegrationTest, CorruptAndUnsupportedEntriesAreD
 
 TEST_F(RedisResourceDetailCacheIntegrationTest, CachedQueryReadsAuthoritativeOnlyOnce) {
     CountingQuery authoritative;
-    haven::application::resources::CachedResourceQueryRepository query{cache, authoritative};
+    auto query_metrics = haven::infrastructure::observability::metrics::NoOpMetricsRecorder{};
+    haven::application::resources::CachedResourceQueryRepository query{
+        cache, authoritative, query_metrics};
     const haven::domain::OrganizationId org{"redis-test-org"};
     const haven::domain::ResourceId id{"resource-1"};
     EXPECT_TRUE(query.find_by_id(org, id).has_value());

@@ -60,6 +60,7 @@ target_link_libraries(haven_metrics_foundation_tests
         haven::infrastructure::metrics
         haven::infrastructure::kafka
         haven::infrastructure::couchbase
+        haven::infrastructure::redis
         GTest::gtest_main
 )
 

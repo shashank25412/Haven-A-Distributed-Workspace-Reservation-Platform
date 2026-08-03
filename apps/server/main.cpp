@@ -159,10 +159,10 @@ int main() {
                     configuration.redis);
             resource_cache =
                 std::make_shared<haven::infrastructure::cache::redis::RedisResourceDetailCache>(
-                    redis_connection, configuration.redis);
+                    redis_connection, configuration.redis, *metrics_recorder);
             resource_query =
                 std::make_shared<haven::application::resources::CachedResourceQueryRepository>(
-                    *resource_cache, *authoritative_query);
+                    *resource_cache, *authoritative_query, *metrics_recorder);
             HVN_INFO_LOG("Redis Resource detail cache enabled");
         } else {
             HVN_INFO_LOG("Redis Resource detail cache disabled");

@@ -23,6 +23,7 @@ add_library(haven_application
     resources/get_resource_handler.cpp
     resources/authoritative_resource_query_repository.cpp
     resources/cached_resource_query_repository.cpp
+    resources/metrics/resource_cache_metrics.cpp
     resources/search_resources_handler.cpp
     resources/search_available_resources_handler.cpp
     resources/get_resource_calendar_handler.cpp

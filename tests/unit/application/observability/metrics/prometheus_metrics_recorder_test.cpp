@@ -7,6 +7,8 @@
 
 #include "haven/application/outbox/metrics/outbox_publisher_metrics.hpp"
 #include "haven/application/reservations/metrics/reservation_creation_metrics.hpp"
+#include "haven/application/resources/metrics/resource_cache_metrics.hpp"
+#include "haven/infrastructure/cache/redis/metrics/redis_resource_cache_metrics.hpp"
 #include "haven/infrastructure/messaging/kafka/metrics/kafka_outbox_producer_metrics.hpp"
 #include "haven/infrastructure/persistence/couchbase/metrics/couchbase_persistence_metrics.hpp"
 
@@ -204,6 +206,27 @@ TEST(PrometheusMetricsRecorderTest, ExposesCouchbasePersistenceCatalogMetrics) {
     EXPECT_NE(
         output.find("haven_couchbase_reservation_creation_transaction_duration_seconds_count"),
         std::string::npos);
+}
+
+TEST(PrometheusMetricsRecorderTest, ExposesRedisResourceCacheCatalogMetrics) {
+    namespace redis_metrics = haven::infrastructure::cache::redis::metrics;
+    namespace query_metrics = haven::application::resources::metrics;
+    PrometheusMetricsRecorder recorder;
+    const MetricLabels operation_labels{{"operation", "find"}, {"outcome", "hit"}};
+    const MetricLabels source_labels{
+        query_metrics::source_label(query_metrics::QuerySource::cache_hit)};
+    recorder.increment_counter(redis_metrics::operations_metric_name(), 1.0, operation_labels);
+    recorder.observe_duration(redis_metrics::duration_metric_name(), 100us, operation_labels);
+    recorder.increment_counter(query_metrics::queries_metric_name(), 1.0, source_labels);
+    recorder.observe_duration(query_metrics::query_duration_metric_name(), 200us, source_labels);
+
+    const auto output = recorder.collect();
+    EXPECT_NE(output.find("haven_redis_resource_cache_operations_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_redis_resource_cache_operation_duration_seconds_count"),
+              std::string::npos);
+    EXPECT_NE(output.find("haven_resource_cache_queries_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_resource_cache_query_duration_seconds_count"), std::string::npos);
+    EXPECT_NE(output.find("source=\"cache_hit\""), std::string::npos);
 }
 
 }  // namespace

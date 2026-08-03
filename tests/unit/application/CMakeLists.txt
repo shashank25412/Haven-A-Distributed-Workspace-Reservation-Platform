@@ -5,6 +5,7 @@
 
 add_executable(haven_application_tests
     outbox_message_producer_test.cpp
+    outbox/outbox_publisher_test.cpp
     idempotency/idempotency_contract_test.cpp
     idempotency/test_idempotency_repository_test.cpp
 

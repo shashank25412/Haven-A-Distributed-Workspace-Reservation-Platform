@@ -9,6 +9,7 @@ add_library(haven_application
     repository_error.cpp
 
     outbox/outbox_publisher.cpp
+    outbox/system_outbox_publisher_clock.cpp
 
     idempotency/create_reservation_fingerprint.cpp
     idempotency/create_reservation_result_snapshot.cpp

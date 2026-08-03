@@ -21,6 +21,8 @@ target_link_libraries(
         haven::bootstrap
         haven::infrastructure::couchbase
         haven::infrastructure::redis
+        haven::infrastructure::kafka
+        haven::runtime::outbox
         haven::presentation
         Drogon::Drogon
 )

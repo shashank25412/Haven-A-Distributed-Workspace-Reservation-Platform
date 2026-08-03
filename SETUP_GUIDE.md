@@ -679,7 +679,7 @@ the build directory:
 rm -rf build
 cmake --preset dev
 ```
-# Optional Redis Resource detail cache
+# Redis Resource detail cache
 
 Run `docker compose up --detach redis` and set `HVN_REDIS_ENABLED=true` to enable the optional
 Resource detail cache. Redis failure never prevents startup or authoritative Couchbase reads.

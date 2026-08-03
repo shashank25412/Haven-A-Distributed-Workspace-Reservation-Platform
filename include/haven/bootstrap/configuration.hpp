@@ -14,6 +14,8 @@
 #include "haven/infrastructure/messaging/kafka/kafka_producer_configuration.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
 
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -77,6 +79,12 @@ struct LoggingConfiguration final {
     LogLevel level;
 };
 
+/** @brief Controls fixed-delay background Outbox publication. */
+struct OutboxPublisherRuntimeConfiguration final {
+    std::size_t batch_size;
+    std::chrono::milliseconds poll_interval;
+};
+
 /**
  * @brief Represents all validated configuration required to start Haven.
  *
@@ -89,6 +97,7 @@ struct ApplicationConfiguration final {
     infrastructure::persistence::couchbase::CouchbaseConfiguration couchbase;
     infrastructure::cache::redis::RedisConfiguration redis;
     infrastructure::messaging::kafka::KafkaProducerConfiguration kafka;
+    OutboxPublisherRuntimeConfiguration outbox_publisher;
 };
 
 /**

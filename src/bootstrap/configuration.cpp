@@ -40,6 +40,8 @@ constexpr std::string_view kDefaultKafkaTopic{"haven.reservation.events"};
 constexpr std::string_view kDefaultKafkaClientId{"haven-reservation-producer"};
 constexpr std::string_view kDefaultKafkaAcknowledgementTimeout{"5000"};
 constexpr std::string_view kDefaultKafkaDeliveryTimeout{"10000"};
+constexpr std::string_view kDefaultOutboxPublisherBatchSize{"100"};
+constexpr std::string_view kDefaultOutboxPublisherPollInterval{"1000"};
 
 constexpr std::string_view kHttpAddressVariable{"HVN_HTTP_ADDRESS"};
 constexpr std::string_view kHttpPortVariable{"HVN_HTTP_PORT"};
@@ -63,6 +65,9 @@ constexpr std::string_view kKafkaTopicVariable{"HVN_KAFKA_RESERVATION_EVENTS_TOP
 constexpr std::string_view kKafkaClientIdVariable{"HVN_KAFKA_CLIENT_ID"};
 constexpr std::string_view kKafkaAcknowledgementTimeoutVariable{"HVN_KAFKA_ACK_TIMEOUT_MS"};
 constexpr std::string_view kKafkaDeliveryTimeoutVariable{"HVN_KAFKA_DELIVERY_TIMEOUT_MS"};
+constexpr std::string_view kOutboxPublisherBatchSizeVariable{"HVN_OUTBOX_PUBLISHER_BATCH_SIZE"};
+constexpr std::string_view kOutboxPublisherPollIntervalVariable{
+    "HVN_OUTBOX_PUBLISHER_POLL_INTERVAL_MS"};
 
 [[nodiscard]] bool parse_bool(std::string value, const std::string_view variable) {
     std::transform(value.begin(), value.end(), value.begin(), [](const unsigned char character) {
@@ -87,6 +92,15 @@ template <typename Duration>
         throw ConfigurationError{std::string{variable} + " must be a positive integer"};
     }
     return Duration{parsed};
+}
+
+[[nodiscard]] std::size_t parse_positive_size(const std::string_view value,
+                                              const std::string_view variable) {
+    std::size_t parsed{};
+    const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), parsed);
+    if (error != std::errc{} || end != value.data() + value.size() || parsed == 0)
+        throw ConfigurationError{std::string{variable} + " must be a positive integer"};
+    return parsed;
 }
 
 [[nodiscard]] std::string parse_redis_uri(std::string value) {
@@ -312,6 +326,13 @@ ApplicationConfiguration load_configuration_from_environment() {
     const auto delivery_timeout = parse_positive_duration<std::chrono::milliseconds>(
         environment_or_default(kKafkaDeliveryTimeoutVariable, kDefaultKafkaDeliveryTimeout),
         kKafkaDeliveryTimeoutVariable);
+    const auto publisher_batch_size = parse_positive_size(
+        environment_or_default(kOutboxPublisherBatchSizeVariable, kDefaultOutboxPublisherBatchSize),
+        kOutboxPublisherBatchSizeVariable);
+    const auto publisher_poll_interval = parse_positive_duration<std::chrono::milliseconds>(
+        environment_or_default(kOutboxPublisherPollIntervalVariable,
+                               kDefaultOutboxPublisherPollInterval),
+        kOutboxPublisherPollIntervalVariable);
     if (is_blank(kafka_client_id))
         throw ConfigurationError{"HVN_KAFKA_CLIENT_ID must not be blank"};
     if (kafka_enabled && is_blank(kafka_brokers))
@@ -373,6 +394,11 @@ ApplicationConfiguration load_configuration_from_environment() {
                 .client_id = std::move(kafka_client_id),
                 .acknowledgement_timeout = acknowledgement_timeout,
                 .delivery_timeout = delivery_timeout,
+            },
+        .outbox_publisher =
+            OutboxPublisherRuntimeConfiguration{
+                .batch_size = publisher_batch_size,
+                .poll_interval = publisher_poll_interval,
             },
     };
 }

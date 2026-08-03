@@ -8,6 +8,8 @@
  */
 
 #include "haven/application/idempotency/idempotency_repository.hpp"
+#include "haven/application/outbox/outbox_publisher.hpp"
+#include "haven/application/outbox/system_outbox_publisher_clock.hpp"
 #include "haven/application/reservations/create_reservation_handler.hpp"
 #include "haven/application/reservations/reservation_repository.hpp"
 #include "haven/application/resources/authoritative_resource_query_repository.hpp"
@@ -19,8 +21,10 @@
 #include "haven/domain/policies/reservation_creation_policy.hpp"
 #include "haven/infrastructure/cache/redis/redis_connection.hpp"
 #include "haven/infrastructure/cache/redis/redis_resource_detail_cache.hpp"
+#include "haven/infrastructure/messaging/kafka/kafka_outbox_message_producer.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_idempotency_repository.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_outbox_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_event_store.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_store.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
@@ -29,6 +33,7 @@
 #include "haven/presentation/health/live_controller.hpp"
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
+#include "haven/runtime/outbox/outbox_publisher_worker.hpp"
 
 #include <drogon/HttpAppFramework.h>
 
@@ -94,6 +99,29 @@ int main() {
             std::make_shared<couchbase_persistence::CouchbaseReservationCreationEventStore>(
                 couchbase_connection);
 
+        std::unique_ptr<couchbase_persistence::CouchbaseOutboxRepository> outbox_repository;
+        std::unique_ptr<haven::infrastructure::messaging::kafka::KafkaOutboxMessageProducer>
+            outbox_producer;
+        auto outbox_clock = haven::application::outbox::SystemOutboxPublisherClock{};
+        std::unique_ptr<haven::application::outbox::OutboxPublisher> outbox_publisher;
+        std::unique_ptr<haven::runtime::outbox::OutboxPublisherWorker> outbox_worker;
+        if (configuration.kafka.enabled) {
+            outbox_repository = std::make_unique<couchbase_persistence::CouchbaseOutboxRepository>(
+                couchbase_connection);
+            outbox_producer = std::make_unique<
+                haven::infrastructure::messaging::kafka::KafkaOutboxMessageProducer>(
+                configuration.kafka);
+            outbox_publisher = std::make_unique<haven::application::outbox::OutboxPublisher>(
+                *outbox_repository, *outbox_producer, outbox_clock);
+            outbox_worker = std::make_unique<haven::runtime::outbox::OutboxPublisherWorker>(
+                *outbox_publisher,
+                configuration.outbox_publisher.batch_size,
+                configuration.outbox_publisher.poll_interval);
+            HVN_INFO_LOG("Kafka Outbox publishing enabled");
+        } else {
+            HVN_INFO_LOG("Kafka Outbox publishing disabled; Pending records remain durable");
+        }
+
         HVN_INFO_LOG("Couchbase repositories initialized");
 
         auto authoritative_query =
@@ -146,10 +174,16 @@ int main() {
                      configuration.http.worker_threads,
                      " HTTP worker thread(s)");
 
+        if (outbox_worker)
+            outbox_worker->start();
+
         drogon::app()
             .addListener(configuration.http.address, configuration.http.port)
             .setThreadNum(configuration.http.worker_threads)
             .run();
+
+        if (outbox_worker)
+            outbox_worker->stop();
 
         return EXIT_SUCCESS;
     } catch (const std::exception& error) {

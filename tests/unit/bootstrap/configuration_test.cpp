@@ -43,6 +43,9 @@ constexpr const char* kKafkaTopicVariable = "HVN_KAFKA_RESERVATION_EVENTS_TOPIC"
 constexpr const char* kKafkaClientIdVariable = "HVN_KAFKA_CLIENT_ID";
 constexpr const char* kKafkaAckTimeoutVariable = "HVN_KAFKA_ACK_TIMEOUT_MS";
 constexpr const char* kKafkaDeliveryTimeoutVariable = "HVN_KAFKA_DELIVERY_TIMEOUT_MS";
+constexpr const char* kOutboxPublisherBatchSizeVariable = "HVN_OUTBOX_PUBLISHER_BATCH_SIZE";
+constexpr const char* kOutboxPublisherPollIntervalVariable =
+    "HVN_OUTBOX_PUBLISHER_POLL_INTERVAL_MS";
 constexpr std::string_view kTestPassword{"test-secret-password"};
 
 /**
@@ -78,7 +81,9 @@ protected:
                                          kKafkaTopicVariable,
                                          kKafkaClientIdVariable,
                                          kKafkaAckTimeoutVariable,
-                                         kKafkaDeliveryTimeoutVariable};
+                                         kKafkaDeliveryTimeoutVariable,
+                                         kOutboxPublisherBatchSizeVariable,
+                                         kOutboxPublisherPollIntervalVariable};
         for (std::size_t index = 0; index < kafka_variables.size(); ++index) {
             original_kafka_[index] = read_environment_variable(kafka_variables[index]);
             ASSERT_TRUE(unset_environment_variable(kafka_variables[index]));
@@ -123,7 +128,9 @@ protected:
                                          kKafkaTopicVariable,
                                          kKafkaClientIdVariable,
                                          kKafkaAckTimeoutVariable,
-                                         kKafkaDeliveryTimeoutVariable};
+                                         kKafkaDeliveryTimeoutVariable,
+                                         kOutboxPublisherBatchSizeVariable,
+                                         kOutboxPublisherPollIntervalVariable};
         for (std::size_t index = 0; index < kafka_variables.size(); ++index)
             EXPECT_TRUE(
                 restore_environment_variable(kafka_variables[index], original_kafka_[index]));
@@ -216,8 +223,34 @@ private:
     std::optional<std::string> original_redis_connect_timeout_;
     std::optional<std::string> original_redis_command_timeout_;
     std::optional<std::string> original_redis_resource_ttl_;
-    std::array<std::optional<std::string>, 6> original_kafka_;
+    std::array<std::optional<std::string>, 8> original_kafka_;
 };
+
+TEST_F(EnvironmentConfigurationTest, LoadsOutboxPublisherRuntimeDefaults) {
+    const auto publisher = load_configuration_from_environment().outbox_publisher;
+    EXPECT_EQ(publisher.batch_size, 100U);
+    EXPECT_EQ(publisher.poll_interval, std::chrono::milliseconds{1000});
+}
+
+TEST_F(EnvironmentConfigurationTest, ParsesOutboxPublisherRuntimeConfiguration) {
+    ASSERT_TRUE(set_environment_variable(kOutboxPublisherBatchSizeVariable, "27"));
+    ASSERT_TRUE(set_environment_variable(kOutboxPublisherPollIntervalVariable, "250"));
+    const auto publisher = load_configuration_from_environment().outbox_publisher;
+    EXPECT_EQ(publisher.batch_size, 27U);
+    EXPECT_EQ(publisher.poll_interval, std::chrono::milliseconds{250});
+}
+
+TEST_F(EnvironmentConfigurationTest, RejectsInvalidOutboxPublisherRuntimeConfiguration) {
+    for (const auto value : {"0", "-1", "invalid", "18446744073709551616"}) {
+        ASSERT_TRUE(set_environment_variable(kOutboxPublisherBatchSizeVariable, value));
+        EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+    }
+    ASSERT_TRUE(set_environment_variable(kOutboxPublisherBatchSizeVariable, "100"));
+    for (const auto value : {"0", "-1", "invalid", "9223372036854775808"}) {
+        ASSERT_TRUE(set_environment_variable(kOutboxPublisherPollIntervalVariable, value));
+        EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+    }
+}
 
 TEST_F(EnvironmentConfigurationTest, LoadsKafkaDisabledDefaults) {
     const auto kafka = load_configuration_from_environment().kafka;

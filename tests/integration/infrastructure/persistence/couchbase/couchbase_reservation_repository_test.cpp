@@ -11,6 +11,7 @@
 #include "haven/domain/value_objects/reservation_kind.hpp"
 #include "haven/domain/value_objects/reservation_status.hpp"
 #include "haven/domain/value_objects/version.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
@@ -77,7 +78,8 @@ protected:
             GTEST_SKIP() << "Set all HVN_COUCHBASE_* variables to run Couchbase integration tests";
         }
         connection_ = std::make_shared<persistence::CouchbaseConnection>(*configuration);
-        repository_ = std::make_unique<persistence::CouchbaseReservationRepository>(connection_);
+        repository_ =
+            std::make_unique<persistence::CouchbaseReservationRepository>(connection_, metrics_);
     }
 
     void TearDown() override {
@@ -148,6 +150,7 @@ protected:
     }
 
     std::shared_ptr<persistence::CouchbaseConnection> connection_;
+    haven::infrastructure::observability::metrics::NoOpMetricsRecorder metrics_;
     std::unique_ptr<persistence::CouchbaseReservationRepository> repository_;
     std::vector<std::string> keys_;
 };
@@ -294,13 +297,13 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
     const auto suffix = unique_suffix();
     const auto organization = haven::domain::OrganizationId{"organization-" + suffix};
     const auto id = haven::domain::ReservationId{"reservation-" + suffix};
-    const auto reservation = make_pending_reservation(
-        organization,
-        id,
-        haven::domain::ResourceId{"resource-" + suffix},
-        haven::domain::UserId{"creator-" + suffix},
-        haven::domain::TimeInterval{at(2'000), at(2'100)},
-        "duplicate");
+    const auto reservation =
+        make_pending_reservation(organization,
+                                 id,
+                                 haven::domain::ResourceId{"resource-" + suffix},
+                                 haven::domain::UserId{"creator-" + suffix},
+                                 haven::domain::TimeInterval{at(2'000), at(2'100)},
+                                 "duplicate");
 
     const auto inserted_token = repository_->insert(organization, reservation);
     const auto loaded = repository_->find_by_id(organization, id);
@@ -323,13 +326,13 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
     const auto organization = haven::domain::OrganizationId{"organization-" + suffix};
     const auto id = haven::domain::ReservationId{"reservation-" + suffix};
     const auto approver = haven::domain::UserId{"approver-" + suffix};
-    const auto reservation = make_pending_reservation(
-        organization,
-        id,
-        haven::domain::ResourceId{"resource-" + suffix},
-        haven::domain::UserId{"creator-" + suffix},
-        haven::domain::TimeInterval{at(2'200), at(2'300)},
-        "stale-write");
+    const auto reservation =
+        make_pending_reservation(organization,
+                                 id,
+                                 haven::domain::ResourceId{"resource-" + suffix},
+                                 haven::domain::UserId{"creator-" + suffix},
+                                 haven::domain::TimeInterval{at(2'200), at(2'300)},
+                                 "stale-write");
     EXPECT_EQ(reservation.version(), haven::domain::Version{1});
     static_cast<void>(repository_->insert(organization, reservation));
 
@@ -339,19 +342,17 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
     ASSERT_TRUE(copy_b);
     EXPECT_EQ(copy_a->persistence_token(), copy_b->persistence_token());
 
-    copy_a->aggregate().approve(
-        approver, at(2'150), haven::domain::EventId{"confirmed-" + suffix});
+    copy_a->aggregate().approve(approver, at(2'150), haven::domain::EventId{"confirmed-" + suffix});
     EXPECT_EQ(copy_a->aggregate().version(), haven::domain::Version{2});
-    const auto token_a2 = repository_->update(
-        organization, copy_a->aggregate(), copy_a->persistence_token());
+    const auto token_a2 =
+        repository_->update(organization, copy_a->aggregate(), copy_a->persistence_token());
     EXPECT_NE(token_a2, copy_a->persistence_token());
 
-    copy_b->aggregate().reject(
-        approver, at(2'160), haven::domain::EventId{"rejected-" + suffix});
+    copy_b->aggregate().reject(approver, at(2'160), haven::domain::EventId{"rejected-" + suffix});
     EXPECT_EQ(copy_b->aggregate().version(), haven::domain::Version{2});
     try {
-        static_cast<void>(repository_->update(
-            organization, copy_b->aggregate(), copy_b->persistence_token()));
+        static_cast<void>(
+            repository_->update(organization, copy_b->aggregate(), copy_b->persistence_token()));
         FAIL() << "Expected stale update to fail";
     } catch (const haven::application::RepositoryError& error) {
         EXPECT_EQ(error.code(), haven::application::RepositoryErrorCode::ConcurrencyConflict);
@@ -372,13 +373,13 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
     const auto organization = haven::domain::OrganizationId{"organization-" + suffix};
     const auto id = haven::domain::ReservationId{"reservation-" + suffix};
     const auto actor = haven::domain::UserId{"actor-" + suffix};
-    const auto reservation = make_pending_reservation(
-        organization,
-        id,
-        haven::domain::ResourceId{"resource-" + suffix},
-        haven::domain::UserId{"creator-" + suffix},
-        haven::domain::TimeInterval{at(2'400), at(2'500)},
-        "two-updates");
+    const auto reservation =
+        make_pending_reservation(organization,
+                                 id,
+                                 haven::domain::ResourceId{"resource-" + suffix},
+                                 haven::domain::UserId{"creator-" + suffix},
+                                 haven::domain::TimeInterval{at(2'400), at(2'500)},
+                                 "two-updates");
     static_cast<void>(repository_->insert(organization, reservation));
 
     auto loaded = repository_->find_by_id(organization, id);
@@ -409,20 +410,18 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
     const auto suffix = unique_suffix();
     const auto organization = haven::domain::OrganizationId{"organization-" + suffix};
     const auto id = haven::domain::ReservationId{"missing-" + suffix};
-    const auto reservation = make_pending_reservation(
-        organization,
-        id,
-        haven::domain::ResourceId{"resource-" + suffix},
-        haven::domain::UserId{"creator-" + suffix},
-        haven::domain::TimeInterval{at(2'700), at(2'800)},
-        "missing");
+    const auto reservation =
+        make_pending_reservation(organization,
+                                 id,
+                                 haven::domain::ResourceId{"resource-" + suffix},
+                                 haven::domain::UserId{"creator-" + suffix},
+                                 haven::domain::TimeInterval{at(2'700), at(2'800)},
+                                 "missing");
 
     EXPECT_FALSE(repository_->find_by_id(organization, id));
     try {
         static_cast<void>(repository_->update(
-            organization,
-            reservation,
-            haven::application::persistence::PersistenceToken{1}));
+            organization, reservation, haven::application::persistence::PersistenceToken{1}));
         FAIL() << "Expected missing update to fail";
     } catch (const haven::application::RepositoryError& error) {
         EXPECT_EQ(error.code(), haven::application::RepositoryErrorCode::Persistence);
@@ -437,20 +436,18 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
     const auto organization_b = haven::domain::OrganizationId{"organization-b-" + suffix};
     const auto id = haven::domain::ReservationId{"shared-" + suffix};
     const auto actor = haven::domain::UserId{"actor-" + suffix};
-    auto reservation_a = make_pending_reservation(
-        organization_a,
-        id,
-        haven::domain::ResourceId{"resource-a-" + suffix},
-        actor,
-        haven::domain::TimeInterval{at(2'900), at(3'000)},
-        "organization-a");
-    auto reservation_b = make_pending_reservation(
-        organization_b,
-        id,
-        haven::domain::ResourceId{"resource-b-" + suffix},
-        actor,
-        haven::domain::TimeInterval{at(3'100), at(3'200)},
-        "organization-b");
+    auto reservation_a = make_pending_reservation(organization_a,
+                                                  id,
+                                                  haven::domain::ResourceId{"resource-a-" + suffix},
+                                                  actor,
+                                                  haven::domain::TimeInterval{at(2'900), at(3'000)},
+                                                  "organization-a");
+    auto reservation_b = make_pending_reservation(organization_b,
+                                                  id,
+                                                  haven::domain::ResourceId{"resource-b-" + suffix},
+                                                  actor,
+                                                  haven::domain::TimeInterval{at(3'100), at(3'200)},
+                                                  "organization-b");
     static_cast<void>(repository_->insert(organization_a, reservation_a));
     static_cast<void>(repository_->insert(organization_b, reservation_b));
     auto loaded_a = repository_->find_by_id(organization_a, id);
@@ -458,11 +455,10 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
     ASSERT_TRUE(loaded_a);
     ASSERT_TRUE(loaded_b);
 
-    loaded_b->aggregate().reject(
-        actor, at(3'050), haven::domain::EventId{"rejected-" + suffix});
+    loaded_b->aggregate().reject(actor, at(3'050), haven::domain::EventId{"rejected-" + suffix});
     try {
-        static_cast<void>(
-            repository_->update(organization_b, loaded_b->aggregate(), loaded_a->persistence_token()));
+        static_cast<void>(repository_->update(
+            organization_b, loaded_b->aggregate(), loaded_a->persistence_token()));
         FAIL() << "Expected cross-organization token update to fail";
     } catch (const haven::application::RepositoryError& error) {
         EXPECT_EQ(error.code(), haven::application::RepositoryErrorCode::ConcurrencyConflict);
@@ -472,10 +468,8 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest,
     const auto reloaded_b = repository_->find_by_id(organization_b, id);
     ASSERT_TRUE(reloaded_a);
     ASSERT_TRUE(reloaded_b);
-    EXPECT_EQ(reloaded_a->aggregate().status(),
-              haven::domain::ReservationStatus::PendingApproval);
-    EXPECT_EQ(reloaded_b->aggregate().status(),
-              haven::domain::ReservationStatus::PendingApproval);
+    EXPECT_EQ(reloaded_a->aggregate().status(), haven::domain::ReservationStatus::PendingApproval);
+    EXPECT_EQ(reloaded_b->aggregate().status(), haven::domain::ReservationStatus::PendingApproval);
     EXPECT_EQ(reloaded_a->aggregate().version(), haven::domain::Version{1});
     EXPECT_EQ(reloaded_b->aggregate().version(), haven::domain::Version{1});
     EXPECT_EQ(reloaded_a->aggregate().purpose().value(), "organization-a");

@@ -6,6 +6,7 @@
 
 #include "haven/application/reservations/reservation_creation_event_store.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
+#include "haven/infrastructure/persistence/couchbase/metrics/couchbase_persistence_metrics.hpp"
 
 #include <memory>
 
@@ -15,7 +16,8 @@ class CouchbaseReservationCreationEventStore final
     : public haven::application::reservations::ReservationCreationEventStore {
 public:
     explicit CouchbaseReservationCreationEventStore(
-        std::shared_ptr<CouchbaseConnection> connection);
+        std::shared_ptr<CouchbaseConnection> connection,
+        application::observability::metrics::MetricsRecorder& recorder);
     [[nodiscard]] bool contains_all(
         const haven::domain::OrganizationId& organization_id,
         const haven::domain::ReservationId& reservation_id,
@@ -23,6 +25,7 @@ public:
 
 private:
     std::shared_ptr<CouchbaseConnection> connection_;
+    metrics::OperationMetrics metrics_;
 };
 
 }  // namespace haven::infrastructure::persistence::couchbase

@@ -85,7 +85,7 @@ protected:
             GTEST_SKIP() << "Set HVN_COUCHBASE_* to run Couchbase integration tests";
         connection_ = std::make_shared<persistence::CouchbaseConnection>(*config_);
         repository_ = std::make_unique<persistence::CouchbaseIdempotencyRepository>(
-            connection_, std::chrono::seconds{30});
+            connection_, std::chrono::seconds{30}, metrics_);
     }
 
     void TearDown() override {
@@ -153,6 +153,7 @@ protected:
 
     std::optional<persistence::CouchbaseConfiguration> config_;
     std::shared_ptr<persistence::CouchbaseConnection> connection_;
+    haven::infrastructure::observability::metrics::NoOpMetricsRecorder metrics_;
     std::unique_ptr<persistence::CouchbaseIdempotencyRepository> repository_;
     std::vector<std::string> keys_;
     std::vector<std::string> reservation_keys_;
@@ -176,7 +177,8 @@ TEST_F(IdempotencyRepositoryIntegrationTest, CompletesSuccessAndSurvivesReposito
     repository_->claim(initial);
     repository_->record_succeeded(initial.scope(), initial.fingerprint(), snapshot);
     repository_->record_succeeded(initial.scope(), initial.fingerprint(), snapshot);
-    persistence::CouchbaseIdempotencyRepository restarted(connection_, std::chrono::seconds{30});
+    persistence::CouchbaseIdempotencyRepository restarted(
+        connection_, std::chrono::seconds{30}, metrics_);
     const auto found = restarted.find(initial.scope());
     ASSERT_TRUE(found);
     EXPECT_EQ(found->status(), IdempotencyStatus::Succeeded);
@@ -218,8 +220,8 @@ TEST_F(IdempotencyRepositoryIntegrationTest, ConcurrentIdenticalClaimsHaveOneWin
     std::vector<std::future<IdempotencyClaimStatus>> attempts;
     for (int index = 0; index < 8; ++index) {
         attempts.push_back(std::async(std::launch::async, [this, &initial] {
-            persistence::CouchbaseIdempotencyRepository repository(connection_,
-                                                                   std::chrono::seconds{30});
+            persistence::CouchbaseIdempotencyRepository repository(
+                connection_, std::chrono::seconds{30}, metrics_);
             return repository.claim(initial).status();
         }));
     }
@@ -236,7 +238,8 @@ TEST_F(IdempotencyRepositoryIntegrationTest, ConcurrentIdenticalClaimsHaveOneWin
 
 TEST_F(IdempotencyRepositoryIntegrationTest, CompletionPreservesInitialExpiry) {
     const auto initial = record();
-    persistence::CouchbaseIdempotencyRepository short_lived(connection_, std::chrono::seconds{2});
+    persistence::CouchbaseIdempotencyRepository short_lived(
+        connection_, std::chrono::seconds{2}, metrics_);
     short_lived.claim(initial);
     std::this_thread::sleep_for(std::chrono::milliseconds{800});
     short_lived.record_succeeded(initial.scope(), initial.fingerprint(), success(initial));
@@ -297,16 +300,16 @@ TEST_F(IdempotencyRepositoryIntegrationTest, HandlerRecoversPersistedReservation
     auto events = reservation.release_domain_events();
     for (const auto& event_id : {command.created_event_id(), command.confirmed_event_id()})
         outbox_keys_.push_back(persistence::outbox_document_key(organization, event_id));
-    auto creation_store = persistence::CouchbaseReservationCreationStore{connection_};
+    auto creation_store = persistence::CouchbaseReservationCreationStore{connection_, metrics_};
     static_cast<void>(creation_store.persist(organization, reservation, std::move(events)));
 
-    auto fresh_idempotency =
-        persistence::CouchbaseIdempotencyRepository{connection_, std::chrono::seconds{30}};
-    auto fresh_reservations = persistence::CouchbaseReservationRepository{connection_};
+    auto fresh_idempotency = persistence::CouchbaseIdempotencyRepository{
+        connection_, std::chrono::seconds{30}, metrics_};
+    auto fresh_reservations = persistence::CouchbaseReservationRepository{connection_, metrics_};
     auto resources = RecoveryResourceRepository{};
     const auto policy = haven::domain::ReservationCreationPolicy{};
     auto metrics_recorder = haven::infrastructure::observability::metrics::NoOpMetricsRecorder{};
-    auto event_store = persistence::CouchbaseReservationCreationEventStore{connection_};
+    auto event_store = persistence::CouchbaseReservationCreationEventStore{connection_, metrics_};
     const auto handler = CreateReservationHandler{resources,
                                                   fresh_reservations,
                                                   creation_store,

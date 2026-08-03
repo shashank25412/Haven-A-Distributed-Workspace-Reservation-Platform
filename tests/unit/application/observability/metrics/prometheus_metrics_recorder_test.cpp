@@ -8,6 +8,7 @@
 #include "haven/application/outbox/metrics/outbox_publisher_metrics.hpp"
 #include "haven/application/reservations/metrics/reservation_creation_metrics.hpp"
 #include "haven/infrastructure/messaging/kafka/metrics/kafka_outbox_producer_metrics.hpp"
+#include "haven/infrastructure/persistence/couchbase/metrics/couchbase_persistence_metrics.hpp"
 
 #include <gtest/gtest.h>
 
@@ -177,6 +178,32 @@ TEST(PrometheusMetricsRecorderTest, ExposesKafkaOutboxProducerCatalogMetrics) {
     EXPECT_NE(output.find("haven_kafka_outbox_publish_duration_seconds_sum"), std::string::npos);
     EXPECT_NE(output.find("haven_kafka_outbox_payload_bytes_total 42"), std::string::npos);
     EXPECT_NE(output.find("outcome=\"acknowledged\""), std::string::npos);
+}
+
+TEST(PrometheusMetricsRecorderTest, ExposesCouchbasePersistenceCatalogMetrics) {
+    namespace cb = haven::infrastructure::persistence::couchbase::metrics;
+    PrometheusMetricsRecorder recorder;
+    const MetricLabels operation_labels{{"repository", "reservation"},
+                                        {"operation", "update"},
+                                        {"outcome", "concurrency_conflict"}};
+    const MetricLabels conflict_labels{{"repository", "reservation"}, {"operation", "update"}};
+    const MetricLabels transaction_labels{{"outcome", "committed"}};
+    recorder.increment_counter(cb::operations_metric_name(), 1.0, operation_labels);
+    recorder.observe_duration(cb::operation_duration_metric_name(), 100us, operation_labels);
+    recorder.increment_counter(cb::conflicts_metric_name(), 1.0, conflict_labels);
+    recorder.increment_counter(cb::transactions_metric_name(), 1.0, transaction_labels);
+    recorder.observe_duration(cb::transaction_duration_metric_name(), 200us, transaction_labels);
+
+    const auto output = recorder.collect();
+    EXPECT_NE(output.find("haven_couchbase_repository_operations_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_couchbase_repository_operation_duration_seconds_count"),
+              std::string::npos);
+    EXPECT_NE(output.find("haven_couchbase_concurrency_conflicts_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_couchbase_reservation_creation_transactions_total"),
+              std::string::npos);
+    EXPECT_NE(
+        output.find("haven_couchbase_reservation_creation_transaction_duration_seconds_count"),
+        std::string::npos);
 }
 
 }  // namespace

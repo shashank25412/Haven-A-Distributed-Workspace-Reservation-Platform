@@ -59,6 +59,7 @@ target_link_libraries(haven_metrics_foundation_tests
     PRIVATE
         haven::infrastructure::metrics
         haven::infrastructure::kafka
+        haven::infrastructure::couchbase
         GTest::gtest_main
 )
 

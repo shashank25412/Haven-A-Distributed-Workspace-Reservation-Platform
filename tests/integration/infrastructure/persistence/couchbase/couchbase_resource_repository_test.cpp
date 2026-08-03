@@ -9,6 +9,7 @@
 #include "haven/domain/value_objects/resource_id.hpp"
 #include "haven/domain/value_objects/resource_status.hpp"
 #include "haven/domain/value_objects/resource_type.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
@@ -76,8 +77,8 @@ protected:
         }
 
         connection_ = std::make_shared<couchbase_persistence::CouchbaseConnection>(*configuration);
-        repository_ =
-            std::make_unique<couchbase_persistence::CouchbaseResourceRepository>(connection_);
+        repository_ = std::make_unique<couchbase_persistence::CouchbaseResourceRepository>(
+            connection_, metrics_);
     }
 
     void TearDown() override {
@@ -129,6 +130,7 @@ protected:
     }
 
     std::shared_ptr<couchbase_persistence::CouchbaseConnection> connection_;
+    haven::infrastructure::observability::metrics::NoOpMetricsRecorder metrics_;
     std::unique_ptr<couchbase_persistence::CouchbaseResourceRepository> repository_;
     std::vector<std::string> document_keys_;
 };

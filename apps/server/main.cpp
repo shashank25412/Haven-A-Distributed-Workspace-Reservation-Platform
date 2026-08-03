@@ -101,22 +101,24 @@ int main() {
 
         std::shared_ptr<haven::application::resources::ResourceRepository> resource_repository =
             std::make_shared<couchbase_persistence::CouchbaseResourceRepository>(
-                couchbase_connection);
+                couchbase_connection, *metrics_recorder);
 
         std::shared_ptr<haven::application::reservations::ReservationRepository>
             reservation_repository =
                 std::make_shared<couchbase_persistence::CouchbaseReservationRepository>(
-                    couchbase_connection);
+                    couchbase_connection, *metrics_recorder);
 
         auto idempotency_repository =
             std::make_shared<couchbase_persistence::CouchbaseIdempotencyRepository>(
-                couchbase_connection, configuration.couchbase.idempotency_retention);
+                couchbase_connection,
+                configuration.couchbase.idempotency_retention,
+                *metrics_recorder);
         auto reservation_creation_store =
             std::make_shared<couchbase_persistence::CouchbaseReservationCreationStore>(
-                couchbase_connection);
+                couchbase_connection, *metrics_recorder);
         auto reservation_creation_event_store =
             std::make_shared<couchbase_persistence::CouchbaseReservationCreationEventStore>(
-                couchbase_connection);
+                couchbase_connection, *metrics_recorder);
 
         std::unique_ptr<couchbase_persistence::CouchbaseOutboxRepository> outbox_repository;
         std::unique_ptr<haven::infrastructure::messaging::kafka::KafkaOutboxMessageProducer>
@@ -126,7 +128,7 @@ int main() {
         std::unique_ptr<haven::runtime::outbox::OutboxPublisherWorker> outbox_worker;
         if (configuration.kafka.enabled) {
             outbox_repository = std::make_unique<couchbase_persistence::CouchbaseOutboxRepository>(
-                couchbase_connection);
+                couchbase_connection, *metrics_recorder);
             outbox_producer = std::make_unique<
                 haven::infrastructure::messaging::kafka::KafkaOutboxMessageProducer>(
                 configuration.kafka, *metrics_recorder);

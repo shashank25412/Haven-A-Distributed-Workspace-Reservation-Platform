@@ -6,13 +6,15 @@
 
 #include "haven/application/outbox/outbox_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
+#include "haven/infrastructure/persistence/couchbase/metrics/couchbase_persistence_metrics.hpp"
 
 #include <memory>
 
 namespace haven::infrastructure::persistence::couchbase {
 class CouchbaseOutboxRepository final : public haven::application::outbox::OutboxRepository {
 public:
-    explicit CouchbaseOutboxRepository(std::shared_ptr<CouchbaseConnection> connection);
+    CouchbaseOutboxRepository(std::shared_ptr<CouchbaseConnection> connection,
+                              application::observability::metrics::MetricsRecorder& recorder);
     [[nodiscard]] std::vector<haven::application::outbox::LoadedOutboxMessage> find_pending(
         std::size_t limit) const override;
     [[nodiscard]] std::optional<haven::application::outbox::LoadedOutboxMessage> claim(
@@ -31,5 +33,6 @@ public:
 
 private:
     std::shared_ptr<CouchbaseConnection> connection_;
+    metrics::OperationMetrics metrics_;
 };
 }  // namespace haven::infrastructure::persistence::couchbase

@@ -99,8 +99,9 @@ using ReservationListResult = haven::application::reservations::ReservationListR
 }  // namespace
 
 CouchbaseReservationRepository::CouchbaseReservationRepository(
-    std::shared_ptr<CouchbaseConnection> connection)
-    : connection_(std::move(connection)) {
+    std::shared_ptr<CouchbaseConnection> connection,
+    application::observability::metrics::MetricsRecorder& recorder)
+    : connection_(std::move(connection)), metrics_(recorder) {
     if (!connection_) {
         throw std::invalid_argument("Couchbase reservation repository connection must not be null");
     }
@@ -110,150 +111,170 @@ haven::application::reservations::ReservationLookupResult
 CouchbaseReservationRepository::find_by_id(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::ReservationId& reservation_id) const {
-    HVN_TRACE_SCOPE();
-    const auto key = reservation_document_key(organization_id, reservation_id);
-    HVN_DEBUG_LOG("Reading Couchbase reservation document with key ", key);
-    auto collection = connection_->collection(CouchbaseCollections::reservations);
-    auto [error, result] = collection.get(key).get();
-    if (error.ec() == ::couchbase::errc::key_value::document_not_found) {
-        return std::nullopt;
-    }
-    if (error) {
-        HVN_ERROR_LOG("Couchbase reservation read failed for organization ",
-                      organization_id.value(),
-                      " and reservation ",
-                      reservation_id.value(),
-                      ": ",
-                      error.ec().message());
-        throw translate_error(error, "Couchbase reservation read");
-    }
-    try {
-        auto reservation = to_domain_reservation(
-            reservation_document_from_json(result.content_as<tao::json::value>()));
-        if (reservation.organization_id() != organization_id ||
-            reservation.reservation_id() != reservation_id) {
-            throw std::invalid_argument("Stored reservation identity does not match its key");
-        }
-        return haven::application::reservations::LoadedReservation{
-            std::move(reservation), persistence_token_from(result.cas())};
-    } catch (const std::exception& exception) {
-        HVN_ERROR_LOG("Stored Couchbase reservation is invalid for organization ",
-                      organization_id.value(),
-                      " and reservation ",
-                      reservation_id.value(),
-                      ": ",
-                      exception.what());
-        throw RepositoryError{RepositoryErrorCode::Persistence,
-                              "Stored Couchbase reservation document is invalid"};
-    }
+    return metrics_.record(
+        metrics::Repository::reservation,
+        metrics::Operation::find_by_id,
+        [&]() -> haven::application::reservations::ReservationLookupResult {
+            HVN_TRACE_SCOPE();
+            const auto key = reservation_document_key(organization_id, reservation_id);
+            HVN_DEBUG_LOG("Reading Couchbase reservation document with key ", key);
+            auto collection = connection_->collection(CouchbaseCollections::reservations);
+            auto [error, result] = collection.get(key).get();
+            if (error.ec() == ::couchbase::errc::key_value::document_not_found) {
+                return std::nullopt;
+            }
+            if (error) {
+                HVN_ERROR_LOG("Couchbase reservation read failed for organization ",
+                              organization_id.value(),
+                              " and reservation ",
+                              reservation_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase reservation read");
+            }
+            try {
+                auto reservation = to_domain_reservation(
+                    reservation_document_from_json(result.content_as<tao::json::value>()));
+                if (reservation.organization_id() != organization_id ||
+                    reservation.reservation_id() != reservation_id) {
+                    throw std::invalid_argument(
+                        "Stored reservation identity does not match its key");
+                }
+                return haven::application::reservations::LoadedReservation{
+                    std::move(reservation), persistence_token_from(result.cas())};
+            } catch (const std::exception& exception) {
+                HVN_ERROR_LOG("Stored Couchbase reservation is invalid for organization ",
+                              organization_id.value(),
+                              " and reservation ",
+                              reservation_id.value(),
+                              ": ",
+                              exception.what());
+                throw RepositoryError{RepositoryErrorCode::Persistence,
+                                      "Stored Couchbase reservation document is invalid"};
+            }
+        });
 }
 
 ReservationListResult CouchbaseReservationRepository::find_by_creator(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::UserId& caller_id) const {
-    HVN_TRACE_SCOPE();
-    auto options = readonly_options();
-    options.named_parameters(std::make_pair("organizationId", organization_id.value()),
-                             std::make_pair("createdBy", caller_id.value()));
-    const auto statement = select_prefix() +
-                           "AND reservation.organizationId = $organizationId "
-                           "AND reservation.createdBy = $createdBy";
-    auto [error, result] = connection_->scope().query(statement, options).get();
-    if (error) {
-        HVN_ERROR_LOG("Couchbase reservation creator query failed for organization ",
-                      organization_id.value(),
-                      ": ",
-                      error.ec().message());
-        throw translate_error(error, "Couchbase reservation creator query");
-    }
-    return map_rows(result, organization_id, "Couchbase reservation creator query");
+    return metrics_.record(
+        metrics::Repository::reservation, metrics::Operation::find_by_creator, [&] {
+            HVN_TRACE_SCOPE();
+            auto options = readonly_options();
+            options.named_parameters(std::make_pair("organizationId", organization_id.value()),
+                                     std::make_pair("createdBy", caller_id.value()));
+            const auto statement = select_prefix() +
+                                   "AND reservation.organizationId = $organizationId "
+                                   "AND reservation.createdBy = $createdBy";
+            auto [error, result] = connection_->scope().query(statement, options).get();
+            if (error) {
+                HVN_ERROR_LOG("Couchbase reservation creator query failed for organization ",
+                              organization_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase reservation creator query");
+            }
+            return map_rows(result, organization_id, "Couchbase reservation creator query");
+        });
 }
 
 ReservationListResult CouchbaseReservationRepository::find_pending_approvals(
     const haven::domain::OrganizationId& organization_id) const {
-    HVN_TRACE_SCOPE();
-    auto options = readonly_options();
-    options.named_parameters(
-        std::make_pair("organizationId", organization_id.value()),
-        std::make_pair("status",
-                       std::string{haven::domain::to_string(
-                           haven::domain::ReservationStatus::PendingApproval)}));
-    const auto statement = select_prefix() +
-                           "AND reservation.organizationId = $organizationId "
-                           "AND reservation.status = $status";
-    auto [error, result] = connection_->scope().query(statement, options).get();
-    if (error) {
-        HVN_ERROR_LOG("Couchbase pending approval query failed for organization ",
-                      organization_id.value(),
-                      ": ",
-                      error.ec().message());
-        throw translate_error(error, "Couchbase pending approval query");
-    }
-    return map_rows(result, organization_id, "Couchbase pending approval query");
+    return metrics_.record(
+        metrics::Repository::reservation, metrics::Operation::find_pending_approvals, [&] {
+            HVN_TRACE_SCOPE();
+            auto options = readonly_options();
+            options.named_parameters(
+                std::make_pair("organizationId", organization_id.value()),
+                std::make_pair("status",
+                               std::string{haven::domain::to_string(
+                                   haven::domain::ReservationStatus::PendingApproval)}));
+            const auto statement = select_prefix() +
+                                   "AND reservation.organizationId = $organizationId "
+                                   "AND reservation.status = $status";
+            auto [error, result] = connection_->scope().query(statement, options).get();
+            if (error) {
+                HVN_ERROR_LOG("Couchbase pending approval query failed for organization ",
+                              organization_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase pending approval query");
+            }
+            return map_rows(result, organization_id, "Couchbase pending approval query");
+        });
 }
 
 ReservationListResult CouchbaseReservationRepository::find_by_resource_and_interval(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::ResourceId& resource_id,
     const haven::domain::TimeInterval& interval) const {
-    HVN_TRACE_SCOPE();
-    auto options = readonly_options();
-    options.named_parameters(
-        std::make_pair("organizationId", organization_id.value()),
-        std::make_pair("resourceId", resource_id.value()),
-        std::make_pair("requestedStart", reservation_timestamp_to_string(interval.start())),
-        std::make_pair("requestedEnd", reservation_timestamp_to_string(interval.end())));
-    const auto statement =
-        select_prefix() + "AND reservation.organizationId = $organizationId " + overlap_predicate();
-    auto [error, result] = connection_->scope().query(statement, options).get();
-    if (error) {
-        HVN_ERROR_LOG("Couchbase reservation calendar query failed for organization ",
-                      organization_id.value(),
-                      " and resource ",
-                      resource_id.value(),
-                      ": ",
-                      error.ec().message());
-        throw translate_error(error, "Couchbase reservation calendar query");
-    }
-    auto reservations = map_rows(result, organization_id, "Couchbase reservation calendar query");
-    for (const auto& reservation : reservations) {
-        if (reservation.resource_id() != resource_id ||
-            !reservation.interval().overlaps(interval)) {
-            throw RepositoryError{
-                RepositoryErrorCode::Persistence,
-                "Couchbase reservation calendar query returned a document outside its filter"};
-        }
-    }
-    return reservations;
+    return metrics_.record(
+        metrics::Repository::reservation, metrics::Operation::find_by_resource_and_interval, [&] {
+            HVN_TRACE_SCOPE();
+            auto options = readonly_options();
+            options.named_parameters(
+                std::make_pair("organizationId", organization_id.value()),
+                std::make_pair("resourceId", resource_id.value()),
+                std::make_pair("requestedStart", reservation_timestamp_to_string(interval.start())),
+                std::make_pair("requestedEnd", reservation_timestamp_to_string(interval.end())));
+            const auto statement = select_prefix() +
+                                   "AND reservation.organizationId = $organizationId " +
+                                   overlap_predicate();
+            auto [error, result] = connection_->scope().query(statement, options).get();
+            if (error) {
+                HVN_ERROR_LOG("Couchbase reservation calendar query failed for organization ",
+                              organization_id.value(),
+                              " and resource ",
+                              resource_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase reservation calendar query");
+            }
+            auto reservations =
+                map_rows(result, organization_id, "Couchbase reservation calendar query");
+            for (const auto& reservation : reservations) {
+                if (reservation.resource_id() != resource_id ||
+                    !reservation.interval().overlaps(interval)) {
+                    throw RepositoryError{RepositoryErrorCode::Persistence,
+                                          "Couchbase reservation calendar query returned a "
+                                          "document outside its filter"};
+                }
+            }
+            return reservations;
+        });
 }
 
 bool CouchbaseReservationRepository::has_conflict(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::ResourceId& resource_id,
     const haven::domain::TimeInterval& interval) const {
-    HVN_TRACE_SCOPE();
-    auto options = readonly_options();
-    options.named_parameters(
-        std::make_pair("organizationId", organization_id.value()),
-        std::make_pair("resourceId", resource_id.value()),
-        std::make_pair("requestedStart", reservation_timestamp_to_string(interval.start())),
-        std::make_pair("requestedEnd", reservation_timestamp_to_string(interval.end())),
-        std::make_pair(
-            "status",
-            std::string{haven::domain::to_string(haven::domain::ReservationStatus::Confirmed)}));
-    const auto statement = select_prefix() + "AND reservation.organizationId = $organizationId " +
-                           overlap_predicate() + "AND reservation.status = $status LIMIT 1";
-    auto [error, result] = connection_->scope().query(statement, options).get();
-    if (error) {
-        HVN_ERROR_LOG("Couchbase reservation conflict query failed for organization ",
-                      organization_id.value(),
-                      " and resource ",
-                      resource_id.value(),
-                      ": ",
-                      error.ec().message());
-        throw translate_error(error, "Couchbase reservation conflict query");
-    }
-    return !result.rows_as().empty();
+    return metrics_.record(metrics::Repository::reservation, metrics::Operation::has_conflict, [&] {
+        HVN_TRACE_SCOPE();
+        auto options = readonly_options();
+        options.named_parameters(
+            std::make_pair("organizationId", organization_id.value()),
+            std::make_pair("resourceId", resource_id.value()),
+            std::make_pair("requestedStart", reservation_timestamp_to_string(interval.start())),
+            std::make_pair("requestedEnd", reservation_timestamp_to_string(interval.end())),
+            std::make_pair("status",
+                           std::string{haven::domain::to_string(
+                               haven::domain::ReservationStatus::Confirmed)}));
+        const auto statement = select_prefix() +
+                               "AND reservation.organizationId = $organizationId " +
+                               overlap_predicate() + "AND reservation.status = $status LIMIT 1";
+        auto [error, result] = connection_->scope().query(statement, options).get();
+        if (error) {
+            HVN_ERROR_LOG("Couchbase reservation conflict query failed for organization ",
+                          organization_id.value(),
+                          " and resource ",
+                          resource_id.value(),
+                          ": ",
+                          error.ec().message());
+            throw translate_error(error, "Couchbase reservation conflict query");
+        }
+        return !result.rows_as().empty();
+    });
 }
 
 bool CouchbaseReservationRepository::has_conflict_excluding(
@@ -261,89 +282,99 @@ bool CouchbaseReservationRepository::has_conflict_excluding(
     const haven::domain::ResourceId& resource_id,
     const haven::domain::TimeInterval& interval,
     const haven::domain::ReservationId& excluded_reservation_id) const {
-    HVN_TRACE_SCOPE();
-    auto options = readonly_options();
-    options.named_parameters(
-        std::make_pair("organizationId", organization_id.value()),
-        std::make_pair("resourceId", resource_id.value()),
-        std::make_pair("requestedStart", reservation_timestamp_to_string(interval.start())),
-        std::make_pair("requestedEnd", reservation_timestamp_to_string(interval.end())),
-        std::make_pair(
-            "status",
-            std::string{haven::domain::to_string(haven::domain::ReservationStatus::Confirmed)}),
-        std::make_pair("excludedReservationId", excluded_reservation_id.value()));
-    const auto statement = select_prefix() + "AND reservation.organizationId = $organizationId " +
-                           overlap_predicate() +
-                           "AND reservation.status = $status "
-                           "AND reservation.reservationId != $excludedReservationId LIMIT 1";
-    auto [error, result] = connection_->scope().query(statement, options).get();
-    if (error) {
-        HVN_ERROR_LOG("Couchbase excluding conflict query failed for organization ",
-                      organization_id.value(),
-                      " and resource ",
-                      resource_id.value(),
-                      ": ",
-                      error.ec().message());
-        throw translate_error(error, "Couchbase excluding conflict query");
-    }
-    return !result.rows_as().empty();
+    return metrics_.record(
+        metrics::Repository::reservation, metrics::Operation::has_conflict_excluding, [&] {
+            HVN_TRACE_SCOPE();
+            auto options = readonly_options();
+            options.named_parameters(
+                std::make_pair("organizationId", organization_id.value()),
+                std::make_pair("resourceId", resource_id.value()),
+                std::make_pair("requestedStart", reservation_timestamp_to_string(interval.start())),
+                std::make_pair("requestedEnd", reservation_timestamp_to_string(interval.end())),
+                std::make_pair("status",
+                               std::string{haven::domain::to_string(
+                                   haven::domain::ReservationStatus::Confirmed)}),
+                std::make_pair("excludedReservationId", excluded_reservation_id.value()));
+            const auto statement =
+                select_prefix() + "AND reservation.organizationId = $organizationId " +
+                overlap_predicate() +
+                "AND reservation.status = $status "
+                "AND reservation.reservationId != $excludedReservationId LIMIT 1";
+            auto [error, result] = connection_->scope().query(statement, options).get();
+            if (error) {
+                HVN_ERROR_LOG("Couchbase excluding conflict query failed for organization ",
+                              organization_id.value(),
+                              " and resource ",
+                              resource_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase excluding conflict query");
+            }
+            return !result.rows_as().empty();
+        });
 }
 
 haven::application::persistence::PersistenceToken CouchbaseReservationRepository::insert(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::Reservation& reservation) {
-    HVN_TRACE_SCOPE();
-    if (reservation.organization_id() != organization_id) {
-        throw std::invalid_argument("Cannot save a reservation under a different organization");
-    }
-    const auto key = reservation_document_key(organization_id, reservation.reservation_id());
-    const auto json = reservation_document_to_json(to_reservation_document(reservation));
-    HVN_DEBUG_LOG("Inserting Couchbase reservation document with key ", key);
-    auto collection = connection_->collection(CouchbaseCollections::reservations);
-    auto [error, result] = collection.insert(key, json).get();
-    if (error) {
-        HVN_ERROR_LOG("Couchbase reservation save failed for organization ",
-                      organization_id.value(),
-                      " and reservation ",
-                      reservation.reservation_id().value(),
-                      ": ",
-                      error.ec().message());
-        throw translate_error(error, "Couchbase reservation insert");
-    }
-    return persistence_token_from(result.cas());
+    return metrics_.record(metrics::Repository::reservation, metrics::Operation::insert, [&] {
+        HVN_TRACE_SCOPE();
+        if (reservation.organization_id() != organization_id) {
+            throw std::invalid_argument("Cannot save a reservation under a different organization");
+        }
+        const auto key = reservation_document_key(organization_id, reservation.reservation_id());
+        const auto json = reservation_document_to_json(to_reservation_document(reservation));
+        HVN_DEBUG_LOG("Inserting Couchbase reservation document with key ", key);
+        auto collection = connection_->collection(CouchbaseCollections::reservations);
+        auto [error, result] = collection.insert(key, json).get();
+        if (error) {
+            HVN_ERROR_LOG("Couchbase reservation save failed for organization ",
+                          organization_id.value(),
+                          " and reservation ",
+                          reservation.reservation_id().value(),
+                          ": ",
+                          error.ec().message());
+            throw translate_error(error, "Couchbase reservation insert");
+        }
+        return persistence_token_from(result.cas());
+    });
 }
 
 haven::application::persistence::PersistenceToken CouchbaseReservationRepository::update(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::Reservation& reservation,
     const haven::application::persistence::PersistenceToken& expected_token) {
-    HVN_TRACE_SCOPE();
-    if (reservation.organization_id() != organization_id) {
-        throw std::invalid_argument("Cannot update a reservation under a different organization");
-    }
-    const auto key = reservation_document_key(organization_id, reservation.reservation_id());
-    const auto json = reservation_document_to_json(to_reservation_document(reservation));
-    auto options = ::couchbase::replace_options{};
-    options.cas(couchbase_cas_from(expected_token));
-    auto collection = connection_->collection(CouchbaseCollections::reservations);
-    auto [error, result] = collection.replace(key, json, options).get();
-    if (error) {
-        if (error.ec() == ::couchbase::errc::common::cas_mismatch) {
-            HVN_WARN_LOG("Couchbase reservation update rejected a stale write for organization ",
-                         organization_id.value(),
-                         " and reservation ",
-                         reservation.reservation_id().value());
-        } else {
-            HVN_ERROR_LOG("Couchbase reservation update failed for organization ",
-                          organization_id.value(),
-                          " and reservation ",
-                          reservation.reservation_id().value(),
-                          ": ",
-                          error.ec().message());
+    return metrics_.record(metrics::Repository::reservation, metrics::Operation::update, [&] {
+        HVN_TRACE_SCOPE();
+        if (reservation.organization_id() != organization_id) {
+            throw std::invalid_argument(
+                "Cannot update a reservation under a different organization");
         }
-        throw translate_error(error, "Couchbase reservation update");
-    }
-    return persistence_token_from(result.cas());
+        const auto key = reservation_document_key(organization_id, reservation.reservation_id());
+        const auto json = reservation_document_to_json(to_reservation_document(reservation));
+        auto options = ::couchbase::replace_options{};
+        options.cas(couchbase_cas_from(expected_token));
+        auto collection = connection_->collection(CouchbaseCollections::reservations);
+        auto [error, result] = collection.replace(key, json, options).get();
+        if (error) {
+            if (error.ec() == ::couchbase::errc::common::cas_mismatch) {
+                HVN_WARN_LOG(
+                    "Couchbase reservation update rejected a stale write for organization ",
+                    organization_id.value(),
+                    " and reservation ",
+                    reservation.reservation_id().value());
+            } else {
+                HVN_ERROR_LOG("Couchbase reservation update failed for organization ",
+                              organization_id.value(),
+                              " and reservation ",
+                              reservation.reservation_id().value(),
+                              ": ",
+                              error.ec().message());
+            }
+            throw translate_error(error, "Couchbase reservation update");
+        }
+        return persistence_token_from(result.cas());
+    });
 }
 
 }  // namespace haven::infrastructure::persistence::couchbase

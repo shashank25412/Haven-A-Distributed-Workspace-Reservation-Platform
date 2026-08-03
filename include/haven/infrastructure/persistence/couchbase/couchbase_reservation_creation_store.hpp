@@ -3,6 +3,7 @@
 
 #include "haven/application/reservations/reservation_creation_store.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
+#include "haven/infrastructure/persistence/couchbase/metrics/couchbase_persistence_metrics.hpp"
 
 #include <memory>
 
@@ -12,7 +13,9 @@ namespace haven::infrastructure::persistence::couchbase {
 class CouchbaseReservationCreationStore final
     : public haven::application::reservations::ReservationCreationStore {
 public:
-    explicit CouchbaseReservationCreationStore(std::shared_ptr<CouchbaseConnection> connection);
+    CouchbaseReservationCreationStore(
+        std::shared_ptr<CouchbaseConnection> connection,
+        application::observability::metrics::MetricsRecorder& recorder);
 
     [[nodiscard]] haven::application::persistence::PersistenceToken persist(
         const haven::domain::OrganizationId& organization_id,
@@ -21,6 +24,7 @@ public:
 
 private:
     std::shared_ptr<CouchbaseConnection> connection_;
+    metrics::OperationMetrics metrics_;
 };
 
 }  // namespace haven::infrastructure::persistence::couchbase

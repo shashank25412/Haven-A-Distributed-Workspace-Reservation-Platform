@@ -15,6 +15,7 @@ add_executable(
     persistence/couchbase/outbox_repository_test.cpp
     persistence/couchbase/couchbase_resource_repository_test.cpp
     persistence/couchbase/couchbase_reservation_repository_test.cpp
+    persistence/couchbase/couchbase_persistence_metrics_test.cpp
     persistence/couchbase/resource_document_test.cpp
     persistence/couchbase/resource_document_mapper_test.cpp
     persistence/couchbase/resource_document_validator_test.cpp
@@ -28,8 +29,10 @@ target_link_libraries(
 
     PRIVATE
         haven::infrastructure::couchbase
+        haven::infrastructure::metrics
         GTest::gtest_main
 )
+target_include_directories(haven_couchbase_configuration_test PRIVATE ${PROJECT_SOURCE_DIR}/tests/unit)
 
 haven_apply_project_options(haven_couchbase_configuration_test)
 

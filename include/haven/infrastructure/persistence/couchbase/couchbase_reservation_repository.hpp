@@ -7,6 +7,7 @@
 
 #include "haven/application/reservations/reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
+#include "haven/infrastructure/persistence/couchbase/metrics/couchbase_persistence_metrics.hpp"
 
 #include <memory>
 
@@ -27,7 +28,8 @@ public:
      *
      * @throws std::invalid_argument If connection is null.
      */
-    explicit CouchbaseReservationRepository(std::shared_ptr<CouchbaseConnection> connection);
+    CouchbaseReservationRepository(std::shared_ptr<CouchbaseConnection> connection,
+                                   application::observability::metrics::MetricsRecorder& recorder);
 
     [[nodiscard]] haven::application::reservations::ReservationLookupResult find_by_id(
         const haven::domain::OrganizationId& organization_id,
@@ -69,6 +71,7 @@ public:
 
 private:
     std::shared_ptr<CouchbaseConnection> connection_;
+    metrics::OperationMetrics metrics_;
 };
 
 }  // namespace haven::infrastructure::persistence::couchbase

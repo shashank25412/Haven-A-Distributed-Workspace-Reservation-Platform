@@ -3,6 +3,7 @@
 
 #include "haven/application/repository_error.hpp"
 #include "haven/domain/events/reservation_created_event.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_cas.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
@@ -50,7 +51,7 @@ protected:
         if (!c)
             GTEST_SKIP() << "Set HVN_COUCHBASE_*";
         connection = std::make_shared<cb::CouchbaseConnection>(*c);
-        repository = std::make_unique<cb::CouchbaseOutboxRepository>(connection);
+        repository = std::make_unique<cb::CouchbaseOutboxRepository>(connection, metrics);
     }
     void TearDown() override {
         if (!connection)
@@ -100,6 +101,7 @@ protected:
         return cb::outbox_document_from_json(r.content_as<tao::json::value>());
     }
     std::shared_ptr<cb::CouchbaseConnection> connection;
+    haven::infrastructure::observability::metrics::NoOpMetricsRecorder metrics;
     std::unique_ptr<cb::CouchbaseOutboxRepository> repository;
     std::vector<std::string> keys;
 };

@@ -153,8 +153,9 @@ protected:
             GTEST_SKIP() << "Set HVN_COUCHBASE_* and HVN_KAFKA_BROKERS";
         connection = std::make_shared<cb::CouchbaseConnection>(
             cb::CouchbaseConfiguration{*connection_string, *username, *password, *bucket, *scope});
-        creation_store = std::make_unique<cb::CouchbaseReservationCreationStore>(connection);
-        repository = std::make_unique<cb::CouchbaseOutboxRepository>(connection);
+        creation_store =
+            std::make_unique<cb::CouchbaseReservationCreationStore>(connection, couchbase_metrics);
+        repository = std::make_unique<cb::CouchbaseOutboxRepository>(connection, couchbase_metrics);
     }
     void TearDown() override {
         if (!connection)
@@ -209,6 +210,7 @@ protected:
     }
 
     std::shared_ptr<cb::CouchbaseConnection> connection;
+    haven::infrastructure::observability::metrics::NoOpMetricsRecorder couchbase_metrics;
     std::unique_ptr<cb::CouchbaseReservationCreationStore> creation_store;
     std::unique_ptr<cb::CouchbaseOutboxRepository> repository;
     std::vector<std::pair<std::string_view, std::string>> cleanup;

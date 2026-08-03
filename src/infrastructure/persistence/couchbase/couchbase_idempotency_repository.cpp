@@ -100,8 +100,10 @@ void validate_completion(const IdempotencyRecord& record,
 }  // namespace
 
 CouchbaseIdempotencyRepository::CouchbaseIdempotencyRepository(
-    std::shared_ptr<CouchbaseConnection> connection, const std::chrono::seconds retention)
-    : connection_(std::move(connection)), retention_(retention) {
+    std::shared_ptr<CouchbaseConnection> connection,
+    const std::chrono::seconds retention,
+    application::observability::metrics::MetricsRecorder& recorder)
+    : connection_(std::move(connection)), retention_(retention), metrics_(recorder) {
     if (!connection_)
         throw std::invalid_argument("Idempotency repository connection is null");
     if (retention_ <= std::chrono::seconds::zero())
@@ -110,64 +112,75 @@ CouchbaseIdempotencyRepository::CouchbaseIdempotencyRepository(
 
 IdempotencyClaimResult CouchbaseIdempotencyRepository::claim(
     const IdempotencyRecord& processing_record) {
-    HVN_TRACE_SCOPE();
-    if (processing_record.status() != IdempotencyStatus::Processing)
-        throw IdempotencyRepositoryError{IdempotencyRepositoryErrorCode::InvalidRecord,
-                                         "Only a processing idempotency record may be claimed"};
-    const auto key = idempotency_document_key(processing_record.scope());
-    auto options = ::couchbase::insert_options{};
-    options.expiry(retention_);
-    auto collection = connection_->collection(CouchbaseCollections::idempotency);
-    auto [error, result] =
-        collection
-            .insert(key,
-                    idempotency_document_to_json(to_idempotency_document(processing_record)),
-                    options)
-            .get();
-    static_cast<void>(result);
-    if (!error)
-        return IdempotencyClaimResult::claimed(processing_record);
-    if (error.ec() != ::couchbase::errc::key_value::document_exists &&
-        error.ec() != ::couchbase::errc::common::ambiguous_timeout)
-        throw translate_error(error, "Couchbase idempotency claim");
-    auto [read_error, read_result] = collection.get(key).get();
-    if (read_error) {
-        if (error.ec() == ::couchbase::errc::common::ambiguous_timeout &&
-            read_error.ec() == ::couchbase::errc::key_value::document_not_found)
+    return metrics_.record(metrics::Repository::idempotency, metrics::Operation::claim, [&] {
+        HVN_TRACE_SCOPE();
+        if (processing_record.status() != IdempotencyStatus::Processing)
+            throw IdempotencyRepositoryError{IdempotencyRepositoryErrorCode::InvalidRecord,
+                                             "Only a processing idempotency record may be claimed"};
+        const auto key = idempotency_document_key(processing_record.scope());
+        auto options = ::couchbase::insert_options{};
+        options.expiry(retention_);
+        auto collection = connection_->collection(CouchbaseCollections::idempotency);
+        auto [error, result] =
+            collection
+                .insert(key,
+                        idempotency_document_to_json(to_idempotency_document(processing_record)),
+                        options)
+                .get();
+        static_cast<void>(result);
+        if (!error)
+            return IdempotencyClaimResult::claimed(processing_record);
+        if (error.ec() != ::couchbase::errc::key_value::document_exists &&
+            error.ec() != ::couchbase::errc::common::ambiguous_timeout)
             throw translate_error(error, "Couchbase idempotency claim");
-        throw translate_error(read_error, "Couchbase idempotency claim reconciliation");
-    }
-    return classify(map_result(read_result), processing_record.fingerprint());
+        auto [read_error, read_result] = collection.get(key).get();
+        if (read_error) {
+            if (error.ec() == ::couchbase::errc::common::ambiguous_timeout &&
+                read_error.ec() == ::couchbase::errc::key_value::document_not_found)
+                throw translate_error(error, "Couchbase idempotency claim");
+            throw translate_error(read_error, "Couchbase idempotency claim reconciliation");
+        }
+        return classify(map_result(read_result), processing_record.fingerprint());
+    });
 }
 
 std::optional<IdempotencyRecord> CouchbaseIdempotencyRepository::find(
     const IdempotencyScope& scope) const {
-    HVN_TRACE_SCOPE();
-    auto collection = connection_->collection(CouchbaseCollections::idempotency);
-    auto [error, result] = collection.get(idempotency_document_key(scope)).get();
-    if (error.ec() == ::couchbase::errc::key_value::document_not_found)
-        return std::nullopt;
-    if (error)
-        throw translate_error(error, "Couchbase idempotency read");
-    auto record = map_result(result);
-    if (record.scope() != scope)
-        throw RepositoryError{RepositoryErrorCode::Persistence,
-                              "Stored idempotency scope does not match its key"};
-    return record;
+    return metrics_.record(
+        metrics::Repository::idempotency,
+        metrics::Operation::find,
+        [&]() -> std::optional<IdempotencyRecord> {
+            HVN_TRACE_SCOPE();
+            auto collection = connection_->collection(CouchbaseCollections::idempotency);
+            auto [error, result] = collection.get(idempotency_document_key(scope)).get();
+            if (error.ec() == ::couchbase::errc::key_value::document_not_found)
+                return std::nullopt;
+            if (error)
+                throw translate_error(error, "Couchbase idempotency read");
+            auto record = map_result(result);
+            if (record.scope() != scope)
+                throw RepositoryError{RepositoryErrorCode::Persistence,
+                                      "Stored idempotency scope does not match its key"};
+            return record;
+        });
 }
 
 void CouchbaseIdempotencyRepository::record_succeeded(
     const IdempotencyScope& scope,
     const IdempotencyFingerprint& fingerprint,
     const CreateReservationResultSnapshot& snapshot) {
-    complete(scope, fingerprint, snapshot, true);
+    metrics_.record(metrics::Repository::idempotency, metrics::Operation::record_succeeded, [&] {
+        complete(scope, fingerprint, snapshot, true);
+    });
 }
 
 void CouchbaseIdempotencyRepository::record_failed_permanently(
     const IdempotencyScope& scope,
     const IdempotencyFingerprint& fingerprint,
     const CreateReservationResultSnapshot& snapshot) {
-    complete(scope, fingerprint, snapshot, false);
+    metrics_.record(metrics::Repository::idempotency,
+                    metrics::Operation::record_failed_permanently,
+                    [&] { complete(scope, fingerprint, snapshot, false); });
 }
 
 void CouchbaseIdempotencyRepository::complete(const IdempotencyScope& scope,

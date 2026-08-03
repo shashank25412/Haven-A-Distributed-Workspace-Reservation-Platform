@@ -5,6 +5,8 @@
 
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -16,7 +18,8 @@ using haven::infrastructure::persistence::couchbase::CouchbaseConnection;
 using haven::infrastructure::persistence::couchbase::CouchbaseResourceRepository;
 
 TEST(CouchbaseResourceRepositoryTest, RejectsNullConnection) {
-    EXPECT_THROW(CouchbaseResourceRepository{std::shared_ptr<CouchbaseConnection>{}},
+    auto metrics = haven::infrastructure::observability::metrics::NoOpMetricsRecorder{};
+    EXPECT_THROW(CouchbaseResourceRepository(std::shared_ptr<CouchbaseConnection>{}, metrics),
                  std::invalid_argument);
 }
 

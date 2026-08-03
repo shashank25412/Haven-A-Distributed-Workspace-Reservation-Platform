@@ -3,6 +3,7 @@
 
 #include "haven/application/repository_error.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
@@ -59,7 +60,7 @@ protected:
         if (!configuration)
             GTEST_SKIP() << "Set all HVN_COUCHBASE_* variables";
         connection = std::make_shared<cb::CouchbaseConnection>(*configuration);
-        store = std::make_unique<cb::CouchbaseReservationCreationStore>(connection);
+        store = std::make_unique<cb::CouchbaseReservationCreationStore>(connection, metrics);
     }
     void TearDown() override {
         if (!connection)
@@ -103,6 +104,7 @@ protected:
         return result.content_as<tao::json::value>();
     }
     std::shared_ptr<cb::CouchbaseConnection> connection;
+    haven::infrastructure::observability::metrics::NoOpMetricsRecorder metrics;
     std::unique_ptr<cb::CouchbaseReservationCreationStore> store;
     std::vector<std::pair<std::string_view, std::string>> cleanup;
 };

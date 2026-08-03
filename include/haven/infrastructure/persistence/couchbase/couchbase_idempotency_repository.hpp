@@ -7,6 +7,7 @@
 
 #include "haven/application/idempotency/idempotency_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
+#include "haven/infrastructure/persistence/couchbase/metrics/couchbase_persistence_metrics.hpp"
 
 #include <chrono>
 #include <memory>
@@ -17,7 +18,8 @@ class CouchbaseIdempotencyRepository final
     : public haven::application::idempotency::IdempotencyRepository {
 public:
     CouchbaseIdempotencyRepository(std::shared_ptr<CouchbaseConnection> connection,
-                                   std::chrono::seconds retention);
+                                   std::chrono::seconds retention,
+                                   application::observability::metrics::MetricsRecorder& recorder);
 
     [[nodiscard]] haven::application::idempotency::IdempotencyClaimResult claim(
         const haven::application::idempotency::IdempotencyRecord& processing_record) override;
@@ -40,6 +42,7 @@ private:
 
     std::shared_ptr<CouchbaseConnection> connection_;
     std::chrono::seconds retention_;
+    metrics::OperationMetrics metrics_;
 };
 
 }  // namespace haven::infrastructure::persistence::couchbase

@@ -7,6 +7,7 @@
 #include "haven/application/repository_error.hpp"
 #include "haven/domain/events/reservation_confirmed_event.hpp"
 #include "haven/domain/events/reservation_created_event.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
@@ -52,7 +53,7 @@ protected:
         if (!configuration)
             GTEST_SKIP() << "Set all HVN_COUCHBASE_* variables";
         connection = std::make_shared<cb::CouchbaseConnection>(*configuration);
-        store = std::make_unique<cb::CouchbaseReservationCreationEventStore>(connection);
+        store = std::make_unique<cb::CouchbaseReservationCreationEventStore>(connection, metrics);
     }
     void TearDown() override {
         if (!connection)
@@ -106,6 +107,7 @@ protected:
         ASSERT_FALSE(error) << error.ec().message();
     }
     std::shared_ptr<cb::CouchbaseConnection> connection;
+    haven::infrastructure::observability::metrics::NoOpMetricsRecorder metrics;
     std::unique_ptr<cb::CouchbaseReservationCreationEventStore> store;
     std::vector<std::string> keys;
 };

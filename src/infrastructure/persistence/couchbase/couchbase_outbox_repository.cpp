@@ -54,74 +54,85 @@ using haven::application::outbox::LoadedOutboxMessage;
 }  // namespace
 
 CouchbaseOutboxRepository::CouchbaseOutboxRepository(
-    std::shared_ptr<CouchbaseConnection> connection)
-    : connection_(std::move(connection)) {
+    std::shared_ptr<CouchbaseConnection> connection,
+    application::observability::metrics::MetricsRecorder& recorder)
+    : connection_(std::move(connection)), metrics_(recorder) {
     if (!connection_)
         throw std::invalid_argument("Couchbase Outbox repository connection is null");
 }
 
 std::vector<LoadedOutboxMessage> CouchbaseOutboxRepository::find_pending(std::size_t limit) const {
-    if (limit == 0)
-        throw std::invalid_argument("Outbox pending limit must be positive");
-    auto options = ::couchbase::query_options{};
-    options.readonly(true)
-        .scan_consistency(::couchbase::query_scan_consistency::request_plus)
-        .named_parameters(std::make_pair("limit", static_cast<std::uint64_t>(limit)));
-    const auto statement = "SELECT outbox AS document, META(outbox).cas AS cas FROM `" +
-                           std::string{CouchbaseCollections::outbox} +
-                           "` AS outbox WHERE outbox.documentType = \"outbox\" "
-                           "AND outbox.status = \"PENDING\" "
-                           "ORDER BY outbox.occurredAt, outbox.eventId LIMIT $limit";
-    auto [error, result] = connection_->scope().query(statement, options).get();
-    if (error)
-        throw error_for(error, "Couchbase pending Outbox query");
-    auto messages = std::vector<LoadedOutboxMessage>{};
-    try {
-        for (const auto& row : result.rows_as()) {
-            const auto document = outbox_document_from_json(row.at("document"));
-            messages.emplace_back(
-                to_outbox_message(document),
-                haven::application::persistence::PersistenceToken{row.at("cas").get_unsigned()});
+    return metrics_.record(metrics::Repository::outbox, metrics::Operation::find_pending, [&] {
+        if (limit == 0)
+            throw std::invalid_argument("Outbox pending limit must be positive");
+        auto options = ::couchbase::query_options{};
+        options.readonly(true)
+            .scan_consistency(::couchbase::query_scan_consistency::request_plus)
+            .named_parameters(std::make_pair("limit", static_cast<std::uint64_t>(limit)));
+        const auto statement = "SELECT outbox AS document, META(outbox).cas AS cas FROM `" +
+                               std::string{CouchbaseCollections::outbox} +
+                               "` AS outbox WHERE outbox.documentType = \"outbox\" "
+                               "AND outbox.status = \"PENDING\" "
+                               "ORDER BY outbox.occurredAt, outbox.eventId LIMIT $limit";
+        auto [error, result] = connection_->scope().query(statement, options).get();
+        if (error)
+            throw error_for(error, "Couchbase pending Outbox query");
+        auto messages = std::vector<LoadedOutboxMessage>{};
+        try {
+            for (const auto& row : result.rows_as()) {
+                const auto document = outbox_document_from_json(row.at("document"));
+                messages.emplace_back(to_outbox_message(document),
+                                      haven::application::persistence::PersistenceToken{
+                                          row.at("cas").get_unsigned()});
+            }
+        } catch (const std::exception& exception) {
+            throw RepositoryError{
+                RepositoryErrorCode::Persistence,
+                std::string{"Pending Outbox query returned invalid data: "} + exception.what()};
         }
-    } catch (const std::exception& exception) {
-        throw RepositoryError{
-            RepositoryErrorCode::Persistence,
-            std::string{"Pending Outbox query returned invalid data: "} + exception.what()};
-    }
-    return messages;
+        return messages;
+    });
 }
 
 std::optional<LoadedOutboxMessage> CouchbaseOutboxRepository::claim(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::EventId& event_id,
     const haven::application::persistence::PersistenceToken& expected_token) {
-    auto collection = connection_->collection(CouchbaseCollections::outbox);
-    auto [get_error, result] = collection.get(outbox_document_key(organization_id, event_id)).get();
-    if (get_error.ec() == ::couchbase::errc::key_value::document_not_found)
-        return std::nullopt;
-    if (get_error)
-        throw error_for(get_error, "Couchbase Outbox claim read");
-    if (result.cas() != couchbase_cas_from(expected_token))
-        return std::nullopt;
-    auto document = read_document(result);
-    if (document.organization_id != organization_id || document.event_id != event_id)
-        throw RepositoryError{RepositoryErrorCode::Persistence, "Stored Outbox identity mismatch"};
-    if (document.status != OutboxStatus::Pending)
-        return std::nullopt;
-    document.status = OutboxStatus::Publishing;
-    ++document.attempt_count;
-    auto options = ::couchbase::replace_options{};
-    options.cas(couchbase_cas_from(expected_token));
-    auto [replace_error, replaced] = collection
-                                         .replace(outbox_document_key(organization_id, event_id),
-                                                  outbox_document_to_json(document),
-                                                  options)
-                                         .get();
-    if (replace_error.ec() == ::couchbase::errc::common::cas_mismatch)
-        return std::nullopt;
-    if (replace_error)
-        throw error_for(replace_error, "Couchbase Outbox claim");
-    return loaded(document, replaced.cas());
+    return metrics_.record(
+        metrics::Repository::outbox,
+        metrics::Operation::claim,
+        [&]() -> std::optional<LoadedOutboxMessage> {
+            auto collection = connection_->collection(CouchbaseCollections::outbox);
+            auto [get_error, result] =
+                collection.get(outbox_document_key(organization_id, event_id)).get();
+            if (get_error.ec() == ::couchbase::errc::key_value::document_not_found)
+                return std::nullopt;
+            if (get_error)
+                throw error_for(get_error, "Couchbase Outbox claim read");
+            if (result.cas() != couchbase_cas_from(expected_token))
+                return std::nullopt;
+            auto document = read_document(result);
+            if (document.organization_id != organization_id || document.event_id != event_id)
+                throw RepositoryError{RepositoryErrorCode::Persistence,
+                                      "Stored Outbox identity mismatch"};
+            if (document.status != OutboxStatus::Pending)
+                return std::nullopt;
+            document.status = OutboxStatus::Publishing;
+            ++document.attempt_count;
+            auto options = ::couchbase::replace_options{};
+            options.cas(couchbase_cas_from(expected_token));
+            auto [replace_error, replaced] =
+                collection
+                    .replace(outbox_document_key(organization_id, event_id),
+                             outbox_document_to_json(document),
+                             options)
+                    .get();
+            if (replace_error.ec() == ::couchbase::errc::common::cas_mismatch)
+                return std::nullopt;
+            if (replace_error)
+                throw error_for(replace_error, "Couchbase Outbox claim");
+            return loaded(document, replaced.cas());
+        });
 }
 
 namespace {
@@ -163,32 +174,36 @@ LoadedOutboxMessage CouchbaseOutboxRepository::mark_published(
     const haven::domain::EventId& event_id,
     const haven::application::persistence::PersistenceToken& token,
     std::chrono::system_clock::time_point published_at) {
-    return mutate_publishing(
-        *connection_,
-        organization_id,
-        event_id,
-        token,
-        [published_at](OutboxDocument& document) {
-            document.status = OutboxStatus::Published;
-            document.published_at = published_at;
-        },
-        "Couchbase Outbox mark published");
+    return metrics_.record(metrics::Repository::outbox, metrics::Operation::mark_published, [&] {
+        return mutate_publishing(
+            *connection_,
+            organization_id,
+            event_id,
+            token,
+            [published_at](OutboxDocument& document) {
+                document.status = OutboxStatus::Published;
+                document.published_at = published_at;
+            },
+            "Couchbase Outbox mark published");
+    });
 }
 
 LoadedOutboxMessage CouchbaseOutboxRepository::release_for_retry(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::EventId& event_id,
     const haven::application::persistence::PersistenceToken& token) {
-    return mutate_publishing(
-        *connection_,
-        organization_id,
-        event_id,
-        token,
-        [](OutboxDocument& document) {
-            document.status = OutboxStatus::Pending;
-            document.published_at.reset();
-        },
-        "Couchbase Outbox retry release");
+    return metrics_.record(metrics::Repository::outbox, metrics::Operation::release_for_retry, [&] {
+        return mutate_publishing(
+            *connection_,
+            organization_id,
+            event_id,
+            token,
+            [](OutboxDocument& document) {
+                document.status = OutboxStatus::Pending;
+                document.published_at.reset();
+            },
+            "Couchbase Outbox retry release");
+    });
 }
 
 }  // namespace haven::infrastructure::persistence::couchbase

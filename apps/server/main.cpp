@@ -131,11 +131,12 @@ int main() {
                 haven::infrastructure::messaging::kafka::KafkaOutboxMessageProducer>(
                 configuration.kafka);
             outbox_publisher = std::make_unique<haven::application::outbox::OutboxPublisher>(
-                *outbox_repository, *outbox_producer, outbox_clock);
+                *outbox_repository, *outbox_producer, outbox_clock, *metrics_recorder);
             outbox_worker = std::make_unique<haven::runtime::outbox::OutboxPublisherWorker>(
                 *outbox_publisher,
                 configuration.outbox_publisher.batch_size,
-                configuration.outbox_publisher.poll_interval);
+                configuration.outbox_publisher.poll_interval,
+                *metrics_recorder);
             HVN_INFO_LOG("Kafka Outbox publishing enabled");
         } else {
             HVN_INFO_LOG("Kafka Outbox publishing disabled; Pending records remain durable");

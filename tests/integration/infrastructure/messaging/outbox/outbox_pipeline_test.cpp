@@ -6,6 +6,7 @@
 #include "haven/application/outbox/system_outbox_publisher_clock.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
 #include "haven/infrastructure/messaging/kafka/kafka_outbox_message_producer.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
@@ -214,6 +215,7 @@ protected:
 };
 
 TEST_F(OutboxPipelineIntegrationTest, PublishesCreatedReservationEventsAndCompletesOutbox) {
+    auto metrics = haven::infrastructure::observability::metrics::NoOpMetricsRecorder{};
     auto aggregate = reservation(unique());
     auto events = aggregate.release_domain_events();
     track(aggregate, events);
@@ -232,7 +234,8 @@ TEST_F(OutboxPipelineIntegrationTest, PublishesCreatedReservationEventsAndComple
     auto consumer = Consumer{settings};
     auto producer = kafka::KafkaOutboxMessageProducer{settings};
     auto clock = haven::application::outbox::SystemOutboxPublisherClock{};
-    auto publisher = haven::application::outbox::OutboxPublisher{*repository, producer, clock};
+    auto publisher =
+        haven::application::outbox::OutboxPublisher{*repository, producer, clock, metrics};
     const auto result = publisher.run_once(2);
     EXPECT_EQ(result.candidates_found, 2U);
     EXPECT_EQ(result.claims_acquired, 2U);
@@ -261,6 +264,7 @@ TEST_F(OutboxPipelineIntegrationTest, PublishesCreatedReservationEventsAndComple
 }
 
 TEST_F(OutboxPipelineIntegrationTest, FailedKafkaReleaseCanBePublishedByLaterExplicitCycle) {
+    auto metrics = haven::infrastructure::observability::metrics::NoOpMetricsRecorder{};
     auto aggregate = reservation(unique());
     auto events = aggregate.release_domain_events();
     track(aggregate, events);
@@ -272,7 +276,7 @@ TEST_F(OutboxPipelineIntegrationTest, FailedKafkaReleaseCanBePublishedByLaterExp
     auto failed_producer = kafka::KafkaOutboxMessageProducer{unavailable};
     auto clock = haven::application::outbox::SystemOutboxPublisherClock{};
     auto failed_publisher =
-        haven::application::outbox::OutboxPublisher{*repository, failed_producer, clock};
+        haven::application::outbox::OutboxPublisher{*repository, failed_producer, clock, metrics};
     const auto failed = failed_publisher.run_once(2);
     EXPECT_EQ(failed.released_for_retry, 2U);
     ASSERT_TRUE(reservation_exists(aggregate));
@@ -288,7 +292,8 @@ TEST_F(OutboxPipelineIntegrationTest, FailedKafkaReleaseCanBePublishedByLaterExp
     const auto healthy = kafka_configuration();
     auto consumer = Consumer{healthy};
     auto producer = kafka::KafkaOutboxMessageProducer{healthy};
-    auto publisher = haven::application::outbox::OutboxPublisher{*repository, producer, clock};
+    auto publisher =
+        haven::application::outbox::OutboxPublisher{*repository, producer, clock, metrics};
     const auto recovered = publisher.run_once(2);
     EXPECT_EQ(recovered.published, 2U);
     EXPECT_EQ(consumer.receive(expected_payloads).size(), 2U);

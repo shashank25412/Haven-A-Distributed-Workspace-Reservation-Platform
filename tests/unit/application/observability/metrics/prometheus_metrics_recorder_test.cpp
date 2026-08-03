@@ -5,6 +5,7 @@
 
 #include "haven/infrastructure/observability/metrics/prometheus_metrics_recorder.hpp"
 
+#include "haven/application/outbox/metrics/outbox_publisher_metrics.hpp"
 #include "haven/application/reservations/metrics/reservation_creation_metrics.hpp"
 
 #include <gtest/gtest.h>
@@ -135,6 +136,29 @@ TEST(PrometheusMetricsRecorderTest, ExposesReservationCreationCatalogMetrics) {
     EXPECT_NE(output.find("haven_reservation_creation_duration_seconds_count"), std::string::npos);
     EXPECT_NE(output.find("haven_reservation_creation_duration_seconds_sum"), std::string::npos);
     EXPECT_NE(output.find("outcome=\"created_confirmed\""), std::string::npos);
+}
+
+TEST(PrometheusMetricsRecorderTest, ExposesOutboxPublisherCatalogMetrics) {
+    namespace outbox_metrics = haven::application::outbox::metrics;
+    PrometheusMetricsRecorder recorder;
+    const MetricLabels cycle_labels{
+        outbox_metrics::outcome_label(outbox_metrics::CycleOutcome::completed)};
+    const MetricLabels record_labels{
+        outbox_metrics::outcome_label(outbox_metrics::RecordOutcome::published_mark_failed)};
+    recorder.increment_counter(outbox_metrics::cycles_metric_name(), 1.0, cycle_labels);
+    recorder.observe_duration(outbox_metrics::cycle_duration_metric_name(), 100us, cycle_labels);
+    recorder.increment_counter(outbox_metrics::records_discovered_metric_name(), 0.0, {});
+    recorder.increment_counter(outbox_metrics::record_attempts_metric_name(), 1.0, record_labels);
+    recorder.set_gauge(outbox_metrics::worker_running_metric_name(), 1.0, {});
+
+    const auto output = recorder.collect();
+    EXPECT_NE(output.find("haven_outbox_publisher_cycles_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_outbox_publisher_cycle_duration_seconds_count"),
+              std::string::npos);
+    EXPECT_NE(output.find("haven_outbox_publisher_records_discovered_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_outbox_publisher_record_attempts_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_outbox_publisher_worker_running 1"), std::string::npos);
+    EXPECT_NE(output.find("outcome=\"published_mark_failed\""), std::string::npos);
 }
 
 }  // namespace

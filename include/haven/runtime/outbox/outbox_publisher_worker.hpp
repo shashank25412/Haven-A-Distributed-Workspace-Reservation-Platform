@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include "haven/application/observability/metrics/metrics_recorder.hpp"
 #include "haven/application/outbox/outbox_publish_cycle.hpp"
 
 #include <chrono>
@@ -21,9 +22,11 @@ namespace haven::runtime::outbox {
  */
 class OutboxPublisherWorker final {
 public:
-    OutboxPublisherWorker(haven::application::outbox::OutboxPublishCycle& publisher,
-                          std::size_t batch_size,
-                          std::chrono::milliseconds poll_interval);
+    OutboxPublisherWorker(
+        haven::application::outbox::OutboxPublishCycle& publisher,
+        std::size_t batch_size,
+        std::chrono::milliseconds poll_interval,
+        haven::application::observability::metrics::MetricsRecorder& metrics_recorder);
     ~OutboxPublisherWorker();
 
     OutboxPublisherWorker(const OutboxPublisherWorker&) = delete;
@@ -36,10 +39,12 @@ public:
 
 private:
     void run(std::stop_token stop_token) noexcept;
+    void record_running(double value) noexcept;
 
     haven::application::outbox::OutboxPublishCycle& publisher_;
     std::size_t batch_size_;
     std::chrono::milliseconds poll_interval_;
+    haven::application::observability::metrics::MetricsRecorder& metrics_recorder_;
     std::mutex lifecycle_mutex_;
     std::mutex wait_mutex_;
     std::condition_variable_any wake_;

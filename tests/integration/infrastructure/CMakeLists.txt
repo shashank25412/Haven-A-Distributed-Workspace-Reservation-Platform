@@ -94,7 +94,8 @@ gtest_discover_tests(haven_kafka_outbox_message_producer_integration_test
 add_executable(haven_outbox_pipeline_integration_test
     messaging/outbox/outbox_pipeline_test.cpp)
 target_link_libraries(haven_outbox_pipeline_integration_test
-    PRIVATE haven::infrastructure::couchbase haven::infrastructure::kafka GTest::gtest_main)
+    PRIVATE haven::infrastructure::couchbase haven::infrastructure::kafka
+            haven::infrastructure::metrics GTest::gtest_main)
 haven_apply_project_options(haven_outbox_pipeline_integration_test)
 gtest_discover_tests(haven_outbox_pipeline_integration_test
     PROPERTIES LABELS "integration;couchbase;kafka;outbox-pipeline")

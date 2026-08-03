@@ -4,6 +4,7 @@
  */
 #include "haven/runtime/outbox/outbox_publisher_worker.hpp"
 
+#include "haven/application/observability/metrics/metrics_recorder.hpp"
 #include "haven/application/repository_error.hpp"
 
 #include <gtest/gtest.h>
@@ -19,6 +20,29 @@
 namespace haven::runtime::outbox {
 namespace {
 using namespace std::chrono_literals;
+class Metrics final : public haven::application::observability::metrics::MetricsRecorder {
+public:
+    void increment_counter(
+        const haven::application::observability::metrics::MetricName&,
+        double,
+        const haven::application::observability::metrics::MetricLabels&) override {}
+    void set_gauge(const haven::application::observability::metrics::MetricName&,
+                   const double value,
+                   const haven::application::observability::metrics::MetricLabels&) override {
+        if (throws)
+            throw std::runtime_error{"metrics failure"};
+        const auto lock = std::scoped_lock{mutex};
+        gauges.push_back(value);
+    }
+    void observe_duration(
+        const haven::application::observability::metrics::MetricName&,
+        std::chrono::microseconds,
+        const haven::application::observability::metrics::MetricLabels&) override {}
+
+    std::mutex mutex;
+    std::vector<double> gauges;
+    bool throws{};
+};
 
 class TestPublishCycle final : public haven::application::outbox::OutboxPublishCycle {
 public:
@@ -69,24 +93,31 @@ public:
 
 TEST(OutboxPublisherWorkerTest, ConstructionDoesNotStartCycle) {
     auto cycle = TestPublishCycle{};
-    auto worker = OutboxPublisherWorker{cycle, 10, 1s};
+    auto metrics = Metrics{};
+    auto worker = OutboxPublisherWorker{cycle, 10, 1s, metrics};
     const auto lock = std::scoped_lock{cycle.mutex};
     EXPECT_EQ(cycle.calls, 0U);
 }
 
 TEST(OutboxPublisherWorkerTest, StartRunsPromptCycleWithConfiguredBatch) {
     auto cycle = TestPublishCycle{};
-    auto worker = OutboxPublisherWorker{cycle, 17, 1s};
+    auto metrics = Metrics{};
+    auto worker = OutboxPublisherWorker{cycle, 17, 1s, metrics};
     worker.start();
     ASSERT_TRUE(cycle.wait_for_calls(1));
     worker.stop();
     const auto lock = std::scoped_lock{cycle.mutex};
     EXPECT_EQ(cycle.batch_sizes, std::vector<std::size_t>{17});
+    {
+        const auto metrics_lock = std::scoped_lock{metrics.mutex};
+        EXPECT_EQ(metrics.gauges, (std::vector<double>{1.0, 0.0}));
+    }
 }
 
 TEST(OutboxPublisherWorkerTest, RepeatsSequentiallyWithoutOverlap) {
     auto cycle = TestPublishCycle{};
-    auto worker = OutboxPublisherWorker{cycle, 10, 1ms};
+    auto metrics = Metrics{};
+    auto worker = OutboxPublisherWorker{cycle, 10, 1ms, metrics};
     worker.start();
     ASSERT_TRUE(cycle.wait_for_calls(2));
     worker.stop();
@@ -97,8 +128,9 @@ TEST(OutboxPublisherWorkerTest, RepeatsSequentiallyWithoutOverlap) {
 
 TEST(OutboxPublisherWorkerTest, BlockedCycleCannotOverlapAndStopJoinsIt) {
     auto cycle = TestPublishCycle{};
+    auto metrics = Metrics{};
     cycle.block = true;
-    auto worker = OutboxPublisherWorker{cycle, 10, 1ms};
+    auto worker = OutboxPublisherWorker{cycle, 10, 1ms, metrics};
     worker.start();
     ASSERT_TRUE(cycle.wait_for_calls(1));
     auto stopping = std::async(std::launch::async, [&] { worker.stop(); });
@@ -114,7 +146,8 @@ TEST(OutboxPublisherWorkerTest, BlockedCycleCannotOverlapAndStopJoinsIt) {
 
 TEST(OutboxPublisherWorkerTest, StopInterruptsLongPollingWaitAndIsIdempotent) {
     auto cycle = TestPublishCycle{};
-    auto worker = OutboxPublisherWorker{cycle, 10, std::chrono::hours{1}};
+    auto metrics = Metrics{};
+    auto worker = OutboxPublisherWorker{cycle, 10, std::chrono::hours{1}, metrics};
     worker.start();
     ASSERT_TRUE(cycle.wait_for_calls(1));
     const auto start = std::chrono::steady_clock::now();
@@ -125,17 +158,29 @@ TEST(OutboxPublisherWorkerTest, StopInterruptsLongPollingWaitAndIsIdempotent) {
 
 TEST(OutboxPublisherWorkerTest, CycleFailureDoesNotTerminateWorker) {
     auto cycle = TestPublishCycle{};
+    auto metrics = Metrics{};
     cycle.failures = 1;
-    auto worker = OutboxPublisherWorker{cycle, 10, 1ms};
+    auto worker = OutboxPublisherWorker{cycle, 10, 1ms, metrics};
     worker.start();
     ASSERT_TRUE(cycle.wait_for_calls(2));
     worker.stop();
 }
 
+TEST(OutboxPublisherWorkerTest, GaugeFailuresDoNotAlterLifecycle) {
+    auto cycle = TestPublishCycle{};
+    auto metrics = Metrics{};
+    metrics.throws = true;
+    auto worker = OutboxPublisherWorker{cycle, 10, 1ms, metrics};
+    worker.start();
+    ASSERT_TRUE(cycle.wait_for_calls(1));
+    worker.stop();
+}
+
 TEST(OutboxPublisherWorkerTest, DestructorStopsWorker) {
     auto cycle = TestPublishCycle{};
+    auto metrics = Metrics{};
     {
-        auto worker = OutboxPublisherWorker{cycle, 10, std::chrono::hours{1}};
+        auto worker = OutboxPublisherWorker{cycle, 10, std::chrono::hours{1}, metrics};
         worker.start();
         ASSERT_TRUE(cycle.wait_for_calls(1));
     }
@@ -145,14 +190,16 @@ TEST(OutboxPublisherWorkerTest, DestructorStopsWorker) {
 
 TEST(OutboxPublisherWorkerTest, RejectsInvalidRuntimeConfiguration) {
     auto cycle = TestPublishCycle{};
-    EXPECT_THROW(OutboxPublisherWorker(cycle, 0, 1ms), std::invalid_argument);
-    EXPECT_THROW(OutboxPublisherWorker(cycle, 1, 0ms), std::invalid_argument);
-    EXPECT_THROW(OutboxPublisherWorker(cycle, 1, -1ms), std::invalid_argument);
+    auto metrics = Metrics{};
+    EXPECT_THROW(OutboxPublisherWorker(cycle, 0, 1ms, metrics), std::invalid_argument);
+    EXPECT_THROW(OutboxPublisherWorker(cycle, 1, 0ms, metrics), std::invalid_argument);
+    EXPECT_THROW(OutboxPublisherWorker(cycle, 1, -1ms, metrics), std::invalid_argument);
 }
 
 TEST(OutboxPublisherWorkerTest, RepeatedStartFailsClearly) {
     auto cycle = TestPublishCycle{};
-    auto worker = OutboxPublisherWorker{cycle, 10, 1s};
+    auto metrics = Metrics{};
+    auto worker = OutboxPublisherWorker{cycle, 10, 1s, metrics};
     worker.start();
     ASSERT_TRUE(cycle.wait_for_calls(1));
     EXPECT_THROW(worker.start(), std::logic_error);

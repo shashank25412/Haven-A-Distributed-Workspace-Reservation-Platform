@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include "haven/application/observability/metrics/metrics_recorder.hpp"
 #include "haven/application/outbox/outbox_message_producer.hpp"
 #include "haven/application/outbox/outbox_publish_cycle.hpp"
 #include "haven/application/outbox/outbox_publisher_clock.hpp"
@@ -16,7 +17,8 @@ class OutboxPublisher final : public OutboxPublishCycle {
 public:
     OutboxPublisher(OutboxRepository& repository,
                     OutboxMessageProducer& producer,
-                    const OutboxPublisherClock& clock) noexcept;
+                    const OutboxPublisherClock& clock,
+                    observability::metrics::MetricsRecorder& metrics_recorder) noexcept;
 
     /**
      * @brief Processes at most one repository batch in its returned order.
@@ -27,9 +29,12 @@ public:
     [[nodiscard]] OutboxPublishCycleResult run_once(std::size_t batch_size) const override;
 
 private:
+    [[nodiscard]] OutboxPublishCycleResult run_cycle(std::size_t batch_size) const;
+
     OutboxRepository& repository_;
     OutboxMessageProducer& producer_;
     const OutboxPublisherClock& clock_;
+    observability::metrics::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace haven::application::outbox

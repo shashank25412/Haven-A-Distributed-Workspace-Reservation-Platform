@@ -12,6 +12,7 @@ add_library(haven_application
     observability/metrics/metric_name.cpp
 
     outbox/outbox_publisher.cpp
+    outbox/metrics/outbox_publisher_metrics.cpp
     outbox/system_outbox_publisher_clock.cpp
 
     idempotency/create_reservation_fingerprint.cpp

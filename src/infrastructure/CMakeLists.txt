@@ -34,6 +34,7 @@ add_library(haven_infrastructure_kafka
     messaging/kafka/kafka_outbox_record.cpp
     messaging/kafka/kafka_error_mapper.cpp
     messaging/kafka/kafka_outbox_message_producer.cpp
+    messaging/kafka/metrics/kafka_outbox_producer_metrics.cpp
 )
 add_library(haven::infrastructure::kafka ALIAS haven_infrastructure_kafka)
 target_include_directories(haven_infrastructure_kafka PUBLIC ${PROJECT_SOURCE_DIR}/include)

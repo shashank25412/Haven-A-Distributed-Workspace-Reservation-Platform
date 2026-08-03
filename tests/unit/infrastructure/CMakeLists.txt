@@ -45,7 +45,9 @@ gtest_discover_tests(haven_redis_cache_tests)
 add_executable(haven_kafka_tests
     messaging/kafka/kafka_outbox_record_test.cpp
     messaging/kafka/kafka_error_mapper_test.cpp
+    messaging/kafka/kafka_outbox_message_producer_metrics_test.cpp
 )
+target_include_directories(haven_kafka_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests/unit)
 target_link_libraries(haven_kafka_tests PRIVATE haven::infrastructure::kafka GTest::gtest_main)
 haven_apply_project_options(haven_kafka_tests)
 gtest_discover_tests(haven_kafka_tests PROPERTIES LABELS "kafka")

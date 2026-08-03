@@ -7,6 +7,7 @@
 
 #include "haven/application/outbox/metrics/outbox_publisher_metrics.hpp"
 #include "haven/application/reservations/metrics/reservation_creation_metrics.hpp"
+#include "haven/infrastructure/messaging/kafka/metrics/kafka_outbox_producer_metrics.hpp"
 
 #include <gtest/gtest.h>
 
@@ -159,6 +160,23 @@ TEST(PrometheusMetricsRecorderTest, ExposesOutboxPublisherCatalogMetrics) {
     EXPECT_NE(output.find("haven_outbox_publisher_record_attempts_total"), std::string::npos);
     EXPECT_NE(output.find("haven_outbox_publisher_worker_running 1"), std::string::npos);
     EXPECT_NE(output.find("outcome=\"published_mark_failed\""), std::string::npos);
+}
+
+TEST(PrometheusMetricsRecorderTest, ExposesKafkaOutboxProducerCatalogMetrics) {
+    namespace kafka_metrics = haven::infrastructure::messaging::kafka::metrics;
+    PrometheusMetricsRecorder recorder;
+    const MetricLabels labels{
+        kafka_metrics::outcome_label(kafka_metrics::PublishOutcome::acknowledged)};
+    recorder.increment_counter(kafka_metrics::attempts_metric_name(), 1.0, labels);
+    recorder.observe_duration(kafka_metrics::duration_metric_name(), 250us, labels);
+    recorder.increment_counter(kafka_metrics::payload_bytes_metric_name(), 42.0, {});
+
+    const auto output = recorder.collect();
+    EXPECT_NE(output.find("haven_kafka_outbox_publish_attempts_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_kafka_outbox_publish_duration_seconds_count"), std::string::npos);
+    EXPECT_NE(output.find("haven_kafka_outbox_publish_duration_seconds_sum"), std::string::npos);
+    EXPECT_NE(output.find("haven_kafka_outbox_payload_bytes_total 42"), std::string::npos);
+    EXPECT_NE(output.find("outcome=\"acknowledged\""), std::string::npos);
 }
 
 }  // namespace

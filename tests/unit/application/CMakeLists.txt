@@ -58,6 +58,7 @@ target_include_directories(haven_metrics_foundation_tests
 target_link_libraries(haven_metrics_foundation_tests
     PRIVATE
         haven::infrastructure::metrics
+        haven::infrastructure::kafka
         GTest::gtest_main
 )
 

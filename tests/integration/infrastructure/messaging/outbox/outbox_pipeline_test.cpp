@@ -232,7 +232,7 @@ TEST_F(OutboxPipelineIntegrationTest, PublishesCreatedReservationEventsAndComple
 
     const auto settings = kafka_configuration();
     auto consumer = Consumer{settings};
-    auto producer = kafka::KafkaOutboxMessageProducer{settings};
+    auto producer = kafka::KafkaOutboxMessageProducer{settings, metrics};
     auto clock = haven::application::outbox::SystemOutboxPublisherClock{};
     auto publisher =
         haven::application::outbox::OutboxPublisher{*repository, producer, clock, metrics};
@@ -273,7 +273,7 @@ TEST_F(OutboxPipelineIntegrationTest, FailedKafkaReleaseCanBePublishedByLaterExp
     unavailable.brokers = "127.0.0.1:1";
     unavailable.acknowledgement_timeout = std::chrono::milliseconds{300};
     unavailable.delivery_timeout = std::chrono::milliseconds{300};
-    auto failed_producer = kafka::KafkaOutboxMessageProducer{unavailable};
+    auto failed_producer = kafka::KafkaOutboxMessageProducer{unavailable, metrics};
     auto clock = haven::application::outbox::SystemOutboxPublisherClock{};
     auto failed_publisher =
         haven::application::outbox::OutboxPublisher{*repository, failed_producer, clock, metrics};
@@ -291,7 +291,7 @@ TEST_F(OutboxPipelineIntegrationTest, FailedKafkaReleaseCanBePublishedByLaterExp
 
     const auto healthy = kafka_configuration();
     auto consumer = Consumer{healthy};
-    auto producer = kafka::KafkaOutboxMessageProducer{healthy};
+    auto producer = kafka::KafkaOutboxMessageProducer{healthy, metrics};
     auto publisher =
         haven::application::outbox::OutboxPublisher{*repository, producer, clock, metrics};
     const auto recovered = publisher.run_once(2);

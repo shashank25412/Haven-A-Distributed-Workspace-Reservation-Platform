@@ -5,6 +5,7 @@
 #include "haven/infrastructure/messaging/kafka/kafka_outbox_message_producer.hpp"
 
 #include "haven/application/outbox/message_publish_error.hpp"
+#include "haven/infrastructure/observability/metrics/prometheus_metrics_recorder.hpp"
 
 #include <gtest/gtest.h>
 
@@ -22,6 +23,7 @@
 
 namespace haven::infrastructure::messaging::kafka {
 namespace {
+using Metrics = haven::infrastructure::observability::metrics::PrometheusMetricsRecorder;
 std::optional<std::string> environment(const char* name) {
     const auto* value = std::getenv(name);
     return value && *value ? std::optional<std::string>{value} : std::nullopt;
@@ -143,8 +145,9 @@ protected:
 
 TEST_F(KafkaOutboxMessageProducerIntegrationTest, PublishesExactRecordAndRequiredHeaders) {
     const auto settings = configuration();
+    auto metrics = Metrics{};
     auto consumer = Consumer{settings};
-    auto producer = KafkaOutboxMessageProducer{settings};
+    auto producer = KafkaOutboxMessageProducer{settings, metrics};
     const auto source = message(unique());
     producer.publish(source);
     const auto records = consumer.receive({source.serialized_envelope});
@@ -159,12 +162,19 @@ TEST_F(KafkaOutboxMessageProducerIntegrationTest, PublishesExactRecordAndRequire
     EXPECT_EQ(records[0].headers.at("event-type"), source.event_type);
     EXPECT_EQ(records[0].headers.at("schema-version"), "1");
     EXPECT_EQ(records[0].headers.at("occurred-at"), "2027-01-15T08:00:00.000000000Z");
+    const auto scrape = metrics.collect();
+    EXPECT_NE(scrape.find("haven_kafka_outbox_publish_attempts_total{outcome=\"acknowledged\"} 1"),
+              std::string::npos);
+    EXPECT_NE(scrape.find("haven_kafka_outbox_payload_bytes_total " +
+                          std::to_string(source.serialized_envelope.size())),
+              std::string::npos);
 }
 
 TEST_F(KafkaOutboxMessageProducerIntegrationTest, PreservesSameAggregateOrderAndTenantKeys) {
     const auto settings = configuration();
+    auto metrics = Metrics{};
     auto consumer = Consumer{settings};
-    auto producer = KafkaOutboxMessageProducer{settings};
+    auto producer = KafkaOutboxMessageProducer{settings, metrics};
     const auto suffix = unique();
     auto first = message(suffix);
     auto second = first;
@@ -191,7 +201,8 @@ TEST_F(KafkaOutboxMessageProducerIntegrationTest, UnavailableBrokerFailsWithinBo
     settings.brokers = "127.0.0.1:1";
     settings.acknowledgement_timeout = std::chrono::milliseconds{500};
     settings.delivery_timeout = std::chrono::milliseconds{500};
-    auto producer = KafkaOutboxMessageProducer{settings};
+    auto metrics = Metrics{};
+    auto producer = KafkaOutboxMessageProducer{settings, metrics};
     const auto start = std::chrono::steady_clock::now();
     try {
         producer.publish(message(unique()));
@@ -202,13 +213,20 @@ TEST_F(KafkaOutboxMessageProducerIntegrationTest, UnavailableBrokerFailsWithinBo
                         haven::application::outbox::MessagePublishErrorCode::Unavailable);
     }
     EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds{3});
+    const auto scrape = metrics.collect();
+    EXPECT_TRUE(scrape.find("outcome=\"ack_timeout\"") != std::string::npos ||
+                scrape.find("outcome=\"delivery_failed\"") != std::string::npos);
 }
 
 TEST_F(KafkaOutboxMessageProducerIntegrationTest, EmptyEnvelopeFailsLocally) {
-    auto producer = KafkaOutboxMessageProducer{configuration()};
+    auto metrics = Metrics{};
+    auto producer = KafkaOutboxMessageProducer{configuration(), metrics};
     auto source = message(unique());
     source.serialized_envelope.clear();
     EXPECT_THROW(producer.publish(source), haven::application::outbox::MessagePublishError);
+    const auto scrape = metrics.collect();
+    EXPECT_NE(scrape.find("outcome=\"enqueue_failed\""), std::string::npos);
+    EXPECT_EQ(scrape.find("haven_kafka_outbox_payload_bytes_total"), std::string::npos);
 }
 
 }  // namespace haven::infrastructure::messaging::kafka

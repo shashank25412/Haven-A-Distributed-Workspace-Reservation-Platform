@@ -129,7 +129,7 @@ int main() {
                 couchbase_connection);
             outbox_producer = std::make_unique<
                 haven::infrastructure::messaging::kafka::KafkaOutboxMessageProducer>(
-                configuration.kafka);
+                configuration.kafka, *metrics_recorder);
             outbox_publisher = std::make_unique<haven::application::outbox::OutboxPublisher>(
                 *outbox_repository, *outbox_producer, outbox_clock, *metrics_recorder);
             outbox_worker = std::make_unique<haven::runtime::outbox::OutboxPublisherWorker>(

@@ -66,8 +66,12 @@ void KafkaOutboxMessageProducer::ProducerDeleter::operator()(rd_kafka_t* produce
     rd_kafka_destroy(producer);
 }
 
-KafkaOutboxMessageProducer::KafkaOutboxMessageProducer(KafkaProducerConfiguration configuration)
-    : configuration_(std::move(configuration)), producer_(make_producer(configuration_)) {
+KafkaOutboxMessageProducer::KafkaOutboxMessageProducer(
+    KafkaProducerConfiguration configuration,
+    haven::application::observability::metrics::MetricsRecorder& metrics_recorder)
+    : configuration_(std::move(configuration)),
+      producer_(make_producer(configuration_)),
+      metrics_recorder_(metrics_recorder) {
     HVN_DEBUG_LOG("Kafka producer initialized for topic ", configuration_.reservation_events_topic);
 }
 
@@ -83,7 +87,30 @@ KafkaOutboxMessageProducer::~KafkaOutboxMessageProducer() {
 
 void KafkaOutboxMessageProducer::publish(const haven::application::outbox::OutboxMessage& message) {
     HVN_TRACE_SCOPE();
-    const auto record = to_kafka_outbox_record(message, configuration_);
+    const auto started_at = std::chrono::steady_clock::now();
+    auto outcome = metrics::PublishOutcome::unexpected_failure;
+    try {
+        publish_record(message, outcome);
+    } catch (...) {
+        record_terminal(outcome, started_at);
+        throw;
+    }
+    record_terminal(outcome, started_at);
+}
+
+void KafkaOutboxMessageProducer::publish_record(
+    const haven::application::outbox::OutboxMessage& message, metrics::PublishOutcome& outcome) {
+    KafkaOutboxRecord record;
+    try {
+        record = to_kafka_outbox_record(message, configuration_);
+    } catch (const MessagePublishError&) {
+        outcome = metrics::PublishOutcome::enqueue_failed;
+        throw;
+    }
+    try {
+        metrics_recorder_.increment_counter(
+            metrics::payload_bytes_metric_name(), static_cast<double>(record.payload.size()), {});
+    } catch (...) {}
     const auto lock = std::scoped_lock{mutex_};
     auto* headers = rd_kafka_headers_new(record.headers.size());
     for (const auto& [name, value] : record.headers) {
@@ -94,6 +121,7 @@ void KafkaOutboxMessageProducer::publish(const haven::application::outbox::Outbo
                                 static_cast<std::ptrdiff_t>(value.size())) !=
             RD_KAFKA_RESP_ERR_NO_ERROR) {
             rd_kafka_headers_destroy(headers);
+            outcome = metrics::PublishOutcome::enqueue_failed;
             throw MessagePublishError{MessagePublishErrorCode::InvalidMessage,
                                       "Unable to construct Kafka record headers"};
         }
@@ -110,6 +138,7 @@ void KafkaOutboxMessageProducer::publish(const haven::application::outbox::Outbo
         RD_KAFKA_V_END);
     if (error != RD_KAFKA_RESP_ERR_NO_ERROR) {
         rd_kafka_headers_destroy(headers);
+        outcome = metrics::PublishOutcome::enqueue_failed;
         throw MessagePublishError{kafka_publish_error_code(error),
                                   std::string{"Kafka enqueue failed: "} + rd_kafka_err2str(error)};
     }
@@ -123,17 +152,38 @@ void KafkaOutboxMessageProducer::publish(const haven::application::outbox::Outbo
         static_cast<void>(rd_kafka_poll(producer_.get(), static_cast<int>(poll_milliseconds)));
     }
     if (!state->completed) {
+        outcome = metrics::PublishOutcome::ack_timeout;
         HVN_WARN_LOG("Kafka acknowledgement timed out for event ", message.event_id.value());
         timed_out_delivery_states_.push_back(state);
         throw MessagePublishError{MessagePublishErrorCode::Timeout,
                                   "Kafka acknowledgement timed out; delivery is ambiguous"};
     }
     if (state->error != RD_KAFKA_RESP_ERR_NO_ERROR) {
+        outcome = metrics::PublishOutcome::delivery_failed;
         HVN_ERROR_LOG("Kafka publication failed for event ", message.event_id.value());
         throw MessagePublishError{
             kafka_publish_error_code(state->error),
             std::string{"Kafka delivery failed: "} + rd_kafka_err2str(state->error)};
     }
+    outcome = metrics::PublishOutcome::acknowledged;
+}
+
+void KafkaOutboxMessageProducer::record_terminal(
+    const metrics::PublishOutcome outcome,
+    const std::chrono::steady_clock::time_point started_at) noexcept {
+    const auto labels = [outcome] {
+        return haven::application::observability::metrics::MetricLabels{
+            metrics::outcome_label(outcome)};
+    };
+    try {
+        metrics_recorder_.increment_counter(metrics::attempts_metric_name(), 1.0, labels());
+    } catch (...) {}
+    try {
+        metrics_recorder_.observe_duration(metrics::duration_metric_name(),
+                                           std::chrono::duration_cast<std::chrono::microseconds>(
+                                               std::chrono::steady_clock::now() - started_at),
+                                           labels());
+    } catch (...) {}
 }
 
 }  // namespace haven::infrastructure::messaging::kafka

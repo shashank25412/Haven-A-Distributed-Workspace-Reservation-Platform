@@ -10,8 +10,9 @@
 
 #pragma once
 
-#include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
 #include "haven/infrastructure/cache/redis/redis_configuration.hpp"
+#include "haven/infrastructure/messaging/kafka/kafka_producer_configuration.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_configuration.hpp"
 
 #include <cstdint>
 #include <stdexcept>
@@ -87,6 +88,7 @@ struct ApplicationConfiguration final {
     LoggingConfiguration logging;
     infrastructure::persistence::couchbase::CouchbaseConfiguration couchbase;
     infrastructure::cache::redis::RedisConfiguration redis;
+    infrastructure::messaging::kafka::KafkaProducerConfiguration kafka;
 };
 
 /**

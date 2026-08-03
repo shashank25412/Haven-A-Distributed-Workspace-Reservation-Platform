@@ -5,6 +5,7 @@
 # introducing presentation or infrastructure dependencies.
 
 add_library(haven_application
+    message_publish_error.cpp
     repository_error.cpp
 
     idempotency/create_reservation_fingerprint.cpp

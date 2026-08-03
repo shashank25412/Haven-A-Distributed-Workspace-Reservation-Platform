@@ -37,6 +37,12 @@ constexpr const char* kRedisUriVariable = "HVN_REDIS_URI";
 constexpr const char* kRedisConnectTimeoutVariable = "HVN_REDIS_CONNECT_TIMEOUT_MS";
 constexpr const char* kRedisCommandTimeoutVariable = "HVN_REDIS_COMMAND_TIMEOUT_MS";
 constexpr const char* kRedisResourceTtlVariable = "HVN_REDIS_RESOURCE_TTL_SECONDS";
+constexpr const char* kKafkaEnabledVariable = "HVN_KAFKA_ENABLED";
+constexpr const char* kKafkaBrokersVariable = "HVN_KAFKA_BROKERS";
+constexpr const char* kKafkaTopicVariable = "HVN_KAFKA_RESERVATION_EVENTS_TOPIC";
+constexpr const char* kKafkaClientIdVariable = "HVN_KAFKA_CLIENT_ID";
+constexpr const char* kKafkaAckTimeoutVariable = "HVN_KAFKA_ACK_TIMEOUT_MS";
+constexpr const char* kKafkaDeliveryTimeoutVariable = "HVN_KAFKA_DELIVERY_TIMEOUT_MS";
 constexpr std::string_view kTestPassword{"test-secret-password"};
 
 /**
@@ -67,6 +73,16 @@ protected:
         original_redis_connect_timeout_ = read_environment_variable(kRedisConnectTimeoutVariable);
         original_redis_command_timeout_ = read_environment_variable(kRedisCommandTimeoutVariable);
         original_redis_resource_ttl_ = read_environment_variable(kRedisResourceTtlVariable);
+        const std::array kafka_variables{kKafkaEnabledVariable,
+                                         kKafkaBrokersVariable,
+                                         kKafkaTopicVariable,
+                                         kKafkaClientIdVariable,
+                                         kKafkaAckTimeoutVariable,
+                                         kKafkaDeliveryTimeoutVariable};
+        for (std::size_t index = 0; index < kafka_variables.size(); ++index) {
+            original_kafka_[index] = read_environment_variable(kafka_variables[index]);
+            ASSERT_TRUE(unset_environment_variable(kafka_variables[index]));
+        }
 
         set_valid_couchbase_configuration();
         ASSERT_TRUE(unset_environment_variable(kRedisEnabledVariable));
@@ -102,6 +118,15 @@ protected:
                                                  original_redis_command_timeout_));
         EXPECT_TRUE(
             restore_environment_variable(kRedisResourceTtlVariable, original_redis_resource_ttl_));
+        const std::array kafka_variables{kKafkaEnabledVariable,
+                                         kKafkaBrokersVariable,
+                                         kKafkaTopicVariable,
+                                         kKafkaClientIdVariable,
+                                         kKafkaAckTimeoutVariable,
+                                         kKafkaDeliveryTimeoutVariable};
+        for (std::size_t index = 0; index < kafka_variables.size(); ++index)
+            EXPECT_TRUE(
+                restore_environment_variable(kafka_variables[index], original_kafka_[index]));
     }
 
     /**
@@ -191,7 +216,55 @@ private:
     std::optional<std::string> original_redis_connect_timeout_;
     std::optional<std::string> original_redis_command_timeout_;
     std::optional<std::string> original_redis_resource_ttl_;
+    std::array<std::optional<std::string>, 6> original_kafka_;
 };
+
+TEST_F(EnvironmentConfigurationTest, LoadsKafkaDisabledDefaults) {
+    const auto kafka = load_configuration_from_environment().kafka;
+    EXPECT_FALSE(kafka.enabled);
+    EXPECT_EQ(kafka.brokers, "127.0.0.1:9092");
+    EXPECT_EQ(kafka.reservation_events_topic, "haven.reservation.events");
+    EXPECT_EQ(kafka.client_id, "haven-reservation-producer");
+}
+
+TEST_F(EnvironmentConfigurationTest, ParsesEnabledKafkaConfiguration) {
+    ASSERT_TRUE(set_environment_variable(kKafkaEnabledVariable, "true"));
+    ASSERT_TRUE(set_environment_variable(kKafkaBrokersVariable, "kafka:29092"));
+    ASSERT_TRUE(set_environment_variable(kKafkaTopicVariable, "events"));
+    ASSERT_TRUE(set_environment_variable(kKafkaClientIdVariable, "producer"));
+    ASSERT_TRUE(set_environment_variable(kKafkaAckTimeoutVariable, "250"));
+    ASSERT_TRUE(set_environment_variable(kKafkaDeliveryTimeoutVariable, "500"));
+    const auto kafka = load_configuration_from_environment().kafka;
+    EXPECT_TRUE(kafka.enabled);
+    EXPECT_EQ(kafka.brokers, "kafka:29092");
+    EXPECT_EQ(kafka.acknowledgement_timeout, std::chrono::milliseconds{250});
+    EXPECT_EQ(kafka.delivery_timeout, std::chrono::milliseconds{500});
+}
+
+TEST_F(EnvironmentConfigurationTest, RejectsInvalidKafkaConfiguration) {
+    ASSERT_TRUE(set_environment_variable(kKafkaEnabledVariable, "true"));
+    ASSERT_TRUE(set_environment_variable(kKafkaBrokersVariable, "   "));
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+    ASSERT_TRUE(set_environment_variable(kKafkaBrokersVariable, "localhost:9092"));
+    ASSERT_TRUE(set_environment_variable(kKafkaTopicVariable, "   "));
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+    ASSERT_TRUE(set_environment_variable(kKafkaTopicVariable, "events"));
+    ASSERT_TRUE(set_environment_variable(kKafkaAckTimeoutVariable, "501"));
+    ASSERT_TRUE(set_environment_variable(kKafkaDeliveryTimeoutVariable, "500"));
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+    ASSERT_TRUE(set_environment_variable(kKafkaAckTimeoutVariable, "500"));
+    ASSERT_TRUE(set_environment_variable(kKafkaClientIdVariable, "   "));
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+    ASSERT_TRUE(set_environment_variable(kKafkaClientIdVariable, "producer"));
+    ASSERT_TRUE(set_environment_variable(kKafkaAckTimeoutVariable, "0"));
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+}
+
+TEST_F(EnvironmentConfigurationTest, DisabledKafkaDoesNotRequireUsableBrokerOrTopic) {
+    ASSERT_TRUE(set_environment_variable(kKafkaBrokersVariable, "   "));
+    ASSERT_TRUE(set_environment_variable(kKafkaTopicVariable, "   "));
+    EXPECT_FALSE(load_configuration_from_environment().kafka.enabled);
+}
 
 TEST_F(EnvironmentConfigurationTest, LoadsDocumentedRedisDefaults) {
     const auto configuration = load_configuration_from_environment();
@@ -267,8 +340,7 @@ TEST_F(EnvironmentConfigurationTest, LoadsConfiguredIdempotencyRetention) {
 }
 
 TEST_F(EnvironmentConfigurationTest, RejectsInvalidIdempotencyRetention) {
-    for (const auto value : {"0", "-1", "invalid", "9223372036854775808",
-                             "18446744073709551616"}) {
+    for (const auto value : {"0", "-1", "invalid", "9223372036854775808", "18446744073709551616"}) {
         ASSERT_TRUE(set_environment_variable(kIdempotencyRetentionVariable, value));
         EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
     }

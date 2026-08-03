@@ -34,6 +34,12 @@ constexpr std::string_view kDefaultRedisConnectTimeout{"100"};
 constexpr std::string_view kDefaultRedisCommandTimeout{"100"};
 constexpr std::string_view kDefaultRedisResourceTtl{"300"};
 constexpr std::string_view kDefaultIdempotencyRetention{"86400"};
+constexpr std::string_view kDefaultKafkaEnabled{"false"};
+constexpr std::string_view kDefaultKafkaBrokers{"127.0.0.1:9092"};
+constexpr std::string_view kDefaultKafkaTopic{"haven.reservation.events"};
+constexpr std::string_view kDefaultKafkaClientId{"haven-reservation-producer"};
+constexpr std::string_view kDefaultKafkaAcknowledgementTimeout{"5000"};
+constexpr std::string_view kDefaultKafkaDeliveryTimeout{"10000"};
 
 constexpr std::string_view kHttpAddressVariable{"HVN_HTTP_ADDRESS"};
 constexpr std::string_view kHttpPortVariable{"HVN_HTTP_PORT"};
@@ -51,6 +57,12 @@ constexpr std::string_view kRedisPasswordVariable{"HVN_REDIS_PASSWORD"};
 constexpr std::string_view kRedisConnectTimeoutVariable{"HVN_REDIS_CONNECT_TIMEOUT_MS"};
 constexpr std::string_view kRedisCommandTimeoutVariable{"HVN_REDIS_COMMAND_TIMEOUT_MS"};
 constexpr std::string_view kRedisResourceTtlVariable{"HVN_REDIS_RESOURCE_TTL_SECONDS"};
+constexpr std::string_view kKafkaEnabledVariable{"HVN_KAFKA_ENABLED"};
+constexpr std::string_view kKafkaBrokersVariable{"HVN_KAFKA_BROKERS"};
+constexpr std::string_view kKafkaTopicVariable{"HVN_KAFKA_RESERVATION_EVENTS_TOPIC"};
+constexpr std::string_view kKafkaClientIdVariable{"HVN_KAFKA_CLIENT_ID"};
+constexpr std::string_view kKafkaAcknowledgementTimeoutVariable{"HVN_KAFKA_ACK_TIMEOUT_MS"};
+constexpr std::string_view kKafkaDeliveryTimeoutVariable{"HVN_KAFKA_DELIVERY_TIMEOUT_MS"};
 
 [[nodiscard]] bool parse_bool(std::string value, const std::string_view variable) {
     std::transform(value.begin(), value.end(), value.begin(), [](const unsigned char character) {
@@ -82,6 +94,10 @@ template <typename Duration>
         throw ConfigurationError{"HVN_REDIS_URI must be a non-empty tcp:// URI"};
     }
     return value;
+}
+
+[[nodiscard]] bool is_blank(const std::string_view value) {
+    return value.find_first_not_of(" \t\n\r\f\v") == std::string_view::npos;
 }
 
 /**
@@ -281,7 +297,31 @@ ApplicationConfiguration load_configuration_from_environment() {
     std::string log_level = environment_or_default(kLogLevelVariable, kDefaultLogLevel);
 
     using infrastructure::cache::redis::RedisConfiguration;
+    using infrastructure::messaging::kafka::KafkaProducerConfiguration;
     using infrastructure::persistence::couchbase::CouchbaseConfiguration;
+
+    const auto kafka_enabled = parse_bool(
+        environment_or_default(kKafkaEnabledVariable, kDefaultKafkaEnabled), kKafkaEnabledVariable);
+    auto kafka_brokers = environment_or_default(kKafkaBrokersVariable, kDefaultKafkaBrokers);
+    auto kafka_topic = environment_or_default(kKafkaTopicVariable, kDefaultKafkaTopic);
+    auto kafka_client_id = environment_or_default(kKafkaClientIdVariable, kDefaultKafkaClientId);
+    const auto acknowledgement_timeout = parse_positive_duration<std::chrono::milliseconds>(
+        environment_or_default(kKafkaAcknowledgementTimeoutVariable,
+                               kDefaultKafkaAcknowledgementTimeout),
+        kKafkaAcknowledgementTimeoutVariable);
+    const auto delivery_timeout = parse_positive_duration<std::chrono::milliseconds>(
+        environment_or_default(kKafkaDeliveryTimeoutVariable, kDefaultKafkaDeliveryTimeout),
+        kKafkaDeliveryTimeoutVariable);
+    if (is_blank(kafka_client_id))
+        throw ConfigurationError{"HVN_KAFKA_CLIENT_ID must not be blank"};
+    if (kafka_enabled && is_blank(kafka_brokers))
+        throw ConfigurationError{"HVN_KAFKA_BROKERS must not be blank when Kafka is enabled"};
+    if (kafka_enabled && is_blank(kafka_topic))
+        throw ConfigurationError{
+            "HVN_KAFKA_RESERVATION_EVENTS_TOPIC must not be blank when Kafka is enabled"};
+    if (acknowledgement_timeout > delivery_timeout)
+        throw ConfigurationError{
+            "HVN_KAFKA_ACK_TIMEOUT_MS must not exceed HVN_KAFKA_DELIVERY_TIMEOUT_MS"};
 
     return ApplicationConfiguration{
         .http =
@@ -324,6 +364,15 @@ ApplicationConfiguration load_configuration_from_environment() {
                 .resource_detail_ttl = parse_positive_duration<std::chrono::seconds>(
                     environment_or_default(kRedisResourceTtlVariable, kDefaultRedisResourceTtl),
                     kRedisResourceTtlVariable),
+            },
+        .kafka =
+            KafkaProducerConfiguration{
+                .enabled = kafka_enabled,
+                .brokers = std::move(kafka_brokers),
+                .reservation_events_topic = std::move(kafka_topic),
+                .client_id = std::move(kafka_client_id),
+                .acknowledgement_timeout = acknowledgement_timeout,
+                .delivery_timeout = delivery_timeout,
             },
     };
 }

@@ -83,6 +83,14 @@ haven_apply_project_options(haven_outbox_repository_integration_test)
 gtest_discover_tests(haven_outbox_repository_integration_test
     PROPERTIES LABELS "integration;couchbase;outbox")
 
+add_executable(haven_kafka_outbox_message_producer_integration_test
+    messaging/kafka/kafka_outbox_message_producer_test.cpp)
+target_link_libraries(haven_kafka_outbox_message_producer_integration_test
+    PRIVATE haven::infrastructure::kafka GTest::gtest_main)
+haven_apply_project_options(haven_kafka_outbox_message_producer_integration_test)
+gtest_discover_tests(haven_kafka_outbox_message_producer_integration_test
+    PROPERTIES LABELS "integration;kafka")
+
 add_executable(haven_idempotency_repository_integration_test
     persistence/couchbase/couchbase_idempotency_repository_test.cpp
 )

@@ -14,6 +14,21 @@ find_package(hiredis CONFIG REQUIRED)
 find_package(redis++ CONFIG REQUIRED)
 find_package(jsoncpp CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(RdKafka CONFIG REQUIRED)
+
+add_library(haven_infrastructure_kafka
+    messaging/kafka/kafka_outbox_record.cpp
+    messaging/kafka/kafka_error_mapper.cpp
+    messaging/kafka/kafka_outbox_message_producer.cpp
+)
+add_library(haven::infrastructure::kafka ALIAS haven_infrastructure_kafka)
+target_include_directories(haven_infrastructure_kafka PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_compile_features(haven_infrastructure_kafka PUBLIC cxx_std_20)
+target_link_libraries(haven_infrastructure_kafka
+    PUBLIC haven_application haven_domain RdKafka::rdkafka
+    PRIVATE haven_logging
+)
+haven_apply_project_options(haven_infrastructure_kafka)
 
 add_library(haven_infrastructure_redis
     cache/redis/redis_connection.cpp

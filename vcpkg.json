@@ -11,6 +11,9 @@
       "name": "gtest"
     },
     {
+      "name": "librdkafka"
+    },
+    {
       "name": "redis-plus-plus"
     }
   ]

@@ -22,6 +22,7 @@ target_link_libraries(
         haven::infrastructure::couchbase
         haven::infrastructure::redis
         haven::infrastructure::kafka
+        haven::infrastructure::metrics
         haven::runtime::outbox
         haven::presentation
         Drogon::Drogon

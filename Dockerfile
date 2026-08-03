@@ -97,6 +97,7 @@ ENV HVN_HTTP_ADDRESS=0.0.0.0
 ENV HVN_HTTP_PORT=8080
 ENV HVN_HTTP_THREADS=1
 ENV HVN_LOG_LEVEL=info
+ENV HVN_METRICS_ENABLED=true
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \

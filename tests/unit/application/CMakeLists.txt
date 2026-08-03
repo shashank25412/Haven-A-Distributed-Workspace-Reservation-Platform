@@ -47,6 +47,7 @@ gtest_discover_tests(haven_application_tests)
 
 add_executable(haven_metrics_foundation_tests
     observability/metrics/metrics_foundation_test.cpp
+    observability/metrics/prometheus_metrics_recorder_test.cpp
 )
 
 target_include_directories(haven_metrics_foundation_tests

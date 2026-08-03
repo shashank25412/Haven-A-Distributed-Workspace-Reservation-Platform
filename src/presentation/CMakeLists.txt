@@ -20,6 +20,8 @@ add_library(
     health/live_controller.cpp
     health/live_response.cpp
 
+    observability/metrics/metrics_controller.cpp
+
     api_error_response.cpp
 
     reservations/create_reservation_controller.cpp

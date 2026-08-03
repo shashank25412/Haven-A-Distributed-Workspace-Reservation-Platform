@@ -22,6 +22,8 @@ servers:
 tags:
 - name: Health
   description: Process liveness and dependency readiness.
+- name: Observability
+  description: Operational telemetry endpoints.
 - name: Resources
   description: Tenant-scoped resource discovery and details.
 - name: Reservations
@@ -33,6 +35,21 @@ tags:
 security:
 - bearerAuth: []
 paths:
+  /metrics:
+    get:
+      tags:
+      - Observability
+      summary: Scrape Prometheus metrics
+      description: Returns the current in-memory metrics in Prometheus text exposition format when metrics are enabled.
+      operationId: getMetrics
+      security: []
+      responses:
+        '200':
+          description: Current Prometheus metrics.
+          content:
+            text/plain:
+              schema:
+                type: string
   /health/live:
     get:
       tags:

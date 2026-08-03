@@ -79,6 +79,11 @@ struct LoggingConfiguration final {
     LogLevel level;
 };
 
+/** @brief Controls metrics collection and Prometheus endpoint exposure. */
+struct MetricsConfiguration final {
+    bool enabled;
+};
+
 /** @brief Controls fixed-delay background Outbox publication. */
 struct OutboxPublisherRuntimeConfiguration final {
     std::size_t batch_size;
@@ -94,6 +99,7 @@ struct OutboxPublisherRuntimeConfiguration final {
 struct ApplicationConfiguration final {
     HttpConfiguration http;
     LoggingConfiguration logging;
+    MetricsConfiguration metrics;
     infrastructure::persistence::couchbase::CouchbaseConfiguration couchbase;
     infrastructure::cache::redis::RedisConfiguration redis;
     infrastructure::messaging::kafka::KafkaProducerConfiguration kafka;
@@ -120,6 +126,7 @@ public:
  * - `HVN_HTTP_PORT`
  * - `HVN_HTTP_THREADS`
  * - `HVN_LOG_LEVEL`
+ * - `HVN_METRICS_ENABLED`
  * - `HVN_COUCHBASE_CONNECTION_STRING`
  * - `HVN_COUCHBASE_USERNAME`
  * - `HVN_COUCHBASE_PASSWORD`

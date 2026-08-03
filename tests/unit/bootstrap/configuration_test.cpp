@@ -26,6 +26,7 @@ constexpr const char* kHttpAddressVariable = "HVN_HTTP_ADDRESS";
 constexpr const char* kHttpPortVariable = "HVN_HTTP_PORT";
 constexpr const char* kHttpThreadsVariable = "HVN_HTTP_THREADS";
 constexpr const char* kLogLevelVariable = "HVN_LOG_LEVEL";
+constexpr const char* kMetricsEnabledVariable = "HVN_METRICS_ENABLED";
 constexpr const char* kCouchbaseConnectionStringVariable = "HVN_COUCHBASE_CONNECTION_STRING";
 constexpr const char* kCouchbaseUsernameVariable = "HVN_COUCHBASE_USERNAME";
 constexpr const char* kCouchbasePasswordVariable = "HVN_COUCHBASE_PASSWORD";
@@ -64,6 +65,7 @@ protected:
         original_http_port_ = read_environment_variable(kHttpPortVariable);
         original_http_threads_ = read_environment_variable(kHttpThreadsVariable);
         original_log_level_ = read_environment_variable(kLogLevelVariable);
+        original_metrics_enabled_ = read_environment_variable(kMetricsEnabledVariable);
         original_couchbase_connection_string_ =
             read_environment_variable(kCouchbaseConnectionStringVariable);
         original_couchbase_username_ = read_environment_variable(kCouchbaseUsernameVariable);
@@ -90,6 +92,7 @@ protected:
         }
 
         set_valid_couchbase_configuration();
+        ASSERT_TRUE(unset_environment_variable(kMetricsEnabledVariable));
         ASSERT_TRUE(unset_environment_variable(kRedisEnabledVariable));
         ASSERT_TRUE(unset_environment_variable(kRedisUriVariable));
         ASSERT_TRUE(unset_environment_variable(kRedisConnectTimeoutVariable));
@@ -103,6 +106,8 @@ protected:
         EXPECT_TRUE(restore_environment_variable(kHttpPortVariable, original_http_port_));
         EXPECT_TRUE(restore_environment_variable(kHttpThreadsVariable, original_http_threads_));
         EXPECT_TRUE(restore_environment_variable(kLogLevelVariable, original_log_level_));
+        EXPECT_TRUE(
+            restore_environment_variable(kMetricsEnabledVariable, original_metrics_enabled_));
         EXPECT_TRUE(restore_environment_variable(kCouchbaseConnectionStringVariable,
                                                  original_couchbase_connection_string_));
         EXPECT_TRUE(
@@ -144,6 +149,7 @@ protected:
         ASSERT_TRUE(unset_environment_variable(kHttpPortVariable));
         ASSERT_TRUE(unset_environment_variable(kHttpThreadsVariable));
         ASSERT_TRUE(unset_environment_variable(kLogLevelVariable));
+        ASSERT_TRUE(unset_environment_variable(kMetricsEnabledVariable));
     }
 
     /**
@@ -212,6 +218,7 @@ private:
     std::optional<std::string> original_http_port_;
     std::optional<std::string> original_http_threads_;
     std::optional<std::string> original_log_level_;
+    std::optional<std::string> original_metrics_enabled_;
     std::optional<std::string> original_couchbase_connection_string_;
     std::optional<std::string> original_couchbase_username_;
     std::optional<std::string> original_couchbase_password_;
@@ -225,6 +232,26 @@ private:
     std::optional<std::string> original_redis_resource_ttl_;
     std::array<std::optional<std::string>, 8> original_kafka_;
 };
+
+TEST_F(EnvironmentConfigurationTest, EnablesMetricsByDefault) {
+    EXPECT_TRUE(load_configuration_from_environment().metrics.enabled);
+}
+
+TEST_F(EnvironmentConfigurationTest, ParsesMetricsEnabledUsingBooleanRules) {
+    for (const auto value : {"true", "TRUE", "1"}) {
+        ASSERT_TRUE(set_environment_variable(kMetricsEnabledVariable, value));
+        EXPECT_TRUE(load_configuration_from_environment().metrics.enabled);
+    }
+    for (const auto value : {"false", "FALSE", "0"}) {
+        ASSERT_TRUE(set_environment_variable(kMetricsEnabledVariable, value));
+        EXPECT_FALSE(load_configuration_from_environment().metrics.enabled);
+    }
+}
+
+TEST_F(EnvironmentConfigurationTest, RejectsInvalidMetricsEnabledValue) {
+    ASSERT_TRUE(set_environment_variable(kMetricsEnabledVariable, "yes"));
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
+}
 
 TEST_F(EnvironmentConfigurationTest, LoadsOutboxPublisherRuntimeDefaults) {
     const auto publisher = load_configuration_from_environment().outbox_publisher;

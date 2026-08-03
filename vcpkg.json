@@ -11,6 +11,10 @@
       "name": "gtest"
     },
     {
+      "name": "prometheus-cpp",
+      "default-features": false
+    },
+    {
       "name": "librdkafka"
     },
     {

@@ -22,6 +22,8 @@
 #include "haven/infrastructure/cache/redis/redis_connection.hpp"
 #include "haven/infrastructure/cache/redis/redis_resource_detail_cache.hpp"
 #include "haven/infrastructure/messaging/kafka/kafka_outbox_message_producer.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
+#include "haven/infrastructure/observability/metrics/prometheus_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_idempotency_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_outbox_repository.hpp"
@@ -31,6 +33,7 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/health/live_controller.hpp"
+#include "haven/presentation/observability/metrics/metrics_controller.hpp"
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
 #include "haven/runtime/outbox/outbox_publisher_worker.hpp"
@@ -74,6 +77,22 @@ int main() {
             haven::bootstrap::load_configuration_from_environment();
 
         haven::logging::Logger::instance().set_level(to_logging_level(configuration.logging.level));
+
+        std::shared_ptr<haven::application::observability::metrics::MetricsRecorder>
+            metrics_recorder;
+        if (configuration.metrics.enabled) {
+            auto prometheus_recorder = std::make_shared<
+                haven::infrastructure::observability::metrics::PrometheusMetricsRecorder>();
+            metrics_recorder = prometheus_recorder;
+            haven::presentation::observability::metrics::register_metrics_route(
+                std::move(prometheus_recorder));
+            HVN_INFO_LOG("Prometheus metrics enabled at GET /metrics");
+        } else {
+            metrics_recorder = std::make_shared<
+                haven::infrastructure::observability::metrics::NoOpMetricsRecorder>();
+            HVN_INFO_LOG("Metrics disabled; GET /metrics is not registered");
+        }
+        static_cast<void>(metrics_recorder);
 
         namespace couchbase_persistence = haven::infrastructure::persistence::couchbase;
 

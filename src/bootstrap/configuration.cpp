@@ -28,6 +28,7 @@ constexpr std::string_view kDefaultHttpAddress{"0.0.0.0"};
 constexpr std::string_view kDefaultHttpPort{"8080"};
 constexpr std::string_view kDefaultHttpThreads{"1"};
 constexpr std::string_view kDefaultLogLevel{"info"};
+constexpr std::string_view kDefaultMetricsEnabled{"true"};
 constexpr std::string_view kDefaultRedisEnabled{"false"};
 constexpr std::string_view kDefaultRedisUri{"tcp://127.0.0.1:6379"};
 constexpr std::string_view kDefaultRedisConnectTimeout{"100"};
@@ -47,6 +48,7 @@ constexpr std::string_view kHttpAddressVariable{"HVN_HTTP_ADDRESS"};
 constexpr std::string_view kHttpPortVariable{"HVN_HTTP_PORT"};
 constexpr std::string_view kHttpThreadsVariable{"HVN_HTTP_THREADS"};
 constexpr std::string_view kLogLevelVariable{"HVN_LOG_LEVEL"};
+constexpr std::string_view kMetricsEnabledVariable{"HVN_METRICS_ENABLED"};
 constexpr std::string_view kCouchbaseConnectionStringVariable{"HVN_COUCHBASE_CONNECTION_STRING"};
 constexpr std::string_view kCouchbaseUsernameVariable{"HVN_COUCHBASE_USERNAME"};
 constexpr std::string_view kCouchbasePasswordVariable{"HVN_COUCHBASE_PASSWORD"};
@@ -354,6 +356,12 @@ ApplicationConfiguration load_configuration_from_environment() {
         .logging =
             LoggingConfiguration{
                 .level = parse_log_level(std::move(log_level)),
+            },
+        .metrics =
+            MetricsConfiguration{
+                .enabled = parse_bool(
+                    environment_or_default(kMetricsEnabledVariable, kDefaultMetricsEnabled),
+                    kMetricsEnabledVariable),
             },
         .couchbase =
             CouchbaseConfiguration{

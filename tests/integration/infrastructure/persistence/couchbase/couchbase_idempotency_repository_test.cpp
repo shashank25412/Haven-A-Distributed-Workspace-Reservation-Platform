@@ -11,6 +11,7 @@
 #include "haven/application/resources/resource_repository.hpp"
 #include "haven/domain/policies/reservation_creation_policy.hpp"
 #include "haven/domain/value_objects/version.hpp"
+#include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_collections.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_document_key.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_event_store.hpp"
@@ -304,9 +305,15 @@ TEST_F(IdempotencyRepositoryIntegrationTest, HandlerRecoversPersistedReservation
     auto fresh_reservations = persistence::CouchbaseReservationRepository{connection_};
     auto resources = RecoveryResourceRepository{};
     const auto policy = haven::domain::ReservationCreationPolicy{};
+    auto metrics_recorder = haven::infrastructure::observability::metrics::NoOpMetricsRecorder{};
     auto event_store = persistence::CouchbaseReservationCreationEventStore{connection_};
-    const auto handler = CreateReservationHandler{
-        resources, fresh_reservations, creation_store, event_store, fresh_idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  fresh_reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  fresh_idempotency,
+                                                  policy,
+                                                  metrics_recorder};
     const auto result = handler.handle(command);
 
     EXPECT_EQ(result.status(), CreateReservationStatus::CREATED_CONFIRMED);

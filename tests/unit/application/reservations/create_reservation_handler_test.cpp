@@ -25,6 +25,7 @@
 #include "haven/domain/value_objects/user_id.hpp"
 
 #include "application/idempotency/test_idempotency_repository.hpp"
+#include "application/util/recording_metrics_recorder.hpp"
 #include "application/util/test_reservation_creation_event_store.hpp"
 #include "application/util/test_reservation_creation_store.hpp"
 
@@ -35,6 +36,7 @@
 #include <chrono>
 #include <future>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -61,6 +63,7 @@ using haven::domain::UserId;
 
 using namespace std::chrono_literals;
 using haven::test::application::idempotency::TestIdempotencyRepository;
+using haven::test::application::observability::metrics::RecordingMetricsRecorder;
 
 class InMemoryResourceRepository final : public ResourceRepository {
 public:
@@ -68,9 +71,15 @@ public:
         resources_.push_back(std::move(resource));
     }
 
+    void force_unexpected_failure() noexcept {
+        force_unexpected_failure_ = true;
+    }
+
     [[nodiscard]] ResourceLookupResult find_by_id(const OrganizationId& organization_id,
                                                   const ResourceId& resource_id) const override {
         ++find_call_count_;
+        if (force_unexpected_failure_)
+            throw std::runtime_error("forced unexpected resource failure");
         const auto resource =
             std::find_if(resources_.cbegin(),
                          resources_.cend(),
@@ -98,6 +107,7 @@ public:
 
 private:
     std::vector<Resource> resources_;
+    bool force_unexpected_failure_{false};
     mutable std::atomic_size_t find_call_count_{};
 };
 
@@ -253,6 +263,69 @@ private:
         command.occurred_at());
 }
 
+void expect_metrics(const RecordingMetricsRecorder& recorder,
+                    const std::vector<std::string>& expected_outcomes) {
+    ASSERT_EQ(recorder.counter_increments().size(), expected_outcomes.size());
+    ASSERT_EQ(recorder.duration_observations().size(), expected_outcomes.size());
+    for (std::size_t index = 0; index < expected_outcomes.size(); ++index) {
+        const auto& counter = recorder.counter_increments()[index];
+        const auto& duration = recorder.duration_observations()[index];
+        EXPECT_EQ(counter.name.value(), "haven_reservation_creation_attempts_total");
+        EXPECT_EQ(counter.amount, 1.0);
+        ASSERT_EQ(counter.labels.size(), 1U);
+        EXPECT_EQ(counter.labels.front().name(), "outcome");
+        EXPECT_EQ(counter.labels.front().value(), expected_outcomes[index]);
+        EXPECT_EQ(duration.name.value(), "haven_reservation_creation_duration_seconds");
+        EXPECT_GE(duration.duration.count(), 0);
+        EXPECT_EQ(duration.labels, counter.labels);
+    }
+}
+
+class ThrowingMetricsRecorder final
+    : public haven::application::observability::metrics::MetricsRecorder {
+public:
+    void increment_counter(
+        const haven::application::observability::metrics::MetricName&,
+        double,
+        const haven::application::observability::metrics::MetricLabels&) override {
+        ++counter_calls;
+        throw std::runtime_error("forced counter failure");
+    }
+
+    void set_gauge(const haven::application::observability::metrics::MetricName&,
+                   double,
+                   const haven::application::observability::metrics::MetricLabels&) override {}
+
+    void observe_duration(
+        const haven::application::observability::metrics::MetricName&,
+        std::chrono::microseconds,
+        const haven::application::observability::metrics::MetricLabels&) override {
+        ++duration_calls;
+        throw std::runtime_error("forced duration failure");
+    }
+
+    std::size_t counter_calls{};
+    std::size_t duration_calls{};
+};
+
+class DiscardingMetricsRecorder final
+    : public haven::application::observability::metrics::MetricsRecorder {
+public:
+    void increment_counter(
+        const haven::application::observability::metrics::MetricName&,
+        double,
+        const haven::application::observability::metrics::MetricLabels&) override {}
+
+    void set_gauge(const haven::application::observability::metrics::MetricName&,
+                   double,
+                   const haven::application::observability::metrics::MetricLabels&) override {}
+
+    void observe_duration(
+        const haven::application::observability::metrics::MetricName&,
+        std::chrono::microseconds,
+        const haven::application::observability::metrics::MetricLabels&) override {}
+};
+
 TEST(CreateReservationHandlerTest,
      Handle_ShouldCreateConfirmedReservation_WhenResourceDoesNotRequireApproval) {
     const auto organization_id = OrganizationId{"organization-alpha"};
@@ -263,13 +336,16 @@ TEST(CreateReservationHandlerTest,
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto creation_policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resource_repository.add(make_resource(resource_id, organization_id, false));
     const auto handler = CreateReservationHandler{resource_repository,
                                                   reservation_repository,
                                                   creation_store,
                                                   event_store,
                                                   idempotency_repository,
-                                                  creation_policy};
+                                                  creation_policy,
+                                                  metrics_recorder};
 
     const auto result = handler.handle(make_command(organization_id, resource_id));
 
@@ -284,6 +360,7 @@ TEST(CreateReservationHandlerTest,
     EXPECT_TRUE(std::holds_alternative<haven::domain::ReservationConfirmedEvent>(
         creation_store.persisted_domain_events()[1]));
     EXPECT_EQ(reservation_repository.insert_call_count(), 0U);
+    expect_metrics(metrics_recorder, {"created_confirmed"});
 }
 
 TEST(CreateReservationHandlerTest,
@@ -296,13 +373,16 @@ TEST(CreateReservationHandlerTest,
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto creation_policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resource_repository.add(make_resource(resource_id, organization_id, true));
     const auto handler = CreateReservationHandler{resource_repository,
                                                   reservation_repository,
                                                   creation_store,
                                                   event_store,
                                                   idempotency_repository,
-                                                  creation_policy};
+                                                  creation_policy,
+                                                  metrics_recorder};
 
     const auto result = handler.handle(make_command(organization_id, resource_id));
 
@@ -315,6 +395,7 @@ TEST(CreateReservationHandlerTest,
         creation_store.persisted_domain_events()[0]));
     EXPECT_TRUE(std::holds_alternative<haven::domain::ReservationApprovalRequestedEvent>(
         creation_store.persisted_domain_events()[1]));
+    expect_metrics(metrics_recorder, {"created_pending_approval"});
 }
 
 TEST(CreateReservationHandlerTest, Handle_ShouldReturnNotFound_WhenResourceDoesNotExist) {
@@ -326,18 +407,22 @@ TEST(CreateReservationHandlerTest, Handle_ShouldReturnNotFound_WhenResourceDoesN
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto creation_policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     const auto handler = CreateReservationHandler{resource_repository,
                                                   reservation_repository,
                                                   creation_store,
                                                   event_store,
                                                   idempotency_repository,
-                                                  creation_policy};
+                                                  creation_policy,
+                                                  metrics_recorder};
 
     const auto result = handler.handle(make_command(organization_id, resource_id));
 
     EXPECT_EQ(result.status(), CreateReservationStatus::RESOURCE_NOT_FOUND);
     EXPECT_FALSE(result.reservation().has_value());
     EXPECT_FALSE(creation_store.persisted_reservation().has_value());
+    expect_metrics(metrics_recorder, {"resource_not_found"});
 }
 
 TEST(CreateReservationHandlerTest,
@@ -351,18 +436,22 @@ TEST(CreateReservationHandlerTest,
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto creation_policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resource_repository.add(make_resource(resource_id, owner_organization_id, false));
     const auto handler = CreateReservationHandler{resource_repository,
                                                   reservation_repository,
                                                   creation_store,
                                                   event_store,
                                                   idempotency_repository,
-                                                  creation_policy};
+                                                  creation_policy,
+                                                  metrics_recorder};
 
     const auto result = handler.handle(make_command(caller_organization_id, resource_id));
 
     EXPECT_EQ(result.status(), CreateReservationStatus::RESOURCE_NOT_FOUND);
     EXPECT_FALSE(creation_store.persisted_reservation().has_value());
+    expect_metrics(metrics_recorder, {"resource_not_found"});
 }
 
 TEST(CreateReservationHandlerTest,
@@ -375,6 +464,8 @@ TEST(CreateReservationHandlerTest,
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto creation_policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resource_repository.add(make_resource(resource_id, organization_id, false));
     reservation_repository.set_conflict(true);
     const auto handler = CreateReservationHandler{resource_repository,
@@ -382,12 +473,42 @@ TEST(CreateReservationHandlerTest,
                                                   creation_store,
                                                   event_store,
                                                   idempotency_repository,
-                                                  creation_policy};
+                                                  creation_policy,
+                                                  metrics_recorder};
 
     const auto result = handler.handle(make_command(organization_id, resource_id));
 
     EXPECT_EQ(result.status(), CreateReservationStatus::SCHEDULE_CONFLICT);
     EXPECT_FALSE(creation_store.persisted_reservation().has_value());
+    expect_metrics(metrics_recorder, {"reservation_conflict"});
+}
+
+TEST(CreateReservationHandlerTest, InactiveResourceRecordsBoundedOutcome) {
+    const auto organization = OrganizationId{"organization-alpha"};
+    const auto resource = ResourceId{"resource-inactive"};
+    auto resources = InMemoryResourceRepository{};
+    auto reservations = InMemoryReservationRepository{};
+    auto idempotency = TestIdempotencyRepository{};
+    auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
+    auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
+    const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder = RecordingMetricsRecorder{};
+    resources.add(Resource{organization,
+                           resource,
+                           ResourceType::MeetingRoom,
+                           haven::domain::ResourceStatus::Inactive,
+                           false});
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
+
+    EXPECT_EQ(handler.handle(make_command(organization, resource)).status(),
+              CreateReservationStatus::RESOURCE_INACTIVE);
+    expect_metrics(metrics_recorder, {"resource_inactive"});
 }
 
 TEST(CreateReservationHandlerTest,
@@ -400,13 +521,16 @@ TEST(CreateReservationHandlerTest,
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto creation_policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resource_repository.add(make_resource(resource_id, organization_id, false));
     const auto handler = CreateReservationHandler{resource_repository,
                                                   reservation_repository,
                                                   creation_store,
                                                   event_store,
                                                   idempotency_repository,
-                                                  creation_policy};
+                                                  creation_policy,
+                                                  metrics_recorder};
     const auto command =
         CreateReservationCommand{organization_id,
                                  IdempotencyKey{"idempotency-key-100"},
@@ -426,6 +550,7 @@ TEST(CreateReservationHandlerTest,
 
     EXPECT_EQ(result.status(), CreateReservationStatus::POLICY_REJECTED);
     EXPECT_FALSE(creation_store.persisted_reservation().has_value());
+    expect_metrics(metrics_recorder, {"validation_failed"});
 }
 
 TEST(CreateReservationHandlerTest, SuccessfulReplaySkipsAuthoritativeRepositories) {
@@ -437,9 +562,16 @@ TEST(CreateReservationHandlerTest, SuccessfulReplaySkipsAuthoritativeRepositorie
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resources.add(make_resource(resource, organization, false));
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
     const auto command = make_command(organization, resource);
 
     const auto original = handler.handle(command);
@@ -469,6 +601,7 @@ TEST(CreateReservationHandlerTest, SuccessfulReplaySkipsAuthoritativeRepositorie
     EXPECT_EQ(reservations.find_call_count(), 0);
     EXPECT_EQ(idempotency.successful_completion_call_count(), 1);
     EXPECT_EQ(event_store.call_count(), 0U);
+    expect_metrics(metrics_recorder, {"created_confirmed", "replayed"});
 }
 
 TEST(CreateReservationHandlerTest, ExistingProcessingReturnsInProgressWithoutCreation) {
@@ -480,10 +613,17 @@ TEST(CreateReservationHandlerTest, ExistingProcessingReturnsInProgressWithoutCre
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     const auto command = make_command(organization, resource);
     static_cast<void>(idempotency.claim(processing_for(command)));
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
 
     const auto result = handler.handle(command);
 
@@ -492,6 +632,7 @@ TEST(CreateReservationHandlerTest, ExistingProcessingReturnsInProgressWithoutCre
     EXPECT_EQ(reservations.conflict_call_count(), 0);
     EXPECT_EQ(creation_store.persist_call_count(), 0);
     EXPECT_EQ(idempotency.successful_completion_call_count(), 0);
+    expect_metrics(metrics_recorder, {"idempotency_in_progress"});
 }
 
 TEST(CreateReservationHandlerTest, CreationStoreFailurePropagatesWithoutIdempotencyCompletion) {
@@ -503,16 +644,24 @@ TEST(CreateReservationHandlerTest, CreationStoreFailurePropagatesWithoutIdempote
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resources.add(make_resource(resource, organization, false));
     creation_store.force_failure();
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
 
     EXPECT_THROW(static_cast<void>(handler.handle(make_command(organization, resource))),
                  haven::application::RepositoryError);
     EXPECT_EQ(creation_store.persist_call_count(), 1U);
     EXPECT_EQ(idempotency.successful_completion_call_count(), 0U);
     EXPECT_EQ(idempotency.permanent_failure_completion_call_count(), 0U);
+    expect_metrics(metrics_recorder, {"persistence_failed"});
 }
 
 TEST(CreateReservationHandlerTest, RecoveryWithoutExpectedOutboxEventsRemainsInProgress) {
@@ -524,6 +673,8 @@ TEST(CreateReservationHandlerTest, RecoveryWithoutExpectedOutboxEventsRemainsInP
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     const auto command = make_command(organization, resource);
     static_cast<void>(idempotency.claim(processing_for(command)));
     reservations.store(Reservation::create_confirmed(organization,
@@ -537,8 +688,13 @@ TEST(CreateReservationHandlerTest, RecoveryWithoutExpectedOutboxEventsRemainsInP
                                                      command.confirmed_event_id(),
                                                      command.occurred_at()));
     event_store.set_result(false);
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
 
     EXPECT_EQ(handler.handle(command).status(), CreateReservationStatus::IDEMPOTENCY_IN_PROGRESS);
     EXPECT_EQ(event_store.event_ids(),
@@ -556,6 +712,8 @@ TEST(CreateReservationHandlerTest, FingerprintMismatchReturnsConflictWithoutCrea
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     const auto command = make_command(organization, resource);
     auto different = CreateReservationCommand{organization,
                                               command.idempotency_key(),
@@ -571,8 +729,13 @@ TEST(CreateReservationHandlerTest, FingerprintMismatchReturnsConflictWithoutCrea
                                               command.approval_requested_event_id(),
                                               command.occurred_at()};
     static_cast<void>(idempotency.claim(processing_for(different)));
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
 
     const auto result = handler.handle(command);
 
@@ -580,6 +743,7 @@ TEST(CreateReservationHandlerTest, FingerprintMismatchReturnsConflictWithoutCrea
     EXPECT_EQ(resources.find_call_count(), 0);
     EXPECT_EQ(creation_store.persist_call_count(), 0);
     EXPECT_EQ(event_store.call_count(), 0U);
+    expect_metrics(metrics_recorder, {"idempotency_mismatch"});
 }
 
 TEST(CreateReservationHandlerTest, RejectionReplayRemainsPermanentAfterConditionsChange) {
@@ -591,8 +755,15 @@ TEST(CreateReservationHandlerTest, RejectionReplayRemainsPermanentAfterCondition
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
     const auto command = make_command(organization, resource);
     EXPECT_EQ(handler.handle(command).status(), CreateReservationStatus::RESOURCE_NOT_FOUND);
     resources.add(make_resource(resource, organization, false));
@@ -614,10 +785,17 @@ TEST(CreateReservationHandlerTest, CompletionFailureRecoversOnNextInvocation) {
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resources.add(make_resource(resource, organization, false));
     idempotency.force_successful_completion_failure();
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
     const auto command = make_command(organization, resource);
 
     EXPECT_THROW(static_cast<void>(handler.handle(command)), haven::application::RepositoryError);
@@ -650,6 +828,8 @@ TEST(CreateReservationHandlerTest, RecoveryRejectsExactPurposeMismatchWithoutIns
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     const auto command = make_command(organization, resource);
     static_cast<void>(idempotency.claim(processing_for(command)));
     reservations.store(Reservation::create_confirmed(organization,
@@ -662,8 +842,13 @@ TEST(CreateReservationHandlerTest, RecoveryRejectsExactPurposeMismatchWithoutIns
                                                      command.created_event_id(),
                                                      command.confirmed_event_id(),
                                                      command.occurred_at()));
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
 
     EXPECT_EQ(handler.handle(command).status(), CreateReservationStatus::IDEMPOTENCY_CONFLICT);
     EXPECT_EQ(resources.find_call_count(), 0);
@@ -680,10 +865,17 @@ TEST(CreateReservationHandlerTest, PendingCompletionFailureRecoversPendingResult
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     resources.add(make_resource(resource, organization, true));
     idempotency.force_successful_completion_failure();
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
     const auto command = make_command(organization, resource);
     EXPECT_THROW(static_cast<void>(handler.handle(command)), haven::application::RepositoryError);
     ASSERT_TRUE(creation_store.persisted_reservation());
@@ -708,6 +900,8 @@ TEST(CreateReservationHandlerTest, RecoveryRejectsReservationApprovedAfterPendin
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder =
+        haven::test::application::observability::metrics::RecordingMetricsRecorder{};
     const auto command = make_command(organization, resource);
     static_cast<void>(idempotency.claim(processing_for(command)));
     auto mutated = Reservation::create_pending_approval(organization,
@@ -722,11 +916,91 @@ TEST(CreateReservationHandlerTest, RecoveryRejectsReservationApprovedAfterPendin
                                                         command.occurred_at());
     mutated.approve(UserId{"approver"}, command.occurred_at() + 1h, EventId{"approved"});
     reservations.store(std::move(mutated));
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
 
     EXPECT_EQ(handler.handle(command).status(), CreateReservationStatus::IDEMPOTENCY_CONFLICT);
     EXPECT_EQ(creation_store.persist_call_count(), 0);
+}
+
+TEST(CreateReservationHandlerTest, MetricsFailuresDoNotChangeSuccessfulBusinessResult) {
+    const auto organization = OrganizationId{"organization-alpha"};
+    const auto resource = ResourceId{"resource-boardroom"};
+    auto resources = InMemoryResourceRepository{};
+    auto reservations = InMemoryReservationRepository{};
+    auto idempotency = TestIdempotencyRepository{};
+    auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
+    auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
+    const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder = ThrowingMetricsRecorder{};
+    resources.add(make_resource(resource, organization, false));
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
+
+    EXPECT_EQ(handler.handle(make_command(organization, resource)).status(),
+              CreateReservationStatus::CREATED_CONFIRMED);
+    EXPECT_EQ(metrics_recorder.counter_calls, 1U);
+    EXPECT_EQ(metrics_recorder.duration_calls, 1U);
+    EXPECT_EQ(creation_store.persist_call_count(), 1U);
+}
+
+TEST(CreateReservationHandlerTest, MetricsFailuresDoNotChangeExistingBusinessRejection) {
+    const auto organization = OrganizationId{"organization-alpha"};
+    const auto resource = ResourceId{"resource-missing"};
+    auto resources = InMemoryResourceRepository{};
+    auto reservations = InMemoryReservationRepository{};
+    auto idempotency = TestIdempotencyRepository{};
+    auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
+    auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
+    const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder = ThrowingMetricsRecorder{};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
+
+    EXPECT_EQ(handler.handle(make_command(organization, resource)).status(),
+              CreateReservationStatus::RESOURCE_NOT_FOUND);
+    EXPECT_EQ(metrics_recorder.counter_calls, 1U);
+    EXPECT_EQ(metrics_recorder.duration_calls, 1U);
+    EXPECT_EQ(creation_store.persist_call_count(), 0U);
+}
+
+TEST(CreateReservationHandlerTest, UnexpectedExceptionIsRecordedAndPropagatedUnchanged) {
+    const auto organization = OrganizationId{"organization-alpha"};
+    const auto resource = ResourceId{"resource-boardroom"};
+    auto resources = InMemoryResourceRepository{};
+    auto reservations = InMemoryReservationRepository{};
+    auto idempotency = TestIdempotencyRepository{};
+    auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
+    auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
+    const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder = RecordingMetricsRecorder{};
+    resources.force_unexpected_failure();
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
+
+    EXPECT_THROW(static_cast<void>(handler.handle(make_command(organization, resource))),
+                 std::runtime_error);
+    expect_metrics(metrics_recorder, {"unexpected_failure"});
 }
 
 TEST(CreateReservationHandlerTest, ConcurrentRecoveryReturnsSuccessWithoutAnotherInsert) {
@@ -738,6 +1012,7 @@ TEST(CreateReservationHandlerTest, ConcurrentRecoveryReturnsSuccessWithoutAnothe
     auto creation_store = haven::tests::util::application::TestReservationCreationStore{};
     auto event_store = haven::tests::util::application::TestReservationCreationEventStore{};
     const auto policy = ReservationCreationPolicy{};
+    auto metrics_recorder = DiscardingMetricsRecorder{};
     const auto command = make_command(organization, resource);
     static_cast<void>(idempotency.claim(processing_for(command)));
     reservations.store(Reservation::create_confirmed(organization,
@@ -750,8 +1025,13 @@ TEST(CreateReservationHandlerTest, ConcurrentRecoveryReturnsSuccessWithoutAnothe
                                                      command.created_event_id(),
                                                      command.confirmed_event_id(),
                                                      command.occurred_at()));
-    const auto handler = CreateReservationHandler{
-        resources, reservations, creation_store, event_store, idempotency, policy};
+    const auto handler = CreateReservationHandler{resources,
+                                                  reservations,
+                                                  creation_store,
+                                                  event_store,
+                                                  idempotency,
+                                                  policy,
+                                                  metrics_recorder};
     std::vector<std::future<CreateReservationStatus>> calls;
     for (int index = 0; index < 8; ++index) {
         calls.push_back(std::async(

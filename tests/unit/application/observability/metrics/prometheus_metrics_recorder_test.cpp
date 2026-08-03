@@ -5,6 +5,8 @@
 
 #include "haven/infrastructure/observability/metrics/prometheus_metrics_recorder.hpp"
 
+#include "haven/application/reservations/metrics/reservation_creation_metrics.hpp"
+
 #include <gtest/gtest.h>
 
 #include <chrono>
@@ -118,6 +120,21 @@ TEST(PrometheusMetricsRecorderTest, ConcurrentUpdatesRemainConsistent) {
         thread.join();
 
     EXPECT_NE(recorder.collect().find("haven_test_concurrent_total 4000"), std::string::npos);
+}
+
+TEST(PrometheusMetricsRecorderTest, ExposesReservationCreationCatalogMetrics) {
+    namespace reservation_metrics = haven::application::reservations::metrics;
+    PrometheusMetricsRecorder recorder;
+    const MetricLabels labels{reservation_metrics::outcome_label(
+        reservation_metrics::ReservationCreationOutcome::created_confirmed)};
+    recorder.increment_counter(reservation_metrics::attempts_metric_name(), 1.0, labels);
+    recorder.observe_duration(reservation_metrics::duration_metric_name(), 250000us, labels);
+
+    const auto output = recorder.collect();
+    EXPECT_NE(output.find("haven_reservation_creation_attempts_total"), std::string::npos);
+    EXPECT_NE(output.find("haven_reservation_creation_duration_seconds_count"), std::string::npos);
+    EXPECT_NE(output.find("haven_reservation_creation_duration_seconds_sum"), std::string::npos);
+    EXPECT_NE(output.find("outcome=\"created_confirmed\""), std::string::npos);
 }
 
 }  // namespace

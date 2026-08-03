@@ -7,6 +7,7 @@
 
 #include "haven/application/idempotency/create_reservation_fingerprint_input.hpp"
 #include "haven/application/idempotency/idempotency_record.hpp"
+#include "haven/application/repository_error.hpp"
 #include "haven/logging/logging.hpp"
 
 #include <stdexcept>
@@ -111,17 +112,41 @@ CreateReservationHandler::CreateReservationHandler(
     ReservationCreationStore& reservation_creation_store,
     ReservationCreationEventStore& reservation_creation_event_store,
     IdempotencyRepository& idempotency_repository,
-    const haven::domain::ReservationCreationPolicy& reservation_creation_policy) noexcept
+    const haven::domain::ReservationCreationPolicy& reservation_creation_policy,
+    haven::application::observability::metrics::MetricsRecorder& metrics_recorder) noexcept
     : resource_repository_(resource_repository),
       reservation_repository_(reservation_repository),
       reservation_creation_store_(reservation_creation_store),
       reservation_creation_event_store_(reservation_creation_event_store),
       idempotency_repository_(idempotency_repository),
-      reservation_creation_policy_(reservation_creation_policy) {}
+      reservation_creation_policy_(reservation_creation_policy),
+      metrics_recorder_(metrics_recorder) {}
 
 CreateReservationResult CreateReservationHandler::handle(
     const CreateReservationCommand& command) const {
     HVN_TRACE_SCOPE();
+    const auto started_at = std::chrono::steady_clock::now();
+    auto outcome = metrics::ReservationCreationOutcome::unexpected_failure;
+    try {
+        auto result = handle_core(command, outcome);
+        record_metrics(outcome, started_at);
+        return result;
+    } catch (const haven::application::RepositoryError&) {
+        record_metrics(metrics::ReservationCreationOutcome::persistence_failed, started_at);
+        throw;
+    } catch (...) {
+        record_metrics(metrics::ReservationCreationOutcome::unexpected_failure, started_at);
+        throw;
+    }
+}
+
+CreateReservationResult CreateReservationHandler::handle_core(
+    const CreateReservationCommand& command, metrics::ReservationCreationOutcome& outcome) const {
+    const auto complete = [&outcome](CreateReservationResult result,
+                                     const metrics::ReservationCreationOutcome value) {
+        outcome = value;
+        return result;
+    };
     const auto scope = IdempotencyScope{command.organization_id(),
                                         command.creator_id(),
                                         IdempotencyOperation::CreateReservation,
@@ -150,16 +175,18 @@ CreateReservationResult CreateReservationHandler::handle(
                     claim.record().generated_identifiers().reservation_id)) {
                 if (!matches_original_operation(loaded->aggregate(), claim.record(), command)) {
                     HVN_WARN_LOG("Reservation creation recovery identity mismatch");
-                    return CreateReservationResult::rejected(
-                        CreateReservationStatus::IDEMPOTENCY_CONFLICT);
+                    return complete(CreateReservationResult::rejected(
+                                        CreateReservationStatus::IDEMPOTENCY_CONFLICT),
+                                    metrics::ReservationCreationOutcome::idempotency_mismatch);
                 }
                 const auto event_ids = expected_event_ids(loaded->aggregate(), claim.record());
                 if (!reservation_creation_event_store_.contains_all(
                         claim.record().scope().organization_id(),
                         claim.record().generated_identifiers().reservation_id,
                         event_ids)) {
-                    return CreateReservationResult::rejected(
-                        CreateReservationStatus::IDEMPOTENCY_IN_PROGRESS);
+                    return complete(CreateReservationResult::rejected(
+                                        CreateReservationStatus::IDEMPOTENCY_IN_PROGRESS),
+                                    metrics::ReservationCreationOutcome::idempotency_in_progress);
                 }
                 auto recovered =
                     result_for_recovered(loaded->aggregate(), claim.record().created_at());
@@ -168,15 +195,19 @@ CreateReservationResult CreateReservationHandler::handle(
                     claim.record().fingerprint(),
                     snapshot_for(recovered, claim.record().created_at()));
                 HVN_DEBUG_LOG("Reservation creation recovery completion succeeded");
-                return recovered;
+                return complete(std::move(recovered),
+                                metrics::ReservationCreationOutcome::replayed);
             }
             HVN_DEBUG_LOG("Reservation creation processing record remains active");
-            return CreateReservationResult::rejected(
-                CreateReservationStatus::IDEMPOTENCY_IN_PROGRESS);
+            return complete(
+                CreateReservationResult::rejected(CreateReservationStatus::IDEMPOTENCY_IN_PROGRESS),
+                metrics::ReservationCreationOutcome::idempotency_in_progress);
         case IdempotencyClaimStatus::FingerprintMismatch:
             HVN_WARN_LOG(
                 "Reservation creation idempotency request conflicts with its original payload");
-            return CreateReservationResult::rejected(CreateReservationStatus::IDEMPOTENCY_CONFLICT);
+            return complete(
+                CreateReservationResult::rejected(CreateReservationStatus::IDEMPOTENCY_CONFLICT),
+                metrics::ReservationCreationOutcome::idempotency_mismatch);
         case IdempotencyClaimStatus::ExistingSucceeded:
         case IdempotencyClaimStatus::ExistingFailedPermanent:
             if (!claim.record().result()) {
@@ -184,13 +215,30 @@ CreateReservationResult CreateReservationHandler::handle(
                     "Terminal idempotency record is missing its result snapshot");
             }
             HVN_DEBUG_LOG("Replaying completed reservation creation result");
-            return replay(*claim.record().result());
+            return complete(replay(*claim.record().result()),
+                            metrics::ReservationCreationOutcome::replayed);
         case IdempotencyClaimStatus::Claimed:
             HVN_DEBUG_LOG("Reservation creation idempotency claim acquired");
             break;
     }
 
     const auto reject = [&](const CreateReservationStatus status) {
+        switch (status) {
+            case CreateReservationStatus::RESOURCE_NOT_FOUND:
+                outcome = metrics::ReservationCreationOutcome::resource_not_found;
+                break;
+            case CreateReservationStatus::RESOURCE_INACTIVE:
+                outcome = metrics::ReservationCreationOutcome::resource_inactive;
+                break;
+            case CreateReservationStatus::SCHEDULE_CONFLICT:
+                outcome = metrics::ReservationCreationOutcome::reservation_conflict;
+                break;
+            case CreateReservationStatus::POLICY_REJECTED:
+                outcome = metrics::ReservationCreationOutcome::validation_failed;
+                break;
+            default:
+                outcome = metrics::ReservationCreationOutcome::unexpected_failure;
+        }
         auto result = CreateReservationResult::rejected(status);
         idempotency_repository_.record_failed_permanently(
             scope, fingerprint, snapshot_for(result, command.occurred_at()));
@@ -258,7 +306,27 @@ CreateReservationResult CreateReservationHandler::handle(
             : CreateReservationResult::confirmed(std::move(reservation), command.occurred_at());
     idempotency_repository_.record_succeeded(
         scope, fingerprint, snapshot_for(result, command.occurred_at()));
-    return result;
+    return complete(std::move(result),
+                    aggregate.requires_approval()
+                        ? metrics::ReservationCreationOutcome::created_pending_approval
+                        : metrics::ReservationCreationOutcome::created_confirmed);
+}
+
+void CreateReservationHandler::record_metrics(
+    const metrics::ReservationCreationOutcome outcome,
+    const std::chrono::steady_clock::time_point started_at) const noexcept {
+    const auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now() - started_at);
+    try {
+        const auto labels = haven::application::observability::metrics::MetricLabels{
+            metrics::outcome_label(outcome)};
+        try {
+            metrics_recorder_.increment_counter(metrics::attempts_metric_name(), 1.0, labels);
+        } catch (...) {}
+        try {
+            metrics_recorder_.observe_duration(metrics::duration_metric_name(), duration, labels);
+        } catch (...) {}
+    } catch (...) {}
 }
 
 }  // namespace haven::application::reservations

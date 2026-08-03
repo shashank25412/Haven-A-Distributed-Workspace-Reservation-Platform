@@ -27,6 +27,7 @@ add_library(haven_application
     resources/get_resource_calendar_handler.cpp
 
     reservations/create_reservation_handler.cpp
+    reservations/metrics/reservation_creation_metrics.cpp
     reservations/get_reservation_handler.cpp
     reservations/list_caller_reservations_handler.cpp
     reservations/cancel_reservation_handler.cpp

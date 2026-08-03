@@ -176,7 +176,8 @@ int main() {
                 *reservation_creation_store,
                 *reservation_creation_event_store,
                 *idempotency_repository,
-                *reservation_creation_policy);
+                *reservation_creation_policy,
+                *metrics_recorder);
 
         haven::presentation::health::register_live_route();
         haven::presentation::resources::register_get_resource_route(

@@ -8,6 +8,9 @@ add_library(haven_application
     message_publish_error.cpp
     repository_error.cpp
 
+    observability/metrics/metric_label.cpp
+    observability/metrics/metric_name.cpp
+
     outbox/outbox_publisher.cpp
     outbox/system_outbox_publisher_clock.cpp
 
@@ -58,3 +61,5 @@ target_compile_features(haven_application
     PUBLIC
         cxx_std_20
 )
+
+haven_apply_project_options(haven_application)

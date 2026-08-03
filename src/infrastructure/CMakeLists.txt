@@ -16,6 +16,15 @@ find_package(jsoncpp CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(RdKafka CONFIG REQUIRED)
 
+add_library(haven_infrastructure_metrics
+    observability/metrics/no_op_metrics_recorder.cpp
+)
+add_library(haven::infrastructure::metrics ALIAS haven_infrastructure_metrics)
+target_include_directories(haven_infrastructure_metrics PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_compile_features(haven_infrastructure_metrics PUBLIC cxx_std_20)
+target_link_libraries(haven_infrastructure_metrics PUBLIC haven::application)
+haven_apply_project_options(haven_infrastructure_metrics)
+
 add_library(haven_infrastructure_kafka
     messaging/kafka/kafka_outbox_record.cpp
     messaging/kafka/kafka_error_mapper.cpp

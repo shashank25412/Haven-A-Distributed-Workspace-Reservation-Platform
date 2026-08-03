@@ -39,6 +39,27 @@ target_link_libraries(haven_application_tests
         GTest::gtest_main
 )
 
+haven_apply_project_options(haven_application_tests)
+
 include(GoogleTest)
 
 gtest_discover_tests(haven_application_tests)
+
+add_executable(haven_metrics_foundation_tests
+    observability/metrics/metrics_foundation_test.cpp
+)
+
+target_include_directories(haven_metrics_foundation_tests
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/tests/unit
+)
+
+target_link_libraries(haven_metrics_foundation_tests
+    PRIVATE
+        haven::infrastructure::metrics
+        GTest::gtest_main
+)
+
+haven_apply_project_options(haven_metrics_foundation_tests)
+
+gtest_discover_tests(haven_metrics_foundation_tests)

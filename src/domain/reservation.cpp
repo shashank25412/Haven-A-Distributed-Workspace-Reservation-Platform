@@ -46,13 +46,15 @@ Reservation Reservation::create_confirmed(OrganizationId organization_id,
                                                                     reservation.kind_,
                                                                     reservation.status_});
 
-    reservation.domain_events_.emplace_back(ReservationConfirmedEvent{std::move(confirmed_event_id),
-                                                                      occurred_at,
-                                                                      reservation.organization_id_,
-                                                                      reservation.reservation_id_,
-                                                                      reservation.resource_id_,
-                                                                      reservation.interval_,
-                                                                      std::nullopt});
+    // Creation and its immediate transition are causally ordered for deterministic Outbox polling.
+    reservation.domain_events_.emplace_back(
+        ReservationConfirmedEvent{std::move(confirmed_event_id),
+                                  occurred_at + TimePoint::duration{1},
+                                  reservation.organization_id_,
+                                  reservation.reservation_id_,
+                                  reservation.resource_id_,
+                                  reservation.interval_,
+                                  std::nullopt});
 
     HVN_DEBUG_LOG("Created confirmed reservation and recorded creation and confirmation events.");
 
@@ -92,9 +94,10 @@ Reservation Reservation::create_pending_approval(OrganizationId organization_id,
                                                                     reservation.kind_,
                                                                     reservation.status_});
 
+    // Creation and its immediate transition are causally ordered for deterministic Outbox polling.
     reservation.domain_events_.emplace_back(
         ReservationApprovalRequestedEvent{std::move(approval_requested_event_id),
-                                          occurred_at,
+                                          occurred_at + TimePoint::duration{1},
                                           reservation.organization_id_,
                                           reservation.reservation_id_,
                                           reservation.resource_id_,

@@ -78,7 +78,8 @@ TEST(ReservationTest, CreateConfirmed_ShouldRecordCreatedAndConfirmedEvents_When
     EXPECT_EQ(created_event.event_id(), EventId{"event-created-123"});
     EXPECT_EQ(created_event.initial_status(), ReservationStatus::Confirmed);
     EXPECT_EQ(confirmed_event.event_id(), EventId{"event-confirmed-123"});
-    EXPECT_EQ(confirmed_event.occurred_at(), kCreatedAt);
+    EXPECT_EQ(confirmed_event.occurred_at(), kCreatedAt + Reservation::TimePoint::duration{1});
+    EXPECT_LT(created_event.occurred_at(), confirmed_event.occurred_at());
     EXPECT_FALSE(confirmed_event.confirmed_by().has_value());
 }
 
@@ -107,6 +108,7 @@ TEST(ReservationTest,
     EXPECT_EQ(created_event.initial_status(), ReservationStatus::PendingApproval);
     EXPECT_EQ(approval_event.event_id(), EventId{"event-approval-requested-123"});
     EXPECT_EQ(approval_event.reservation_id(), ReservationId{"reservation-123"});
+    EXPECT_LT(created_event.occurred_at(), approval_event.occurred_at());
 }
 
 TEST(ReservationTest, ReleaseDomainEvents_ShouldRemoveRecordedEvents_WhenEventsAreReleased) {

@@ -79,7 +79,8 @@ TEST(ReservationCreationStoreTest, PersistsConfirmedReservationAndOrderedCreatio
     EXPECT_EQ(created.event_id(), haven::domain::EventId{"event-created"});
     EXPECT_EQ(created.occurred_at(), kOccurredAt);
     EXPECT_EQ(confirmed.event_id(), haven::domain::EventId{"event-confirmed"});
-    EXPECT_EQ(confirmed.occurred_at(), kOccurredAt);
+    EXPECT_EQ(confirmed.occurred_at(),
+              kOccurredAt + haven::domain::Reservation::TimePoint::duration{1});
 }
 
 TEST(ReservationCreationStoreTest, PersistsPendingReservationAndOrderedCreationEvents) {
@@ -106,7 +107,8 @@ TEST(ReservationCreationStoreTest, PersistsPendingReservationAndOrderedCreationE
     EXPECT_EQ(created.event_id(), haven::domain::EventId{"event-created-pending"});
     EXPECT_EQ(created.occurred_at(), kOccurredAt);
     EXPECT_EQ(approval_requested.event_id(), haven::domain::EventId{"event-approval-requested"});
-    EXPECT_EQ(approval_requested.occurred_at(), kOccurredAt);
+    EXPECT_EQ(approval_requested.occurred_at(),
+              kOccurredAt + haven::domain::Reservation::TimePoint::duration{1});
 }
 
 TEST(ReservationCreationStoreTest, PropagatesConfiguredFailureWithoutRecordingPersistence) {

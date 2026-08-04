@@ -39,6 +39,7 @@ public:
     KafkaOutboxMessageProducer& operator=(KafkaOutboxMessageProducer&&) = delete;
 
     void publish(const haven::application::outbox::OutboxMessage& message) override;
+    [[nodiscard]] bool is_ready() const noexcept;
 
 private:
     void publish_record(const haven::application::outbox::OutboxMessage& message,
@@ -50,7 +51,7 @@ private:
     std::unique_ptr<rd_kafka_t, ProducerDeleter> producer_;
     haven::application::observability::metrics::MetricsRecorder& metrics_recorder_;
     std::vector<std::shared_ptr<void>> timed_out_delivery_states_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
 };
 
 }  // namespace haven::infrastructure::messaging::kafka

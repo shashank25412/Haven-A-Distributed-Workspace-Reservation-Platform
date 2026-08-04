@@ -95,6 +95,7 @@ TEST(OutboxPublisherWorkerTest, ConstructionDoesNotStartCycle) {
     auto cycle = TestPublishCycle{};
     auto metrics = Metrics{};
     auto worker = OutboxPublisherWorker{cycle, 10, 1s, metrics};
+    EXPECT_FALSE(worker.is_running());
     const auto lock = std::scoped_lock{cycle.mutex};
     EXPECT_EQ(cycle.calls, 0U);
 }
@@ -105,7 +106,9 @@ TEST(OutboxPublisherWorkerTest, StartRunsPromptCycleWithConfiguredBatch) {
     auto worker = OutboxPublisherWorker{cycle, 17, 1s, metrics};
     worker.start();
     ASSERT_TRUE(cycle.wait_for_calls(1));
+    EXPECT_TRUE(worker.is_running());
     worker.stop();
+    EXPECT_FALSE(worker.is_running());
     const auto lock = std::scoped_lock{cycle.mutex};
     EXPECT_EQ(cycle.batch_sizes, std::vector<std::size_t>{17});
     {

@@ -98,6 +98,16 @@ void KafkaOutboxMessageProducer::publish(const haven::application::outbox::Outbo
     record_terminal(outcome, started_at);
 }
 
+bool KafkaOutboxMessageProducer::is_ready() const noexcept {
+    const auto lock = std::scoped_lock{mutex_};
+    const rd_kafka_metadata_t* metadata{};
+    const auto timeout = static_cast<int>(configuration_.acknowledgement_timeout.count());
+    const auto error = rd_kafka_metadata(producer_.get(), 0, nullptr, &metadata, timeout);
+    if (metadata)
+        rd_kafka_metadata_destroy(metadata);
+    return error == RD_KAFKA_RESP_ERR_NO_ERROR;
+}
+
 void KafkaOutboxMessageProducer::publish_record(
     const haven::application::outbox::OutboxMessage& message, metrics::PublishOutcome& outcome) {
     KafkaOutboxRecord record;

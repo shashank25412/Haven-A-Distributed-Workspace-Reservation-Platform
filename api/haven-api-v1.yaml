@@ -78,9 +78,7 @@ paths:
       tags:
       - Health
       summary: Check service readiness
-      description: Reports whether the instance can safely serve expected traffic. Couchbase is essential. Redis
-        may be `DEGRADED` without making the service unready when safe fallback is available. Kafka readiness depends
-        on durable outbox capacity and policy.
+      description: Reports whether every dependency required by the enabled runtime configuration is ready.
       operationId: getReadiness
       security: []
       responses:
@@ -96,11 +94,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReadinessResponse'
               example:
-                status: UP
-                dependencies:
-                  couchbase: UP
-                  redis: DEGRADED
-                  kafka: UP
+                status: ready
+                components:
+                  couchbase: up
+                  redis: disabled
+                  kafka: disabled
+                  outboxPublisher: disabled
         '503':
           description: The instance is not ready to serve traffic.
           headers:
@@ -113,11 +112,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReadinessResponse'
               example:
-                status: DOWN
-                dependencies:
-                  couchbase: DOWN
-                  redis: DEGRADED
-                  kafka: UP
+                status: not_ready
+                components:
+                  couchbase: down
+                  redis: up
+                  kafka: up
+                  outboxPublisher: up
   /api/v1/resources:
     get:
       tags:
@@ -1116,9 +1116,9 @@ components:
     DependencyStatus:
       type: string
       enum:
-      - UP
-      - DEGRADED
-      - DOWN
+      - up
+      - down
+      - disabled
     Location:
       type: object
       description: Human-readable resource location.
@@ -1609,23 +1609,26 @@ components:
           $ref: '#/components/schemas/DependencyStatus'
         kafka:
           $ref: '#/components/schemas/DependencyStatus'
+        outboxPublisher:
+          $ref: '#/components/schemas/DependencyStatus'
       required:
       - couchbase
       - redis
       - kafka
+      - outboxPublisher
     ReadinessResponse:
       type: object
       properties:
         status:
           type: string
           enum:
-          - UP
-          - DOWN
-        dependencies:
+          - ready
+          - not_ready
+        components:
           $ref: '#/components/schemas/ReadinessDependencies'
       required:
       - status
-      - dependencies
+      - components
     ErrorDetail:
       type: object
       properties:

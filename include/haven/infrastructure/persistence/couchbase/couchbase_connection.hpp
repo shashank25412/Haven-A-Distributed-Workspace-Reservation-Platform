@@ -65,6 +65,7 @@ public:
 
     /** @brief Returns the transaction manager for the owned cluster connection. */
     [[nodiscard]] std::shared_ptr<::couchbase::transactions::transactions> transactions() const;
+    [[nodiscard]] bool is_ready() const noexcept;
 
 private:
     static void validate_configuration(const CouchbaseConfiguration& configuration);

@@ -19,6 +19,8 @@ add_library(
 
     health/live_controller.cpp
     health/live_response.cpp
+    health/readiness_controller.cpp
+    health/readiness_response.cpp
 
     observability/metrics/metrics_controller.cpp
 

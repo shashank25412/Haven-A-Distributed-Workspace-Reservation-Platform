@@ -27,4 +27,12 @@ sw::redis::Redis& RedisConnection::client() const noexcept {
     return *client_;
 }
 
+bool RedisConnection::is_ready() const noexcept {
+    try {
+        return client_->ping() == "PONG";
+    } catch (...) {
+        return false;
+    }
+}
+
 }  // namespace haven::infrastructure::cache::redis

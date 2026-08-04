@@ -4,6 +4,7 @@ add_executable(
     haven_live_response_test
 
     live_response_test.cpp
+    readiness_response_test.cpp
 )
 
 target_link_libraries(

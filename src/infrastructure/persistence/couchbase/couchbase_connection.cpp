@@ -74,6 +74,16 @@ std::shared_ptr<::couchbase::transactions::transactions> CouchbaseConnection::tr
     return cluster_.transactions();
 }
 
+bool CouchbaseConnection::is_ready() const noexcept {
+    try {
+        const auto [error, result] = cluster_.ping().get();
+        static_cast<void>(result);
+        return !error;
+    } catch (...) {
+        return false;
+    }
+}
+
 void CouchbaseConnection::validate_configuration(const CouchbaseConfiguration& configuration) {
     HVN_TRACE_SCOPE();
 

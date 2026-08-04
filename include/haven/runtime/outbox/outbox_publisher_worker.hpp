@@ -7,6 +7,7 @@
 #include "haven/application/observability/metrics/metrics_recorder.hpp"
 #include "haven/application/outbox/outbox_publish_cycle.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
@@ -36,6 +37,7 @@ public:
 
     void start();
     void stop() noexcept;
+    [[nodiscard]] bool is_running() const noexcept;
 
 private:
     void run(std::stop_token stop_token) noexcept;
@@ -49,6 +51,7 @@ private:
     std::mutex wait_mutex_;
     std::condition_variable_any wake_;
     std::jthread thread_;
+    std::atomic_bool running_{};
 };
 
 }  // namespace haven::runtime::outbox

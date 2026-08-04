@@ -60,6 +60,7 @@ void OutboxPublisherWorker::stop() noexcept {
 }
 
 void OutboxPublisherWorker::run(const std::stop_token stop_token) noexcept {
+    running_.store(true);
     record_running(1.0);
     while (!stop_token.stop_requested()) {
         try {
@@ -91,6 +92,11 @@ void OutboxPublisherWorker::run(const std::stop_token stop_token) noexcept {
         static_cast<void>(wake_.wait_for(lock, stop_token, poll_interval_, [] { return false; }));
     }
     record_running(0.0);
+    running_.store(false);
+}
+
+bool OutboxPublisherWorker::is_running() const noexcept {
+    return running_.load();
 }
 
 void OutboxPublisherWorker::record_running(const double value) noexcept {

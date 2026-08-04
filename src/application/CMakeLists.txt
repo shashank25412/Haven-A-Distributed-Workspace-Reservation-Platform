@@ -7,6 +7,7 @@
 add_library(haven_application
     message_publish_error.cpp
     repository_error.cpp
+    health/readiness.cpp
 
     observability/metrics/metric_label.cpp
     observability/metrics/metric_name.cpp

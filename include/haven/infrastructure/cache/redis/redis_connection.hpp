@@ -20,6 +20,7 @@ public:
     explicit RedisConnection(const RedisConfiguration& configuration);
     ~RedisConnection();
     [[nodiscard]] sw::redis::Redis& client() const noexcept;
+    [[nodiscard]] bool is_ready() const noexcept;
 
 private:
     std::unique_ptr<sw::redis::Redis> client_;

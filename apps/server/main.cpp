@@ -7,6 +7,7 @@
  * loop. Business logic and configuration parsing must remain outside main().
  */
 
+#include "haven/application/health/readiness.hpp"
 #include "haven/application/idempotency/idempotency_repository.hpp"
 #include "haven/application/outbox/outbox_publisher.hpp"
 #include "haven/application/outbox/system_outbox_publisher_clock.hpp"
@@ -33,6 +34,7 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/health/live_controller.hpp"
+#include "haven/presentation/health/readiness_controller.hpp"
 #include "haven/presentation/observability/metrics/metrics_controller.hpp"
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
@@ -182,7 +184,27 @@ int main() {
                 *reservation_creation_policy,
                 *metrics_recorder);
 
+        namespace app_health = haven::application::health;
+        auto couchbase_probe = app_health::FunctionReadinessProbe{
+            [couchbase_connection] { return couchbase_connection->is_ready(); }};
+        std::unique_ptr<app_health::FunctionReadinessProbe> redis_probe;
+        if (redis_connection) {
+            redis_probe = std::make_unique<app_health::FunctionReadinessProbe>(
+                [redis_connection] { return redis_connection->is_ready(); });
+        }
+        std::unique_ptr<app_health::FunctionReadinessProbe> kafka_probe;
+        std::unique_ptr<app_health::FunctionReadinessProbe> worker_probe;
+        if (outbox_producer && outbox_worker) {
+            kafka_probe = std::make_unique<app_health::FunctionReadinessProbe>(
+                [&outbox_producer] { return outbox_producer->is_ready(); });
+            worker_probe = std::make_unique<app_health::FunctionReadinessProbe>(
+                [&outbox_worker] { return outbox_worker->is_running(); });
+        }
+        auto readiness = std::make_shared<app_health::ReadinessService>(
+            couchbase_probe, redis_probe.get(), kafka_probe.get(), worker_probe.get());
+
         haven::presentation::health::register_live_route();
+        haven::presentation::health::register_readiness_route(std::move(readiness));
         haven::presentation::resources::register_get_resource_route(
             std::move(get_resource_handler));
         haven::presentation::reservations::register_create_reservation_route(

@@ -643,8 +643,9 @@ pkg-config --version
 ### vcpkg reports an HTTP/2 framing error
 
 An error such as `curl operation failed with error code 16` is a network
-transport failure while downloading dependency source archives. Verify the
-download cache exists:
+transport failure while downloading dependency source archives. The CMake
+presets route vcpkg asset downloads through system `curl` with HTTP/1.1 to
+avoid this failure. Verify the download cache exists:
 
 ```bash
 mkdir -p .build-tools/vcpkg-downloads

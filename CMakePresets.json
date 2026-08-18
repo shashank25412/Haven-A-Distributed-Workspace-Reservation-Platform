@@ -15,7 +15,12 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
 
       "environment": {
-        "VCPKG_DOWNLOADS": "${sourceDir}/.build-tools/vcpkg-downloads"
+        "VCPKG_DOWNLOADS": "${sourceDir}/.build-tools/vcpkg-downloads",
+        "X_VCPKG_ASSET_SOURCES": "clear;x-script,curl --fail --show-error --location --http1.1 {url} --output {dst};x-block-origin"
+      },
+
+      "warnings": {
+        "dev": false
       },
 
       "cacheVariables": {

@@ -174,7 +174,7 @@ TEST_F(IdempotencyRepositoryIntegrationTest, ClaimsAndClassifiesExistingRecord) 
 TEST_F(IdempotencyRepositoryIntegrationTest, CompletesSuccessAndSurvivesRepositoryReconstruction) {
     const auto initial = record();
     const auto snapshot = success(initial);
-    repository_->claim(initial);
+    static_cast<void>(repository_->claim(initial));
     repository_->record_succeeded(initial.scope(), initial.fingerprint(), snapshot);
     repository_->record_succeeded(initial.scope(), initial.fingerprint(), snapshot);
     persistence::CouchbaseIdempotencyRepository restarted(
@@ -189,7 +189,7 @@ TEST_F(IdempotencyRepositoryIntegrationTest, CompletesPermanentFailureIdempotent
     const auto initial = record();
     const auto snapshot = CreateReservationResultSnapshot::permanent_rejection(
         CreateReservationStatus::POLICY_REJECTED);
-    repository_->claim(initial);
+    static_cast<void>(repository_->claim(initial));
     repository_->record_failed_permanently(initial.scope(), initial.fingerprint(), snapshot);
     repository_->record_failed_permanently(initial.scope(), initial.fingerprint(), snapshot);
     EXPECT_EQ(repository_->find(initial.scope())->status(), IdempotencyStatus::FailedPermanent);
@@ -197,7 +197,7 @@ TEST_F(IdempotencyRepositoryIntegrationTest, CompletesPermanentFailureIdempotent
 
 TEST_F(IdempotencyRepositoryIntegrationTest, RejectsConflictingWrongAndMissingCompletions) {
     const auto initial = record();
-    repository_->claim(initial);
+    static_cast<void>(repository_->claim(initial));
     repository_->record_succeeded(initial.scope(), initial.fingerprint(), success(initial));
     try {
         repository_->record_succeeded(
@@ -240,7 +240,7 @@ TEST_F(IdempotencyRepositoryIntegrationTest, CompletionPreservesInitialExpiry) {
     const auto initial = record();
     persistence::CouchbaseIdempotencyRepository short_lived(
         connection_, std::chrono::seconds{2}, metrics_);
-    short_lived.claim(initial);
+    static_cast<void>(short_lived.claim(initial));
     std::this_thread::sleep_for(std::chrono::milliseconds{800});
     short_lived.record_succeeded(initial.scope(), initial.fingerprint(), success(initial));
     // Couchbase expiry removal is second-granularity and may become observable

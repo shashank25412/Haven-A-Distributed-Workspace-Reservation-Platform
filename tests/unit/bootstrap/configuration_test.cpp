@@ -348,13 +348,13 @@ TEST_F(EnvironmentConfigurationTest, LoadsConfiguredRedisValues) {
 
 TEST_F(EnvironmentConfigurationTest, RejectsInvalidRedisConfiguration) {
     ASSERT_TRUE(set_environment_variable(kRedisResourceTtlVariable, "0"));
-    EXPECT_THROW(load_configuration_from_environment(), ConfigurationError);
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
     ASSERT_TRUE(set_environment_variable(kRedisResourceTtlVariable, "300"));
     ASSERT_TRUE(set_environment_variable(kRedisConnectTimeoutVariable, "invalid"));
-    EXPECT_THROW(load_configuration_from_environment(), ConfigurationError);
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
     ASSERT_TRUE(set_environment_variable(kRedisConnectTimeoutVariable, "100"));
     ASSERT_TRUE(set_environment_variable(kRedisUriVariable, "not-a-redis-uri"));
-    EXPECT_THROW(load_configuration_from_environment(), ConfigurationError);
+    EXPECT_THROW(static_cast<void>(load_configuration_from_environment()), ConfigurationError);
 }
 
 TEST_F(EnvironmentConfigurationTest, UsesDocumentedDefaultsWhenVariablesAreAbsent) {

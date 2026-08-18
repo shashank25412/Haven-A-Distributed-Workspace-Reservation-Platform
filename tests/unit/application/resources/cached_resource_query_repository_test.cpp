@@ -145,7 +145,8 @@ TEST(CachedResourceQueryRepositoryTest, AuthoritativeFailurePropagates) {
     query.fail = true;
     auto metrics = Metrics{};
     const CachedResourceQueryRepository repository{cache, query, metrics};
-    EXPECT_THROW(repository.find_by_id(organization_id, resource_id), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(repository.find_by_id(organization_id, resource_id)),
+                 std::runtime_error);
 }
 
 TEST(CachedResourceQueryRepositoryTest, MetricsFailuresDoNotAlterCacheHit) {

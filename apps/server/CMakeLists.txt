@@ -39,6 +39,12 @@ set_target_properties(
 
 haven_apply_project_options(haven_server)
 
+if(APPLE)
+    # Static dependency graphs can repeat the same archive; modern Apple ld
+    # warns even though it safely de-duplicates those entries.
+    target_link_options(haven_server PRIVATE "LINKER:-no_warn_duplicate_libraries")
+endif()
+
 # Install the executable into a predictable deployment directory.
 #
 # The Docker build later installs Haven with:

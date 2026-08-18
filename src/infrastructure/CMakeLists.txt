@@ -44,6 +44,12 @@ target_link_libraries(haven_infrastructure_kafka
     PRIVATE haven_logging
 )
 haven_apply_project_options(haven_infrastructure_kafka)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(
+        haven_infrastructure_kafka
+        PRIVATE -Wno-gnu-statement-expression-from-macro-expansion
+    )
+endif()
 
 add_library(haven_infrastructure_redis
     cache/redis/redis_connection.cpp

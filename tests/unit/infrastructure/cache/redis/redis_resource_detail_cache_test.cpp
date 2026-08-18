@@ -40,8 +40,9 @@ TEST(CachedResourceRecordTest, RoundTripPreservesRequiredAggregateStateWithoutCa
 }
 
 TEST(CachedResourceRecordTest, RejectsCorruptAndUnsupportedPayloads) {
-    EXPECT_THROW(deserialize_cached_resource("not-json"), std::exception);
-    EXPECT_THROW(deserialize_cached_resource("{\"schemaVersion\":2}"), std::exception);
+    EXPECT_THROW(static_cast<void>(deserialize_cached_resource("not-json")), std::exception);
+    EXPECT_THROW(static_cast<void>(deserialize_cached_resource("{\"schemaVersion\":2}")),
+                 std::exception);
 }
 
 }  // namespace

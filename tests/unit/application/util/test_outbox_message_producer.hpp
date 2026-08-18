@@ -21,10 +21,10 @@ public:
         if (call_order)
             call_order->push_back("publish:" + message.event_id.value());
         if (!failures.empty()) {
-            auto failure = std::move(failures.front());
+            auto queued_failure = std::move(failures.front());
             failures.pop_front();
-            if (failure)
-                throw *failure;
+            if (queued_failure)
+                throw *queued_failure;
         } else if (this->failure) {
             throw *this->failure;
         }

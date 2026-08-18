@@ -13,7 +13,8 @@ namespace {
 std::string encode(std::string_view value) {
     constexpr char hex[] = "0123456789ABCDEF";
     std::string encoded;
-    for (const unsigned char character : value) {
+    for (const char value_character : value) {
+        const auto character = static_cast<unsigned char>(value_character);
         if (std::isalnum(character) != 0 || character == '-' || character == '_' ||
             character == '.') {
             encoded.push_back(static_cast<char>(character));

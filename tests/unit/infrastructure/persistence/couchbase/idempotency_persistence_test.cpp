@@ -82,8 +82,10 @@ TEST(IdempotencyDocumentTest, SerializesCanonicalOperationsAndStatuses) {
               IdempotencyOperation::ExtendReservation);
     EXPECT_EQ(idempotency_status_to_string(IdempotencyStatus::FailedPermanent), "FAILED_PERMANENT");
     EXPECT_EQ(idempotency_status_from_string("SUCCEEDED"), IdempotencyStatus::Succeeded);
-    EXPECT_THROW(idempotency_operation_from_string("UNKNOWN"), std::invalid_argument);
-    EXPECT_THROW(idempotency_status_from_string("UNKNOWN"), std::invalid_argument);
+    EXPECT_THROW(static_cast<void>(idempotency_operation_from_string("UNKNOWN")),
+                 std::invalid_argument);
+    EXPECT_THROW(static_cast<void>(idempotency_status_from_string("UNKNOWN")),
+                 std::invalid_argument);
 }
 
 TEST(IdempotencyDocumentTest, RoundTripsProcessingAndTerminalRecords) {

@@ -6,6 +6,8 @@ readonly couchbase_host="${HVN_COUCHBASE_HOST:-couchbase}"
 readonly couchbase_cli="/opt/couchbase/bin/couchbase-cli"
 readonly cbq="/opt/couchbase/bin/cbq"
 readonly index_file="${HVN_COUCHBASE_INDEX_FILE:-/opt/haven/couchbase/indexes.sql}"
+readonly resource_seed_file="${HVN_COUCHBASE_RESOURCE_SEED_FILE:-/opt/haven/couchbase/seed-resources.sql}"
+readonly seed_organization_id="${HVN_SEED_ORGANIZATION_ID:-organization-1}"
 
 for variable_name in \
     HVN_COUCHBASE_USERNAME \
@@ -25,6 +27,12 @@ if [[ ! "${HVN_COUCHBASE_BUCKET}" =~ ${couchbase_name_pattern} ]]; then
 fi
 if [[ ! "${HVN_COUCHBASE_SCOPE}" =~ ${couchbase_name_pattern} ]]; then
     echo "HVN_COUCHBASE_SCOPE contains unsupported characters" >&2
+    exit 1
+fi
+
+readonly seed_organization_id_pattern='^[A-Za-z0-9_-]+$'
+if [[ ! "${seed_organization_id}" =~ ${seed_organization_id_pattern} ]]; then
+    echo "HVN_SEED_ORGANIZATION_ID contains unsupported characters" >&2
     exit 1
 fi
 
@@ -97,4 +105,21 @@ sed \
     --exit-on-error \
     --file "${rendered_index_file}"
 
-echo "Haven Couchbase bucket, scope, collections, and indexes are ready"
+rendered_seed_file="$(mktemp)"
+readonly rendered_seed_file
+trap 'rm -f "${rendered_index_file}" "${rendered_seed_file}"' EXIT
+
+sed \
+    -e "s/{{BUCKET}}/${HVN_COUCHBASE_BUCKET}/g" \
+    -e "s/{{SCOPE}}/${HVN_COUCHBASE_SCOPE}/g" \
+    -e "s/{{SEED_ORGANIZATION_ID}}/${seed_organization_id}/g" \
+    "${resource_seed_file}" >"${rendered_seed_file}"
+
+"${cbq}" \
+    --engine "http://${couchbase_host}:8093" \
+    --user "${HVN_COUCHBASE_USERNAME}" \
+    --password "${HVN_COUCHBASE_PASSWORD}" \
+    --exit-on-error \
+    --file "${rendered_seed_file}"
+
+echo "Haven Couchbase bucket, scope, collections, indexes, and local resource seed data are ready"

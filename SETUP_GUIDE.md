@@ -279,8 +279,11 @@ docker compose up --build --detach
 
 The one-shot `couchbase-init` service creates the configured `haven` bucket,
 `reservation` scope, `resources`, `reservations`, and `idempotency` collections,
-and all secondary indexes from
-[`deploy/couchbase/indexes.sql`](deploy/couchbase/indexes.sql).
+all secondary indexes from
+[`deploy/couchbase/indexes.sql`](deploy/couchbase/indexes.sql), and 20 realistic
+local resources for each supported resource type. The resource seed uses
+idempotent upserts and defaults to organization `organization-1`; set
+`HVN_SEED_ORGANIZATION_ID` to use another local organization.
 Check the database and initialization result:
 
 ```bash

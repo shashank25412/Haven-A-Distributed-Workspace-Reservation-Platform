@@ -34,6 +34,18 @@ TEST(CreateReservationRequestTest, DefaultsMissingPurposeToEmpty) {
     EXPECT_EQ(CreateReservationRequest::from_json(json).purpose().value(), "");
 }
 
+TEST(CreateReservationRequestTest, AcceptsIsoFractionalSecondsFromOneToNineDigits) {
+    auto milliseconds = valid_request();
+    milliseconds["startTime"] = "2026-08-01T10:00:00.000Z";
+    milliseconds["endTime"] = "2026-08-01T11:00:00.250Z";
+    EXPECT_NO_THROW(static_cast<void>(CreateReservationRequest::from_json(milliseconds)));
+
+    auto fractional_boundaries = valid_request();
+    fractional_boundaries["startTime"] = "2026-08-01T10:00:00.1Z";
+    fractional_boundaries["endTime"] = "2026-08-01T11:00:00.123456789Z";
+    EXPECT_NO_THROW(static_cast<void>(CreateReservationRequest::from_json(fractional_boundaries)));
+}
+
 TEST(CreateReservationRequestTest, RejectsMissingMalformedAndReversedFields) {
     auto missing = valid_request();
     missing.removeMember("resourceId");
@@ -42,6 +54,10 @@ TEST(CreateReservationRequestTest, RejectsMissingMalformedAndReversedFields) {
     auto malformed = valid_request();
     malformed["startTime"] = "not-a-time";
     EXPECT_THROW(static_cast<void>(CreateReservationRequest::from_json(malformed)),
+                 std::invalid_argument);
+    auto excessive_precision = valid_request();
+    excessive_precision["startTime"] = "2026-08-01T10:00:00.1234567890Z";
+    EXPECT_THROW(static_cast<void>(CreateReservationRequest::from_json(excessive_precision)),
                  std::invalid_argument);
     auto reversed = valid_request();
     reversed["endTime"] = reversed["startTime"];

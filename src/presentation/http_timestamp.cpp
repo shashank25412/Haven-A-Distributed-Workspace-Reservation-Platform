@@ -25,7 +25,13 @@ int component(const std::string_view text, const std::size_t offset, const std::
 
 system_clock::time_point parse_http_timestamp(const std::string_view value) {
     auto text = std::string{value};
-    if (text.size() == 20U && text.back() == 'Z') text.insert(19U, ".000000000");
+    if (text.size() == 20U && text.back() == 'Z') {
+        text.insert(19U, ".000000000");
+    } else if (text.size() >= 22U && text.size() <= 30U && text[19] == '.' &&
+               text.back() == 'Z') {
+        const auto fractional_digits = text.size() - 21U;
+        text.insert(text.size() - 1U, 9U - fractional_digits, '0');
+    }
     if (text.size() != 30U || text[4] != '-' || text[7] != '-' || text[10] != 'T' ||
         text[13] != ':' || text[16] != ':' || text[19] != '.' || text[29] != 'Z') {
         throw std::invalid_argument("Malformed timestamp");

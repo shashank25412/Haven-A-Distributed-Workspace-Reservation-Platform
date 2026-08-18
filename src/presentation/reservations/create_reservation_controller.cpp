@@ -5,6 +5,7 @@
 
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
 
+#include "haven/application/auth/authentication_service.hpp"
 #include "haven/application/idempotency/idempotency_repository_error.hpp"
 #include "haven/application/repository_error.hpp"
 #include "haven/domain/value_objects/idempotency_key.hpp"
@@ -32,6 +33,15 @@ namespace haven::presentation::reservations {
 namespace {
 constexpr char kRoute[]{"/api/v1/reservations"};
 constexpr std::size_t kMaximumHeaderLength{255};
+
+std::optional<std::string> bearer_token(const drogon::HttpRequestPtr& request) {
+    constexpr std::string_view prefix{"Bearer "};
+    const auto authorization = request->getHeader("Authorization");
+    if (!authorization.starts_with(prefix) || authorization.size() <= prefix.size()) {
+        return std::nullopt;
+    }
+    return authorization.substr(prefix.size());
+}
 
 bool invalid_header(const std::string& value, const bool reject_whitespace) {
     return value.empty() || value.size() > kMaximumHeaderLength ||
@@ -123,20 +133,39 @@ void map_result(const drogon::HttpRequestPtr& request,
 
 void handle(
     const std::shared_ptr<haven::application::reservations::CreateReservationHandler>& handler,
+    const std::shared_ptr<haven::application::auth::AuthenticationService>& authentication,
     const drogon::HttpRequestPtr& request,
     std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
     HVN_TRACE_SCOPE();
     const auto key = request->getHeader("Idempotency-Key");
-    const auto organization = request->getHeader("X-Haven-Organization-Id");
-    const auto user = request->getHeader("X-Haven-User-Id");
     if (invalid_header(key, false) ||
         std::all_of(
-            key.begin(), key.end(), [](const unsigned char c) { return std::isspace(c) != 0; }) ||
-        invalid_header(organization, true) || invalid_header(user, true)) {
+            key.begin(), key.end(), [](const unsigned char c) { return std::isspace(c) != 0; })) {
         callback(error(request,
                        drogon::k400BadRequest,
                        "INVALID_REQUEST",
                        "Required headers are missing or invalid."));
+        return;
+    }
+    const auto token = bearer_token(request);
+    if (!token) {
+        callback(error(request,
+                       drogon::k401Unauthorized,
+                       "INVALID_SESSION",
+                       "A bearer session is required."));
+        return;
+    }
+    haven::application::auth::AuthenticatedAccount account;
+    try {
+        account = authentication->authenticate(*token);
+    } catch (const haven::application::auth::AuthenticationError& authentication_error) {
+        const auto unavailable = authentication_error.code() ==
+                                 haven::application::auth::AuthenticationErrorCode::persistence;
+        callback(error(request,
+                       unavailable ? drogon::k503ServiceUnavailable : drogon::k401Unauthorized,
+                       unavailable ? "AUTHENTICATION_UNAVAILABLE" : "INVALID_SESSION",
+                       unavailable ? "Authentication is temporarily unavailable."
+                                   : "The authentication session is invalid or expired."));
         return;
     }
     std::optional<haven::application::reservations::CreateReservationCommand> command;
@@ -147,11 +176,11 @@ void handle(
         const auto parsed = CreateReservationRequest::from_json(*json);
         const auto now = std::chrono::system_clock::now();
         const auto uuid = [] { return drogon::utils::getUuid(true); };
-        command.emplace(haven::domain::OrganizationId{organization},
+        command.emplace(haven::domain::OrganizationId{account.organization_id},
                         haven::domain::IdempotencyKey{key},
                         haven::domain::ReservationId{uuid()},
                         parsed.resource_id(),
-                        haven::domain::UserId{user},
+                        haven::domain::UserId{account.user_id},
                         parsed.interval(),
                         parsed.purpose(),
                         haven::domain::ReservationKind::Standard,
@@ -199,15 +228,18 @@ void handle(
 }  // namespace
 
 void register_create_reservation_route(
-    std::shared_ptr<haven::application::reservations::CreateReservationHandler> handler) {
+    std::shared_ptr<haven::application::reservations::CreateReservationHandler> handler,
+    std::shared_ptr<haven::application::auth::AuthenticationService> authentication) {
     if (!handler)
         throw std::invalid_argument("Create Reservation route handler must not be null");
+    if (!authentication)
+        throw std::invalid_argument("Create Reservation authentication service must not be null");
     drogon::app().registerHandler(
         kRoute,
-        [handler = std::move(handler)](
+        [handler = std::move(handler), authentication = std::move(authentication)](
             const drogon::HttpRequestPtr& request,
             std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-            handle(handler, request, std::move(callback));
+            handle(handler, authentication, request, std::move(callback));
         },
         {drogon::Post});
 }

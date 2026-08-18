@@ -8,6 +8,8 @@ readonly cbq="/opt/couchbase/bin/cbq"
 readonly index_file="${HVN_COUCHBASE_INDEX_FILE:-/opt/haven/couchbase/indexes.sql}"
 readonly resource_seed_file="${HVN_COUCHBASE_RESOURCE_SEED_FILE:-/opt/haven/couchbase/seed-resources.sql}"
 readonly seed_organization_id="${HVN_SEED_ORGANIZATION_ID:-organization-1}"
+readonly identity_bucket="${HVN_IDENTITY_COUCHBASE_BUCKET:-${HVN_COUCHBASE_BUCKET}_identity}"
+readonly identity_scope="${HVN_IDENTITY_COUCHBASE_SCOPE:-identity}"
 
 for variable_name in \
     HVN_COUCHBASE_USERNAME \
@@ -27,6 +29,14 @@ if [[ ! "${HVN_COUCHBASE_BUCKET}" =~ ${couchbase_name_pattern} ]]; then
 fi
 if [[ ! "${HVN_COUCHBASE_SCOPE}" =~ ${couchbase_name_pattern} ]]; then
     echo "HVN_COUCHBASE_SCOPE contains unsupported characters" >&2
+    exit 1
+fi
+if [[ ! "${identity_bucket}" =~ ${couchbase_name_pattern} ]]; then
+    echo "HVN_IDENTITY_COUCHBASE_BUCKET contains unsupported characters" >&2
+    exit 1
+fi
+if [[ ! "${identity_scope}" =~ ${couchbase_name_pattern} ]]; then
+    echo "HVN_IDENTITY_COUCHBASE_SCOPE contains unsupported characters" >&2
     exit 1
 fi
 
@@ -65,6 +75,19 @@ if ! "${couchbase_cli}" bucket-list "${common_arguments[@]}" |
         --wait
 fi
 
+if ! "${couchbase_cli}" bucket-list "${common_arguments[@]}" |
+    awk '{print $1}' |
+    grep --fixed-strings --line-regexp --quiet "${identity_bucket}"; then
+    "${couchbase_cli}" bucket-create \
+        "${common_arguments[@]}" \
+        --bucket "${identity_bucket}" \
+        --bucket-type couchbase \
+        --bucket-ramsize 128 \
+        --bucket-replica 0 \
+        --storage-backend couchstore \
+        --wait
+fi
+
 if ! "${couchbase_cli}" collection-manage \
     "${common_arguments[@]}" \
     --bucket "${HVN_COUCHBASE_BUCKET}" \
@@ -86,6 +109,30 @@ for collection_name in resources reservations idempotency outbox; do
             "${common_arguments[@]}" \
             --bucket "${HVN_COUCHBASE_BUCKET}" \
             --create-collection "${HVN_COUCHBASE_SCOPE}.${collection_name}"
+    fi
+done
+
+if ! "${couchbase_cli}" collection-manage \
+    "${common_arguments[@]}" \
+    --bucket "${identity_bucket}" \
+    --list-scopes |
+    grep --fixed-strings --line-regexp --quiet "${identity_scope}"; then
+    "${couchbase_cli}" collection-manage \
+        "${common_arguments[@]}" \
+        --bucket "${identity_bucket}" \
+        --create-scope "${identity_scope}"
+fi
+
+for collection_name in credentials sessions; do
+    if ! "${couchbase_cli}" collection-manage \
+        "${common_arguments[@]}" \
+        --bucket "${identity_bucket}" \
+        --list-collections "${identity_scope}" |
+        grep --fixed-strings --quiet "${collection_name}"; then
+        "${couchbase_cli}" collection-manage \
+            "${common_arguments[@]}" \
+            --bucket "${identity_bucket}" \
+            --create-collection "${identity_scope}.${collection_name}"
     fi
 done
 
@@ -122,4 +169,4 @@ sed \
     --exit-on-error \
     --file "${rendered_seed_file}"
 
-echo "Haven Couchbase bucket, scope, collections, indexes, and local resource seed data are ready"
+echo "Haven reservation and identity buckets, collections, indexes, and local resource seed data are ready"

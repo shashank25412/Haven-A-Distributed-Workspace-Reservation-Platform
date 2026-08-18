@@ -20,6 +20,8 @@ servers:
 - url: http://localhost:8080
   description: Local development server
 tags:
+- name: Authentication
+  description: Haven account registration and opaque bearer sessions.
 - name: Health
   description: Process liveness and dependency readiness.
 - name: Observability
@@ -35,6 +37,77 @@ tags:
 security:
 - bearerAuth: []
 paths:
+  /api/v1/auth/signup:
+    post:
+      tags: [Authentication]
+      summary: Create a member account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthCredentials'
+      responses:
+        '201':
+          description: Account and session created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: An account already exists for the email.
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Start a bearer session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthCredentials'
+      responses:
+        '200':
+          description: Authenticated session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No account exists for the email; the client may offer sign-up.
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/session:
+    get:
+      tags: [Authentication]
+      summary: Validate the current session
+      responses:
+        '200':
+          description: Current authenticated session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [Authentication]
+      summary: End the current session
+      responses:
+        '204':
+          description: Session ended.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /metrics:
     get:
       tags:
@@ -270,20 +343,6 @@ paths:
       operationId: createReservation
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
-      - name: X-Haven-Organization-Id
-        in: header
-        required: true
-        description: Temporary pre-authentication development boundary for the organization claim.
-        schema:
-          $ref: '#/components/schemas/OrganizationId'
-      - name: X-Haven-User-Id
-        in: header
-        required: true
-        description: Temporary pre-authentication development boundary for the authenticated user claim.
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 255
       requestBody:
         required: true
         content:
@@ -337,9 +396,10 @@ paths:
                 details: []
                 traceId: 4d7a1ed4cdbb4b5e
         '409':
-          description: The resource conflicts with an existing blocking reservation, the idempotency key was reused
-            with a different payload, or the same idempotent request is still processing. In-progress responses use
-            code `IDEMPOTENCY_REQUEST_IN_PROGRESS` and `Retry-After: 1`.
+          description: >-
+            The resource conflicts with an existing blocking reservation, the idempotency key was reused with a
+            different payload, or the same idempotent request is still processing. In-progress responses use code
+            `IDEMPOTENCY_REQUEST_IN_PROGRESS` and `Retry-After: 1`.
           headers:
             X-Request-Id:
               $ref: '#/components/headers/XRequestId'
@@ -949,8 +1009,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
-      description: Signed JWT containing trusted user, organization, role, and permission claims.
+      description: Opaque, short-lived Haven session token containing trusted user, organization, and role context.
   headers:
     XRequestId:
       description: Identifier for the inbound HTTP request.
@@ -1050,6 +1109,43 @@ components:
         maxLength: 255
       example: idem_01J2H6M5J5W7P3C7Q9R8T6V4B2
   schemas:
+    AuthCredentials:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+    AuthSession:
+      type: object
+      required: [accessToken, tokenType, user]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          const: Bearer
+        user:
+          type: object
+          required: [userId, email, organizationId, role]
+          properties:
+            userId:
+              type: string
+            email:
+              type: string
+              format: email
+            organizationId:
+              $ref: '#/components/schemas/OrganizationId'
+            role:
+              type: string
+              enum: [MEMBER, ADMIN]
     OrganizationId:
       type: string
       minLength: 1

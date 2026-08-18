@@ -26,6 +26,7 @@
 #include "haven/infrastructure/observability/metrics/no_op_metrics_recorder.hpp"
 #include "haven/infrastructure/observability/metrics/prometheus_metrics_recorder.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_connection.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_authentication_service.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_idempotency_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_outbox_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_event_store.hpp"
@@ -34,6 +35,7 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/health/live_controller.hpp"
+#include "haven/presentation/auth/authentication_controller.hpp"
 #include "haven/presentation/health/readiness_controller.hpp"
 #include "haven/presentation/observability/metrics/metrics_controller.hpp"
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
@@ -100,6 +102,16 @@ int main() {
 
         auto couchbase_connection =
             std::make_shared<couchbase_persistence::CouchbaseConnection>(configuration.couchbase);
+
+        auto identity_configuration = configuration.couchbase;
+        identity_configuration.bucket_name += "_identity";
+        identity_configuration.scope_name = "identity";
+        auto identity_connection =
+            std::make_shared<couchbase_persistence::CouchbaseConnection>(
+                std::move(identity_configuration));
+        auto authentication_service =
+            std::make_shared<couchbase_persistence::CouchbaseAuthenticationService>(
+                identity_connection, "organization-1");
 
         std::shared_ptr<haven::application::resources::ResourceRepository> resource_repository =
             std::make_shared<couchbase_persistence::CouchbaseResourceRepository>(
@@ -204,11 +216,12 @@ int main() {
             couchbase_probe, redis_probe.get(), kafka_probe.get(), worker_probe.get());
 
         haven::presentation::health::register_live_route();
+        haven::presentation::auth::register_authentication_routes(authentication_service);
         haven::presentation::health::register_readiness_route(std::move(readiness));
         haven::presentation::resources::register_get_resource_route(
             std::move(get_resource_handler));
         haven::presentation::reservations::register_create_reservation_route(
-            std::move(create_reservation_handler));
+            std::move(create_reservation_handler), authentication_service);
         HVN_INFO_LOG("HTTP routes registered");
 
         HVN_INFO_LOG("Starting Haven API on ",

@@ -26,6 +26,8 @@ add_library(
 
     api_error_response.cpp
 
+    auth/authentication_controller.cpp
+
     reservations/create_reservation_controller.cpp
     reservations/create_reservation_request.cpp
     reservations/create_reservation_response.cpp

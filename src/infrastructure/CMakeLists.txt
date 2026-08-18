@@ -65,6 +65,7 @@ add_library(
     haven_infrastructure_couchbase
 
     persistence/couchbase/couchbase_connection.cpp
+    persistence/couchbase/couchbase_authentication_service.cpp
     persistence/couchbase/couchbase_document_key.cpp
     persistence/couchbase/idempotency_document_key.cpp
     persistence/couchbase/idempotency_document.cpp

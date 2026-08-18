@@ -7,9 +7,15 @@
 Haven is a backend platform for discovering and reserving shared resources such as meeting rooms, office desks, parking slots, and other bookable assets—without double bookings, duplicate commands, or unreliable event delivery.
 
 The implemented `POST /api/v1/reservations` endpoint requires `Idempotency-Key`
-and temporary `X-Haven-Organization-Id` / `X-Haven-User-Id` development headers.
+and a bearer session issued by the Haven authentication API.
 Identical retries replay the original result; mismatched reuse and active
 processing return explicit `409` problem responses.
+
+Local accounts are stored in a separate `haven_identity` Couchbase bucket. The
+`identity.credentials` collection contains only per-account scrypt salts and
+hashes; opaque eight-hour sessions live in `identity.sessions`. New sign-ups are
+always members. Administrator roles must be provisioned by an operator and
+cannot be selected by the browser.
 
 <p>
   <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white">

@@ -38,7 +38,8 @@ int main(int argc, char** argv) {
             haven::presentation::resources::test::repository};
         return std::make_shared<haven::application::resources::GetResourceHandler>(query);
     }();
-    haven::presentation::resources::register_get_resource_route(std::move(handler));
+    haven::presentation::resources::register_get_resource_route(
+        std::move(handler), "organization-1");
 
     drogon::app().addListener(kTestServerAddress, kTestServerPort).setThreadNum(kTestWorkerThreads);
 

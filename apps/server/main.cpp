@@ -16,6 +16,7 @@
 #include "haven/application/resources/authoritative_resource_query_repository.hpp"
 #include "haven/application/resources/cached_resource_query_repository.hpp"
 #include "haven/application/resources/get_resource_handler.hpp"
+#include "haven/application/resources/search_available_resources_handler.hpp"
 #include "haven/application/resources/resource_query_repository.hpp"
 #include "haven/application/resources/resource_repository.hpp"
 #include "haven/bootstrap/configuration.hpp"
@@ -40,6 +41,7 @@
 #include "haven/presentation/observability/metrics/metrics_controller.hpp"
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
+#include "haven/presentation/resources/search_resources_controller.hpp"
 #include "haven/runtime/outbox/outbox_publisher_worker.hpp"
 
 #include <drogon/HttpAppFramework.h>
@@ -184,6 +186,9 @@ int main() {
 
         auto get_resource_handler =
             std::make_shared<haven::application::resources::GetResourceHandler>(*resource_query);
+        auto search_resources_handler =
+            std::make_shared<haven::application::resources::SearchAvailableResourcesHandler>(
+                *resource_repository, *reservation_repository);
         auto reservation_creation_policy =
             std::make_shared<haven::domain::ReservationCreationPolicy>();
         auto create_reservation_handler =
@@ -219,7 +224,9 @@ int main() {
         haven::presentation::auth::register_authentication_routes(authentication_service);
         haven::presentation::health::register_readiness_route(std::move(readiness));
         haven::presentation::resources::register_get_resource_route(
-            std::move(get_resource_handler));
+            std::move(get_resource_handler), "organization-1");
+        haven::presentation::resources::register_search_resources_route(
+            std::move(search_resources_handler), "organization-1");
         haven::presentation::reservations::register_create_reservation_route(
             std::move(create_reservation_handler), authentication_service);
         HVN_INFO_LOG("HTTP routes registered");

@@ -25,6 +25,7 @@ add_library(
     observability/metrics/metrics_controller.cpp
 
     api_error_response.cpp
+    http_timestamp.cpp
 
     auth/authentication_controller.cpp
 
@@ -33,6 +34,7 @@ add_library(
     reservations/create_reservation_response.cpp
 
     resources/get_resource_controller.cpp
+    resources/search_resources_controller.cpp
     resources/resource_error_response.cpp
     resources/resource_response.cpp
 )

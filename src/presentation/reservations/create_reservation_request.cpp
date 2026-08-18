@@ -5,49 +5,19 @@
 
 #include "haven/presentation/reservations/create_reservation_request.hpp"
 
+#include "haven/presentation/http_timestamp.hpp"
+
 #include <algorithm>
-#include <charconv>
 #include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 #include <utility>
 
 namespace haven::presentation::reservations {
 namespace {
 using namespace std::chrono;
-
-int component(const std::string_view text, const std::size_t offset, const std::size_t length) {
-    int value{};
-    const auto [end, error] =
-        std::from_chars(text.data() + offset, text.data() + offset + length, value);
-    if (error != std::errc{} || end != text.data() + offset + length)
-        throw std::invalid_argument("Malformed timestamp");
-    return value;
-}
-
-system_clock::time_point parse_timestamp(std::string text) {
-    if (text.size() == 20 && text.back() == 'Z')
-        text.insert(19, ".000000000");
-    if (text.size() != 30 || text[4] != '-' || text[7] != '-' || text[10] != 'T' ||
-        text[13] != ':' || text[16] != ':' || text[19] != '.' || text[29] != 'Z')
-        throw std::invalid_argument("Malformed timestamp");
-    const auto date = year_month_day{year{component(text, 0, 4)},
-                                     month{static_cast<unsigned>(component(text, 5, 2))},
-                                     day{static_cast<unsigned>(component(text, 8, 2))}};
-    const auto hour = component(text, 11, 2);
-    const auto minute = component(text, 14, 2);
-    const auto second = component(text, 17, 2);
-    const auto nanos = component(text, 20, 9);
-    if (!date.ok() || hour > 23 || minute > 59 || second > 59)
-        throw std::invalid_argument("Malformed timestamp");
-    const sys_time<nanoseconds> parsed =
-        sys_days{date} + hours{hour} + minutes{minute} + seconds{second} + nanoseconds{nanos};
-    return system_clock::time_point{
-        duration_cast<system_clock::duration>(parsed.time_since_epoch())};
-}
 
 }  // namespace
 
@@ -62,8 +32,8 @@ CreateReservationRequest CreateReservationRequest::from_json(const Json::Value& 
             return std::iscntrl(character) != 0 || std::isspace(character) != 0;
         }))
         throw std::invalid_argument("Invalid resource identifier");
-    const auto start = parse_timestamp(json["startTime"].asString());
-    const auto end = parse_timestamp(json["endTime"].asString());
+    const auto start = haven::presentation::parse_http_timestamp(json["startTime"].asString());
+    const auto end = haven::presentation::parse_http_timestamp(json["endTime"].asString());
     return CreateReservationRequest{haven::domain::ResourceId{resource_id},
                                     haven::domain::TimeInterval{start, end},
                                     haven::domain::Purpose{json.get("purpose", "").asString()}};

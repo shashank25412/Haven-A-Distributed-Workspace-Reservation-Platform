@@ -17,6 +17,12 @@ hashes; opaque eight-hour sessions live in `identity.sessions`. New sign-ups are
 always members. Administrator roles must be provisioned by an operator and
 cannot be selected by the browser.
 
+`GET /api/v1/resources` exposes the active public workspace catalog filtered by
+resource type, time interval, and optional text. It derives availability from
+reservation conflicts. `GET /api/v1/resources/{resourceId}` returns public
+details for a discovered resource; reservation creation still requires a valid
+bearer session and repeats the authoritative conflict check.
+
 <p>
   <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white">
   <img alt="CMake" src="https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white">

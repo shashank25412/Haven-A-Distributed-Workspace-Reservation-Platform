@@ -195,6 +195,7 @@ paths:
     get:
       tags:
       - Resources
+      security: []
       summary: Search available resources
       description: Returns tenant-scoped active resources available in the requested half-open interval. The result
         is a point-in-time snapshot and does not lock or reserve a resource. Reservation creation repeats the authoritative
@@ -204,46 +205,13 @@ paths:
       - $ref: '#/components/parameters/ResourceTypeQuery'
       - $ref: '#/components/parameters/StartTimeQuery'
       - $ref: '#/components/parameters/EndTimeQuery'
-      - name: minimumCapacity
+      - name: query
         in: query
         required: false
-        schema:
-          type: integer
-          minimum: 0
-      - name: building
-        in: query
-        required: false
+        description: Case-insensitive name or description text.
         schema:
           type: string
-      - name: floor
-        in: query
-        required: false
-        schema:
-          type: string
-      - name: features
-        in: query
-        required: false
-        description: Comma-separated required feature names.
-        style: form
-        explode: false
-        schema:
-          type: array
-          items:
-            type: string
-            minLength: 1
-          uniqueItems: true
-        example:
-        - PROJECTOR
-        - WHITEBOARD
-      - name: sort
-        in: query
-        required: false
-        description: Supported sort expression. Exact allowed values remain an implementation-level contract to
-          be finalized before route implementation.
-        schema:
-          type: string
-      - $ref: '#/components/parameters/Page'
-      - $ref: '#/components/parameters/PageSize'
+          maxLength: 100
       responses:
         '200':
           description: Available resource snapshot.
@@ -262,14 +230,10 @@ paths:
                   name: Orion
                   description: Eight-seat meeting room near reception.
                   resourceType: MEETING_ROOM
-                  capacity: 8
-                  location:
-                    building: Tower A
-                    floor: '5'
-                    zone: East
-                  features:
-                  - PROJECTOR
-                  - WHITEBOARD
+                  organizationId: organization-1
+                  status: ACTIVE
+                  requiresApproval: false
+                  version: 1
                 searchContext:
                   startTime: '2026-08-01T10:00:00Z'
                   endTime: '2026-08-01T11:00:00Z'
@@ -290,6 +254,27 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/resources/{resourceId}:
+    get:
+      tags: [Resources]
+      summary: Get public resource details
+      description: Returns a resource from the deployment's public workspace catalog.
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/ResourceIdPath'
+      responses:
+        '200':
+          description: Resource details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceDetails'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/v1/organizations/{organizationId}/resources/{resourceId}:
     get:
       tags:
@@ -1333,7 +1318,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/ResourceSummary'
+            $ref: '#/components/schemas/ResourceDetails'
         searchContext:
           $ref: '#/components/schemas/SearchContext'
         pagination:
@@ -1358,10 +1343,9 @@ components:
       - resourceId
       - startTime
       - endTime
-      description: Organization and creator currently come from temporary X-Haven-Organization-Id and
-        X-Haven-User-Id development headers until authentication is implemented. `startTime`
-        must be earlier than `endTime`; standard duration is at most 12 hours. Maintenance duration up to 24 hours
-        requires a separate trusted authorization mechanism.
+      description: Organization and creator come from the authenticated bearer session. `startTime` must be earlier
+        than `endTime`; standard duration is at most 12 hours. Maintenance duration up to 24 hours requires a separate
+        trusted authorization mechanism.
     CreateReservationResponse:
       type: object
       properties:

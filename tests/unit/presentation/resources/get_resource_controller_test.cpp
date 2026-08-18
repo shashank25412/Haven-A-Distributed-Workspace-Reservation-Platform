@@ -50,6 +50,20 @@ DROGON_TEST(GetResource_ShouldReturnCompleteResource_WhenTenantScopedResourceExi
         });
 }
 
+DROGON_TEST(GetResource_ShouldReturnPublicCatalogResource) {
+    send_get("/api/v1/resources/resource-1",
+             [TEST_CTX](const drogon::ReqResult result,
+                        const drogon::HttpResponsePtr& response) {
+                 REQUIRE(result == drogon::ReqResult::Ok);
+                 REQUIRE(response != nullptr);
+                 CHECK(response->getStatusCode() == drogon::k200OK);
+                 const auto body = response->getJsonObject();
+                 REQUIRE(body != nullptr);
+                 CHECK((*body)["organizationId"].asString() == "organization-1");
+                 CHECK((*body)["resourceId"].asString() == "resource-1");
+             });
+}
+
 DROGON_TEST(GetResource_ShouldReturnNotFound_WhenResourceIsMissingForCorrectOrganization) {
     send_get(
         "/api/v1/organizations/organization-1/resources/missing-resource",

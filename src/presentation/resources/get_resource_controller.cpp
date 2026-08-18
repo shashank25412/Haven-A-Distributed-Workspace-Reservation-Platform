@@ -118,16 +118,17 @@ void handle_get_resource_request(
 }  // namespace
 
 void register_get_resource_route(
-    std::shared_ptr<haven::application::resources::GetResourceHandler> handler) {
+    std::shared_ptr<haven::application::resources::GetResourceHandler> handler,
+    std::string public_organization_id) {
     HVN_TRACE_SCOPE();
 
-    if (!handler) {
-        throw std::invalid_argument("Get Resource route handler must not be null");
+    if (!handler || public_organization_id.empty()) {
+        throw std::invalid_argument("Get Resource route configuration is invalid");
     }
 
     drogon::app().registerHandler(
         kResourceDetailRoute,
-        [handler = std::move(handler)](
+        [handler](
             const drogon::HttpRequestPtr& request,
             std::function<void(const drogon::HttpResponsePtr&)>&& callback,
             std::string organization_id,
@@ -138,6 +139,20 @@ void register_get_resource_route(
                 std::move(callback),
                 std::move(organization_id),
                 std::move(resource_id));
+        },
+        {drogon::Get});
+
+    drogon::app().registerHandler(
+        "/api/v1/resources/{resourceId}",
+        [handler = std::move(handler), organization_id = std::move(public_organization_id)](
+            const drogon::HttpRequestPtr& request,
+            std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+            std::string resource_id) {
+            handle_get_resource_request(handler,
+                                        request,
+                                        std::move(callback),
+                                        organization_id,
+                                        std::move(resource_id));
         },
         {drogon::Get});
 }

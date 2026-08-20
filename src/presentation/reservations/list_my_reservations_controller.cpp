@@ -130,6 +130,10 @@ void handle(
                 reservation.cancellation_info()->reason().has_value()) {
                 item["cancellationReason"] = *reservation.cancellation_info()->reason();
             }
+            if (reservation.rejection_info().has_value() &&
+                reservation.rejection_info()->reason().has_value()) {
+                item["rejectionReason"] = *reservation.rejection_info()->reason();
+            }
             body["items"].append(std::move(item));
         }
         body["pagination"]["page"] = 1;

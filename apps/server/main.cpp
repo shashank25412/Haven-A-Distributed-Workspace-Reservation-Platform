@@ -45,6 +45,7 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_organization_repository.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_user_directory.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/admin/admin_cancel_reservation_controller.hpp"
 #include "haven/presentation/admin/list_all_reservations_controller.hpp"
@@ -134,6 +135,8 @@ int main() {
         auto authentication_service =
             std::make_shared<couchbase_persistence::CouchbaseAuthenticationService>(
                 identity_connection, "organization-1");
+        std::shared_ptr<haven::application::users::UserDirectory> user_directory =
+            std::make_shared<couchbase_persistence::CouchbaseUserDirectory>(identity_connection);
 
         std::shared_ptr<haven::application::resources::ResourceRepository> resource_repository =
             std::make_shared<couchbase_persistence::CouchbaseResourceRepository>(
@@ -288,15 +291,18 @@ int main() {
         haven::presentation::reservations::register_get_reservation_route(
             std::move(get_reservation_handler), resource_repository, authentication_service);
         haven::presentation::approvals::register_list_pending_approvals_route(
-            std::move(list_pending_approvals_handler), resource_repository, authentication_service);
+            std::move(list_pending_approvals_handler), resource_repository, authentication_service,
+            user_directory);
         haven::presentation::approvals::register_list_decided_approvals_route(
-            std::move(list_decided_approvals_handler), resource_repository, authentication_service);
+            std::move(list_decided_approvals_handler), resource_repository, authentication_service,
+            user_directory);
         haven::presentation::approvals::register_approve_reservation_route(
             std::move(approve_reservation_handler), authentication_service);
         haven::presentation::approvals::register_reject_reservation_route(
             std::move(reject_reservation_handler), authentication_service);
         haven::presentation::admin::register_list_all_reservations_route(
-            std::move(list_all_reservations_handler), resource_repository, authentication_service);
+            std::move(list_all_reservations_handler), resource_repository, authentication_service,
+            user_directory);
         haven::presentation::admin::register_admin_cancel_reservation_route(
             std::move(admin_cancel_reservation_handler), authentication_service);
         HVN_INFO_LOG("HTTP routes registered");

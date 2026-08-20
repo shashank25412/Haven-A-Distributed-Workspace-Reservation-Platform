@@ -152,6 +152,8 @@ trap 'rm -f "${rendered_index_file}"' EXIT
 sed \
     -e "s/{{BUCKET}}/${HVN_COUCHBASE_BUCKET}/g" \
     -e "s/{{SCOPE}}/${HVN_COUCHBASE_SCOPE}/g" \
+    -e "s/{{IDENTITY_BUCKET}}/${identity_bucket}/g" \
+    -e "s/{{IDENTITY_SCOPE}}/${identity_scope}/g" \
     "${index_file}" >"${rendered_index_file}"
 
 "${cbq}" \

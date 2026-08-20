@@ -69,6 +69,7 @@ void handle(
     const std::shared_ptr<haven::application::reservations::ListDecidedApprovalsHandler>& handler,
     const std::shared_ptr<haven::application::resources::ResourceRepository>& resource_repository,
     const std::shared_ptr<haven::application::auth::AuthenticationService>& authentication,
+    const std::shared_ptr<haven::application::users::UserDirectory>& user_directory,
     const drogon::HttpRequestPtr& request,
     std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
     HVN_TRACE_SCOPE();
@@ -131,8 +132,10 @@ void handle(
 
             Json::Value creator;
             creator["userId"] = reservation.created_by().value();
-            // No user directory exists yet; the caller identifier doubles as the display name.
-            creator["displayName"] = reservation.created_by().value();
+            const auto creator_display_name =
+                user_directory->find_display_name(reservation.created_by().value());
+            creator["displayName"] =
+                creator_display_name.value_or(reservation.created_by().value());
             item["creator"] = std::move(creator);
 
             item["startTime"] = reservations::reservation_http_timestamp(reservation.interval().start());
@@ -145,16 +148,20 @@ void handle(
 
             Json::Value decided_by;
             if (is_rejected && reservation.rejection_info().has_value()) {
-                decided_by["userId"] = reservation.rejection_info()->rejected_by().value();
-                decided_by["displayName"] = reservation.rejection_info()->rejected_by().value();
+                const auto& rejected_by = reservation.rejection_info()->rejected_by().value();
+                decided_by["userId"] = rejected_by;
+                decided_by["displayName"] =
+                    user_directory->find_display_name(rejected_by).value_or(rejected_by);
                 item["decidedAt"] = reservations::reservation_http_timestamp(
                     reservation.rejection_info()->rejected_at());
                 item["reason"] = reservation.rejection_info()->reason().has_value()
                                      ? Json::Value{*reservation.rejection_info()->reason()}
                                      : Json::Value::null;
             } else if (reservation.approval_info().has_value()) {
-                decided_by["userId"] = reservation.approval_info()->approved_by().value();
-                decided_by["displayName"] = reservation.approval_info()->approved_by().value();
+                const auto& approved_by = reservation.approval_info()->approved_by().value();
+                decided_by["userId"] = approved_by;
+                decided_by["displayName"] =
+                    user_directory->find_display_name(approved_by).value_or(approved_by);
                 item["decidedAt"] = reservations::reservation_http_timestamp(
                     reservation.approval_info()->approved_at());
                 item["reason"] = Json::Value::null;
@@ -204,22 +211,26 @@ void handle(
 void register_list_decided_approvals_route(
     std::shared_ptr<haven::application::reservations::ListDecidedApprovalsHandler> handler,
     std::shared_ptr<haven::application::resources::ResourceRepository> resource_repository,
-    std::shared_ptr<haven::application::auth::AuthenticationService> authentication) {
+    std::shared_ptr<haven::application::auth::AuthenticationService> authentication,
+    std::shared_ptr<haven::application::users::UserDirectory> user_directory) {
     if (!handler)
         throw std::invalid_argument("List Decided Approvals route handler must not be null");
     if (!resource_repository)
         throw std::invalid_argument("List Decided Approvals resource repository must not be null");
     if (!authentication)
         throw std::invalid_argument("List Decided Approvals authentication service must not be null");
+    if (!user_directory)
+        throw std::invalid_argument("List Decided Approvals user directory must not be null");
 
     drogon::app().registerHandler(
         kRoute,
         [handler = std::move(handler),
          resource_repository = std::move(resource_repository),
-         authentication = std::move(authentication)](
+         authentication = std::move(authentication),
+         user_directory = std::move(user_directory)](
             const drogon::HttpRequestPtr& request,
             std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-            handle(handler, resource_repository, authentication, request, std::move(callback));
+            handle(handler, resource_repository, authentication, user_directory, request, std::move(callback));
         },
         {drogon::Get});
 }

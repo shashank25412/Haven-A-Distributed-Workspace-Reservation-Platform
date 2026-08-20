@@ -68,6 +68,7 @@ void handle(
     const std::shared_ptr<haven::application::reservations::ListPendingApprovalsHandler>& handler,
     const std::shared_ptr<haven::application::resources::ResourceRepository>& resource_repository,
     const std::shared_ptr<haven::application::auth::AuthenticationService>& authentication,
+    const std::shared_ptr<haven::application::users::UserDirectory>& user_directory,
     const drogon::HttpRequestPtr& request,
     std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
     HVN_TRACE_SCOPE();
@@ -130,8 +131,10 @@ void handle(
 
             Json::Value creator;
             creator["userId"] = reservation.created_by().value();
-            // No user directory exists yet; the caller identifier doubles as the display name.
-            creator["displayName"] = reservation.created_by().value();
+            const auto creator_display_name =
+                user_directory->find_display_name(reservation.created_by().value());
+            creator["displayName"] =
+                creator_display_name.value_or(reservation.created_by().value());
             item["creator"] = std::move(creator);
 
             item["startTime"] = reservations::reservation_http_timestamp(reservation.interval().start());
@@ -176,22 +179,26 @@ void handle(
 void register_list_pending_approvals_route(
     std::shared_ptr<haven::application::reservations::ListPendingApprovalsHandler> handler,
     std::shared_ptr<haven::application::resources::ResourceRepository> resource_repository,
-    std::shared_ptr<haven::application::auth::AuthenticationService> authentication) {
+    std::shared_ptr<haven::application::auth::AuthenticationService> authentication,
+    std::shared_ptr<haven::application::users::UserDirectory> user_directory) {
     if (!handler)
         throw std::invalid_argument("List Pending Approvals route handler must not be null");
     if (!resource_repository)
         throw std::invalid_argument("List Pending Approvals resource repository must not be null");
     if (!authentication)
         throw std::invalid_argument("List Pending Approvals authentication service must not be null");
+    if (!user_directory)
+        throw std::invalid_argument("List Pending Approvals user directory must not be null");
 
     drogon::app().registerHandler(
         kRoute,
         [handler = std::move(handler),
          resource_repository = std::move(resource_repository),
-         authentication = std::move(authentication)](
+         authentication = std::move(authentication),
+         user_directory = std::move(user_directory)](
             const drogon::HttpRequestPtr& request,
             std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-            handle(handler, resource_repository, authentication, request, std::move(callback));
+            handle(handler, resource_repository, authentication, user_directory, request, std::move(callback));
         },
         {drogon::Get});
 }

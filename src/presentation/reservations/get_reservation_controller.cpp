@@ -155,6 +155,10 @@ void handle(
             reservation->cancellation_info()->reason().has_value()) {
             body["cancellationReason"] = *reservation->cancellation_info()->reason();
         }
+        if (reservation->rejection_info().has_value() &&
+            reservation->rejection_info()->reason().has_value()) {
+            body["rejectionReason"] = *reservation->rejection_info()->reason();
+        }
 
         callback(drogon::HttpResponse::newHttpJsonResponse(body));
     } catch (const std::exception&) {

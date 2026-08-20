@@ -90,6 +90,7 @@ add_library(
     persistence/couchbase/organization_document_mapper.cpp
     persistence/couchbase/organization_document_validator.cpp
     persistence/couchbase/couchbase_organization_repository.cpp
+    persistence/couchbase/couchbase_user_directory.cpp
     persistence/couchbase/couchbase_reservation_creation_store.cpp
     persistence/couchbase/couchbase_reservation_creation_event_store.cpp
     persistence/couchbase/metrics/couchbase_persistence_metrics.cpp

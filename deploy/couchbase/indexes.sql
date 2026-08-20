@@ -26,3 +26,7 @@ WHERE `documentType` = "outbox";
 CREATE INDEX IF NOT EXISTS `idx_organizations_directory`
 ON `{{BUCKET}}`.`{{SCOPE}}`.`organizations`(`name`)
 WHERE `documentType` = "organization";
+
+CREATE INDEX IF NOT EXISTS `idx_credentials_user_id`
+ON `{{IDENTITY_BUCKET}}`.`{{IDENTITY_SCOPE}}`.`credentials`(`userId`)
+WHERE `documentType` = "userCredential";

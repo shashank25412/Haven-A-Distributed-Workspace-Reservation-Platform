@@ -29,9 +29,14 @@ add_library(
 
     auth/authentication_controller.cpp
 
+    approvals/approve_reservation_controller.cpp
+    approvals/list_pending_approvals_controller.cpp
+    approvals/reject_reservation_controller.cpp
+
     reservations/create_reservation_controller.cpp
     reservations/create_reservation_request.cpp
     reservations/create_reservation_response.cpp
+    reservations/list_my_reservations_controller.cpp
 
     resources/get_resource_controller.cpp
     resources/search_resources_controller.cpp

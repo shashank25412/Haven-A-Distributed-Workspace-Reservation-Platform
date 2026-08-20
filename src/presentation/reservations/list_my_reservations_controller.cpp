@@ -14,7 +14,7 @@
 #include "haven/domain/value_objects/user_id.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/api_error_response.hpp"
-#include "haven/presentation/reservations/create_reservation_response.hpp"
+#include "haven/presentation/reservations/create_reservation_request.hpp"
 
 #include <drogon/HttpAppFramework.h>
 #include <drogon/HttpResponse.h>
@@ -31,7 +31,6 @@ namespace haven::presentation::reservations {
 namespace {
 
 constexpr char kRoute[]{"/api/v1/reservations/me"};
-constexpr std::size_t kMaximumHeaderLength{255};
 
 std::optional<std::string> bearer_token(const drogon::HttpRequestPtr& request) {
     constexpr std::string_view prefix{"Bearer "};

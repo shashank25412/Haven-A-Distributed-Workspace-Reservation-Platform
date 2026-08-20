@@ -12,7 +12,7 @@
 #include "haven/domain/value_objects/resource_type.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/api_error_response.hpp"
-#include "haven/presentation/reservations/create_reservation_response.hpp"
+#include "haven/presentation/reservations/create_reservation_request.hpp"
 
 #include <drogon/HttpAppFramework.h>
 #include <drogon/HttpResponse.h>
@@ -134,8 +134,8 @@ void handle(
             creator["displayName"] = reservation.created_by().value();
             item["creator"] = std::move(creator);
 
-            item["startTime"] = reservation_http_timestamp(reservation.interval().start());
-            item["endTime"] = reservation_http_timestamp(reservation.interval().end());
+            item["startTime"] = reservations::reservation_http_timestamp(reservation.interval().start());
+            item["endTime"] = reservations::reservation_http_timestamp(reservation.interval().end());
             item["purpose"] = reservation.purpose().value();
             item["status"] = "PENDING_APPROVAL";
             body["items"].append(std::move(item));

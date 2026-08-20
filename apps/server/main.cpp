@@ -11,7 +11,11 @@
 #include "haven/application/idempotency/idempotency_repository.hpp"
 #include "haven/application/outbox/outbox_publisher.hpp"
 #include "haven/application/outbox/system_outbox_publisher_clock.hpp"
+#include "haven/application/reservations/approve_reservation_handler.hpp"
 #include "haven/application/reservations/create_reservation_handler.hpp"
+#include "haven/application/reservations/list_caller_reservations_handler.hpp"
+#include "haven/application/reservations/list_pending_approvals_handler.hpp"
+#include "haven/application/reservations/reject_reservation_handler.hpp"
 #include "haven/application/reservations/reservation_repository.hpp"
 #include "haven/application/resources/authoritative_resource_query_repository.hpp"
 #include "haven/application/resources/cached_resource_query_repository.hpp"
@@ -35,11 +39,15 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/logging/logging.hpp"
+#include "haven/presentation/approvals/approve_reservation_controller.hpp"
+#include "haven/presentation/approvals/list_pending_approvals_controller.hpp"
+#include "haven/presentation/approvals/reject_reservation_controller.hpp"
 #include "haven/presentation/health/live_controller.hpp"
 #include "haven/presentation/auth/authentication_controller.hpp"
 #include "haven/presentation/health/readiness_controller.hpp"
 #include "haven/presentation/observability/metrics/metrics_controller.hpp"
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
+#include "haven/presentation/reservations/list_my_reservations_controller.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
 #include "haven/presentation/resources/search_resources_controller.hpp"
 #include "haven/runtime/outbox/outbox_publisher_worker.hpp"
@@ -200,6 +208,18 @@ int main() {
                 *idempotency_repository,
                 *reservation_creation_policy,
                 *metrics_recorder);
+        auto list_caller_reservations_handler =
+            std::make_shared<haven::application::reservations::ListCallerReservationsHandler>(
+                *reservation_repository);
+        auto list_pending_approvals_handler =
+            std::make_shared<haven::application::reservations::ListPendingApprovalsHandler>(
+                *reservation_repository);
+        auto approve_reservation_handler =
+            std::make_shared<haven::application::reservations::ApproveReservationHandler>(
+                *reservation_repository);
+        auto reject_reservation_handler =
+            std::make_shared<haven::application::reservations::RejectReservationHandler>(
+                *reservation_repository);
 
         namespace app_health = haven::application::health;
         auto couchbase_probe = app_health::FunctionReadinessProbe{
@@ -229,6 +249,14 @@ int main() {
             std::move(search_resources_handler), "organization-1");
         haven::presentation::reservations::register_create_reservation_route(
             std::move(create_reservation_handler), authentication_service);
+        haven::presentation::reservations::register_list_my_reservations_route(
+            std::move(list_caller_reservations_handler), resource_repository, authentication_service);
+        haven::presentation::approvals::register_list_pending_approvals_route(
+            std::move(list_pending_approvals_handler), resource_repository, authentication_service);
+        haven::presentation::approvals::register_approve_reservation_route(
+            std::move(approve_reservation_handler), authentication_service);
+        haven::presentation::approvals::register_reject_reservation_route(
+            std::move(reject_reservation_handler), authentication_service);
         HVN_INFO_LOG("HTTP routes registered");
 
         HVN_INFO_LOG("Starting Haven API on ",

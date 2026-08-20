@@ -6,6 +6,7 @@
 #include "haven/infrastructure/persistence/couchbase/reservation_document_mapper.hpp"
 
 #include "haven/domain/value_objects/approval_info.hpp"
+#include "haven/domain/value_objects/cancellation_info.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
 #include "haven/domain/value_objects/rejection_info.hpp"
@@ -67,6 +68,28 @@ namespace {
                                  rejection->reason};
 }
 
+[[nodiscard]] std::optional<ReservationCancellationDocument> to_cancellation_document(
+    const std::optional<domain::CancellationInfo>& cancellation) {
+    if (!cancellation.has_value()) {
+        return std::nullopt;
+    }
+    return ReservationCancellationDocument{
+        .cancelled_by = cancellation->cancelled_by().value(),
+        .cancelled_at = reservation_timestamp_to_string(cancellation->cancelled_at()),
+        .reason = cancellation->reason(),
+    };
+}
+
+[[nodiscard]] std::optional<domain::CancellationInfo> to_domain_cancellation(
+    const std::optional<ReservationCancellationDocument>& cancellation) {
+    if (!cancellation.has_value()) {
+        return std::nullopt;
+    }
+    return domain::CancellationInfo{domain::UserId{cancellation->cancelled_by},
+                                    reservation_timestamp_from_string(cancellation->cancelled_at),
+                                    cancellation->reason};
+}
+
 }  // namespace
 
 ReservationDocument to_reservation_document(const domain::Reservation& reservation) {
@@ -85,6 +108,7 @@ ReservationDocument to_reservation_document(const domain::Reservation& reservati
         .kind = std::string{domain::to_string(reservation.kind())},
         .approval = to_approval_document(reservation.approval_info()),
         .rejection = to_rejection_document(reservation.rejection_info()),
+        .cancellation = to_cancellation_document(reservation.cancellation_info()),
         .version = reservation.version().value(),
     };
     validate_reservation_document(document);
@@ -107,6 +131,7 @@ domain::Reservation to_domain_reservation(const ReservationDocument& document) {
         domain::reservation_status_from_string(document.status),
         to_domain_approval(document.approval),
         to_domain_rejection(document.rejection),
+        to_domain_cancellation(document.cancellation),
         domain::Version{document.version});
 }
 

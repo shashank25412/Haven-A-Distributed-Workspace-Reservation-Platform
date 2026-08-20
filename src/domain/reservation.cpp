@@ -35,6 +35,7 @@ Reservation Reservation::create_confirmed(OrganizationId organization_id,
                             ReservationStatus::Confirmed,
                             std::nullopt,
                             std::nullopt,
+                            std::nullopt,
                             Version{1}};
 
     reservation.domain_events_.emplace_back(ReservationCreatedEvent{std::move(created_event_id),
@@ -84,6 +85,7 @@ Reservation Reservation::create_pending_approval(OrganizationId organization_id,
                             ReservationStatus::PendingApproval,
                             std::nullopt,
                             std::nullopt,
+                            std::nullopt,
                             Version{1}};
 
     reservation.domain_events_.emplace_back(ReservationCreatedEvent{std::move(created_event_id),
@@ -122,6 +124,7 @@ Reservation Reservation::rehydrate(OrganizationId organization_id,
                                    const ReservationStatus status,
                                    std::optional<ApprovalInfo> approval_info,
                                    std::optional<RejectionInfo> rejection_info,
+                                   std::optional<CancellationInfo> cancellation_info,
                                    const Version version) {
     HVN_TRACE_SCOPE();
 
@@ -139,6 +142,7 @@ Reservation Reservation::rehydrate(OrganizationId organization_id,
                             status,
                             std::move(approval_info),
                             std::move(rejection_info),
+                            std::move(cancellation_info),
                             version};
 
     HVN_DEBUG_LOG("Rehydrated reservation without recording domain events.");
@@ -156,6 +160,7 @@ Reservation::Reservation(OrganizationId organization_id,
                          const ReservationStatus status,
                          std::optional<ApprovalInfo> approval_info,
                          std::optional<RejectionInfo> rejection_info,
+                         std::optional<CancellationInfo> cancellation_info,
                          const Version version)
     : organization_id_(std::move(organization_id)),
       reservation_id_(std::move(reservation_id)),
@@ -167,6 +172,7 @@ Reservation::Reservation(OrganizationId organization_id,
       status_(status),
       approval_info_(std::move(approval_info)),
       rejection_info_(std::move(rejection_info)),
+      cancellation_info_(std::move(cancellation_info)),
       version_(version) {}
 
 const OrganizationId& Reservation::organization_id() const noexcept {
@@ -207,6 +213,10 @@ const std::optional<ApprovalInfo>& Reservation::approval_info() const noexcept {
 
 const std::optional<RejectionInfo>& Reservation::rejection_info() const noexcept {
     return rejection_info_;
+}
+
+const std::optional<CancellationInfo>& Reservation::cancellation_info() const noexcept {
+    return cancellation_info_;
 }
 
 Version Reservation::version() const noexcept {
@@ -283,6 +293,7 @@ void Reservation::cancel(UserId cancelled_by,
 
     const ReservationStatus previous_status = status_;
     status_ = ReservationStatus::Cancelled;
+    cancellation_info_.emplace(cancelled_by, cancelled_at, reason);
     version_ = Version{version_.value() + 1};
 
     domain_events_.emplace_back(ReservationCancelledEvent{std::move(cancelled_event_id),

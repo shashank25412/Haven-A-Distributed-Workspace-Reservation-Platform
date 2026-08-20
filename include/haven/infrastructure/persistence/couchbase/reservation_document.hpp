@@ -45,6 +45,20 @@ struct ReservationRejectionDocument {
 };
 
 /**
+ * @brief Persisted cancellation details for a cancelled reservation.
+ *
+ * Timestamps use a fixed ISO-8601 UTC representation with nanosecond precision.
+ * The reason is optional free-form text supplied by the cancelling user.
+ */
+struct ReservationCancellationDocument {
+    std::string cancelled_by;
+    std::string cancelled_at;
+    std::optional<std::string> reason;
+
+    bool operator==(const ReservationCancellationDocument&) const = default;
+};
+
+/**
  * @brief Infrastructure-owned reservation representation stored in Couchbase.
  *
  * Purpose text is preserved exactly. Start, end, and approval timestamps use a
@@ -63,6 +77,7 @@ struct ReservationDocument {
     std::string kind;
     std::optional<ReservationApprovalDocument> approval;
     std::optional<ReservationRejectionDocument> rejection;
+    std::optional<ReservationCancellationDocument> cancellation;
     std::uint64_t version;
 
     bool operator==(const ReservationDocument&) const = default;

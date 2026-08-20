@@ -96,6 +96,37 @@ TEST(ReservationDocumentTest, RoundTripsRejectionWithoutReason) {
     EXPECT_EQ(reservation_document_from_json(json), expected);
 }
 
+TEST(ReservationDocumentTest, RoundTripsCancellationWithReason) {
+    auto expected = document();
+    expected.approval.reset();
+    expected.status = "CANCELLED";
+    expected.cancellation = ReservationCancellationDocument{
+        .cancelled_by = "admin-123",
+        .cancelled_at = "2026-07-28T03:00:00.000000001Z",
+        .reason = std::string{"Double-booked by mistake."},
+    };
+    const auto json = reservation_document_to_json(expected);
+
+    EXPECT_EQ(json.at("cancellation").at("cancelledBy").get_string(), "admin-123");
+    EXPECT_EQ(json.at("cancellation").at("reason").get_string(), "Double-booked by mistake.");
+    EXPECT_EQ(reservation_document_from_json(json), expected);
+}
+
+TEST(ReservationDocumentTest, RoundTripsCancellationWithoutReason) {
+    auto expected = document();
+    expected.approval.reset();
+    expected.status = "CANCELLED";
+    expected.cancellation = ReservationCancellationDocument{
+        .cancelled_by = "admin-123",
+        .cancelled_at = "2026-07-28T03:00:00.000000001Z",
+        .reason = std::nullopt,
+    };
+    const auto json = reservation_document_to_json(expected);
+
+    EXPECT_EQ(json.at("cancellation").get_object().count("reason"), 0U);
+    EXPECT_EQ(reservation_document_from_json(json), expected);
+}
+
 TEST(ReservationDocumentTest, RejectsIncorrectAndMissingDocumentType) {
     auto incorrect = reservation_document_to_json(document());
     incorrect["documentType"] = "resource";

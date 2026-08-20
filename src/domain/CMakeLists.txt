@@ -34,6 +34,7 @@ add_library(
     value_objects/reservation_kind.cpp
     value_objects/approval_info.cpp
     value_objects/rejection_info.cpp
+    value_objects/cancellation_info.cpp
 
     resource.cpp
     reservation.cpp

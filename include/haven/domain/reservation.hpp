@@ -7,6 +7,7 @@
 
 #include "haven/domain/events/reservation_domain_event.hpp"
 #include "haven/domain/value_objects/approval_info.hpp"
+#include "haven/domain/value_objects/cancellation_info.hpp"
 #include "haven/domain/value_objects/event_id.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
@@ -82,6 +83,7 @@ public:
      * @param status Persisted lifecycle status.
      * @param approval_info Persisted approval information, when applicable.
      * @param rejection_info Persisted rejection information, when applicable.
+     * @param cancellation_info Persisted cancellation information, when applicable.
      * @param version Persistence-neutral optimistic concurrency version.
      *
      * @return Rehydrated reservation without uncommitted domain events.
@@ -96,6 +98,7 @@ public:
                                                ReservationStatus status,
                                                std::optional<ApprovalInfo> approval_info,
                                                std::optional<RejectionInfo> rejection_info,
+                                               std::optional<CancellationInfo> cancellation_info,
                                                Version version);
 
     /**
@@ -147,6 +150,11 @@ public:
      * @brief Returns rejection information when the reservation was rejected.
      */
     [[nodiscard]] const std::optional<RejectionInfo>& rejection_info() const noexcept;
+
+    /**
+     * @brief Returns cancellation information when the reservation was cancelled.
+     */
+    [[nodiscard]] const std::optional<CancellationInfo>& cancellation_info() const noexcept;
 
     /**
      * @brief Returns the optimistic concurrency version.
@@ -223,6 +231,7 @@ private:
                 ReservationStatus status,
                 std::optional<ApprovalInfo> approval_info,
                 std::optional<RejectionInfo> rejection_info,
+                std::optional<CancellationInfo> cancellation_info,
                 Version version);
 
     OrganizationId organization_id_;
@@ -235,6 +244,7 @@ private:
     ReservationStatus status_;
     std::optional<ApprovalInfo> approval_info_;
     std::optional<RejectionInfo> rejection_info_;
+    std::optional<CancellationInfo> cancellation_info_;
     Version version_;
     std::vector<ReservationDomainEvent> domain_events_;
 };

@@ -38,6 +38,7 @@ using namespace std::chrono_literals;
                                           status,
                                           std::move(approval),
                                           std::move(rejection),
+                                          std::nullopt,
                                           domain::Version{42});
 }
 

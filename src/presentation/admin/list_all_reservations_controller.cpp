@@ -140,6 +140,10 @@ void handle(
             item["endTime"] = reservations::reservation_http_timestamp(reservation.interval().end());
             item["purpose"] = reservation.purpose().value();
             item["status"] = std::string{haven::domain::to_string(reservation.status())};
+            if (reservation.cancellation_info().has_value() &&
+                reservation.cancellation_info()->reason().has_value()) {
+                item["cancellationReason"] = *reservation.cancellation_info()->reason();
+            }
             body["items"].append(std::move(item));
         }
         body["pagination"]["page"] = 1;

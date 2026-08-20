@@ -56,6 +56,26 @@ void validate_document_type(const tao::json::value& json) {
     };
 }
 
+[[nodiscard]] std::optional<ReservationCancellationDocument> cancellation_from_json(
+    const tao::json::value& json) {
+    const auto& object = json.get_object();
+    const auto cancellation = object.find("cancellation");
+    if (cancellation == object.end()) {
+        return std::nullopt;
+    }
+
+    const auto& cancellation_object = cancellation->second.get_object();
+    const auto reason = cancellation_object.find("reason");
+
+    return ReservationCancellationDocument{
+        .cancelled_by = cancellation->second.at("cancelledBy").get_string(),
+        .cancelled_at = cancellation->second.at("cancelledAt").get_string(),
+        .reason = reason == cancellation_object.end()
+                      ? std::nullopt
+                      : std::optional<std::string>{reason->second.get_string()},
+    };
+}
+
 }  // namespace
 
 tao::json::value reservation_document_to_json(const ReservationDocument& document) {
@@ -92,6 +112,16 @@ tao::json::value reservation_document_to_json(const ReservationDocument& documen
         }
         json["rejection"] = std::move(rejection_json);
     }
+    if (document.cancellation.has_value()) {
+        tao::json::value cancellation_json{
+            {"cancelledBy", document.cancellation->cancelled_by},
+            {"cancelledAt", document.cancellation->cancelled_at},
+        };
+        if (document.cancellation->reason.has_value()) {
+            cancellation_json["reason"] = *document.cancellation->reason;
+        }
+        json["cancellation"] = std::move(cancellation_json);
+    }
     return json;
 }
 
@@ -112,6 +142,7 @@ ReservationDocument reservation_document_from_json(const tao::json::value& json)
         .kind = json.at("kind").get_string(),
         .approval = approval_from_json(json),
         .rejection = rejection_from_json(json),
+        .cancellation = cancellation_from_json(json),
         .version = json.at("version").get_unsigned(),
     };
     validate_reservation_document(document);

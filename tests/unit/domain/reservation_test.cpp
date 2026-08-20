@@ -302,6 +302,30 @@ TEST(ReservationTest, Cancel_ShouldRecordComment_WhenReasonIsProvided) {
     EXPECT_EQ(*event.reason(), "Requested by facilities");
 }
 
+TEST(ReservationTest, Cancel_ShouldStoreCancellationInfo_WhenReservationIsCancelled) {
+    Reservation reservation = create_confirmed_reservation();
+
+    reservation.cancel(UserId{"admin-123"},
+                       Reservation::TimePoint{} + 1h,
+                       EventId{"event-cancelled-123"},
+                       std::string{"Requested by facilities"});
+
+    ASSERT_TRUE(reservation.cancellation_info().has_value());
+    EXPECT_EQ(reservation.cancellation_info()->cancelled_by(), UserId{"admin-123"});
+    ASSERT_TRUE(reservation.cancellation_info()->reason().has_value());
+    EXPECT_EQ(*reservation.cancellation_info()->reason(), "Requested by facilities");
+}
+
+TEST(ReservationTest, Cancel_ShouldStoreCancellationInfoWithoutReason_WhenReasonIsOmitted) {
+    Reservation reservation = create_confirmed_reservation();
+
+    reservation.cancel(
+        UserId{"user-123"}, Reservation::TimePoint{} + 1h, EventId{"event-cancelled-123"});
+
+    ASSERT_TRUE(reservation.cancellation_info().has_value());
+    EXPECT_FALSE(reservation.cancellation_info()->reason().has_value());
+}
+
 TEST(ReservationTest, Cancel_ShouldThrow_WhenReservationIsTerminal) {
     Reservation reservation = create_pending_reservation();
 
@@ -557,6 +581,7 @@ TEST(ReservationTest, Rehydrate_ShouldRestorePersistedState_WhenReservationExist
                                                            ReservationStatus::Confirmed,
                                                            approval_info,
                                                            std::nullopt,
+                                                           std::nullopt,
                                                            Version{42});
 
     EXPECT_EQ(reservation.organization_id(), OrganizationId{"organization-123"});
@@ -584,6 +609,7 @@ TEST(ReservationTest, Rehydrate_ShouldNotRecordDomainEvents_WhenRestoringPersist
                                                      ReservationStatus::Cancelled,
                                                      std::nullopt,
                                                      std::nullopt,
+                                                     std::nullopt,
                                                      Version{42});
 
     EXPECT_TRUE(reservation.release_domain_events().empty());
@@ -600,6 +626,7 @@ TEST(ReservationTest, Rehydrate_ShouldRejectZeroPersistenceVersion) {
                                                           Purpose{""},
                                                           ReservationKind::Standard,
                                                           ReservationStatus::Confirmed,
+                                                          std::nullopt,
                                                           std::nullopt,
                                                           std::nullopt,
                                                           Version{0})),

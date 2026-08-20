@@ -118,6 +118,7 @@ protected:
                                                      status,
                                                      std::move(approval),
                                                      std::nullopt,
+                                                     std::nullopt,
                                                      haven::domain::Version{version});
     }
 

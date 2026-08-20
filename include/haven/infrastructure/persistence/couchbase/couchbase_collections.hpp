@@ -17,6 +17,7 @@ struct CouchbaseCollections final {
     static constexpr std::string_view reservations{"reservations"};
     static constexpr std::string_view outbox{"outbox"};
     static constexpr std::string_view idempotency{"idempotency"};
+    static constexpr std::string_view organizations{"organizations"};
 };
 
 }  // namespace haven::infrastructure::persistence::couchbase

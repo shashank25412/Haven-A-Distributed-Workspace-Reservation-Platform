@@ -26,6 +26,8 @@
 #include "haven/application/resources/search_available_resources_handler.hpp"
 #include "haven/application/resources/resource_query_repository.hpp"
 #include "haven/application/resources/resource_repository.hpp"
+#include "haven/application/organizations/list_organizations_handler.hpp"
+#include "haven/application/organizations/organization_repository.hpp"
 #include "haven/bootstrap/configuration.hpp"
 #include "haven/domain/policies/reservation_creation_policy.hpp"
 #include "haven/infrastructure/cache/redis/redis_connection.hpp"
@@ -41,6 +43,7 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_creation_store.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
+#include "haven/infrastructure/persistence/couchbase/couchbase_organization_repository.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/admin/admin_cancel_reservation_controller.hpp"
 #include "haven/presentation/admin/list_all_reservations_controller.hpp"
@@ -52,6 +55,7 @@
 #include "haven/presentation/auth/authentication_controller.hpp"
 #include "haven/presentation/health/readiness_controller.hpp"
 #include "haven/presentation/observability/metrics/metrics_controller.hpp"
+#include "haven/presentation/organizations/list_organizations_controller.hpp"
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
 #include "haven/presentation/reservations/list_my_reservations_controller.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
@@ -133,6 +137,11 @@ int main() {
             std::make_shared<couchbase_persistence::CouchbaseResourceRepository>(
                 couchbase_connection, *metrics_recorder);
 
+        std::shared_ptr<haven::application::organizations::OrganizationRepository>
+            organization_repository =
+                std::make_shared<couchbase_persistence::CouchbaseOrganizationRepository>(
+                    couchbase_connection);
+
         std::shared_ptr<haven::application::reservations::ReservationRepository>
             reservation_repository =
                 std::make_shared<couchbase_persistence::CouchbaseReservationRepository>(
@@ -203,6 +212,9 @@ int main() {
         auto search_resources_handler =
             std::make_shared<haven::application::resources::SearchAvailableResourcesHandler>(
                 *resource_repository, *reservation_repository);
+        auto list_organizations_handler =
+            std::make_shared<haven::application::organizations::ListOrganizationsHandler>(
+                *organization_repository);
         auto reservation_creation_policy =
             std::make_shared<haven::domain::ReservationCreationPolicy>();
         auto create_reservation_handler =
@@ -261,7 +273,9 @@ int main() {
         haven::presentation::resources::register_get_resource_route(
             std::move(get_resource_handler), "organization-1");
         haven::presentation::resources::register_search_resources_route(
-            std::move(search_resources_handler), "organization-1");
+            std::move(search_resources_handler), "organization-1", authentication_service);
+        haven::presentation::organizations::register_list_organizations_route(
+            std::move(list_organizations_handler));
         haven::presentation::reservations::register_create_reservation_route(
             std::move(create_reservation_handler), authentication_service);
         haven::presentation::reservations::register_list_my_reservations_route(

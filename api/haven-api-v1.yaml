@@ -202,6 +202,15 @@ paths:
         conflict check.
       operationId: searchAvailableResources
       parameters:
+      - name: organizationId
+        in: query
+        required: false
+        description: Organization to search. Admin-role callers are always locked to their own
+          organization; other callers may target any organization to browse its resource catalog.
+          Defaults to the caller's own organization when authenticated, otherwise a local development
+          organization.
+        schema:
+          $ref: '#/components/schemas/OrganizationId'
       - $ref: '#/components/parameters/ResourceTypeQuery'
       - $ref: '#/components/parameters/StartTimeQuery'
       - $ref: '#/components/parameters/EndTimeQuery'
@@ -250,6 +259,36 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/organizations:
+    get:
+      tags: [Organization]
+      security: []
+      summary: List organizations
+      description: Returns every organization in the directory, so a caller can present organization
+        display names and filter resource search by organization.
+      operationId: listOrganizations
+      responses:
+        '200':
+          description: Organization directory.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
+              example:
+                items:
+                - organizationId: organization-1
+                  name: Organization One
+                - organizationId: organization-2
+                  name: Organization Two
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
@@ -1199,6 +1238,28 @@ components:
       description: Opaque organization identifier.
       examples:
       - org_01J2H6M5J5W7P3C7Q9R8T6V4B2
+    Organization:
+      type: object
+      properties:
+        organizationId:
+          $ref: '#/components/schemas/OrganizationId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - organizationId
+      - name
+      description: An organization's display name paired with its opaque tenant identifier.
+    OrganizationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+      required:
+      - items
     ResourceId:
       type: string
       minLength: 1

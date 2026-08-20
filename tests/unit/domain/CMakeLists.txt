@@ -41,6 +41,7 @@ add_executable(
 
     resource_test.cpp
     reservation_test.cpp
+    organization_test.cpp
 )
 
 target_link_libraries(

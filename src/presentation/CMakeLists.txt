@@ -46,6 +46,9 @@ add_library(
     resources/search_resources_controller.cpp
     resources/resource_error_response.cpp
     resources/resource_response.cpp
+
+    organizations/list_organizations_controller.cpp
+    organizations/organization_response.cpp
 )
 
 # Preferred namespace-qualified target used throughout the project.

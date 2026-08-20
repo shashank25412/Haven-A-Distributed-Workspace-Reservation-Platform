@@ -22,3 +22,7 @@ WHERE `documentType` = "reservation";
 CREATE INDEX IF NOT EXISTS `idx_outbox_pending_order`
 ON `{{BUCKET}}`.`{{SCOPE}}`.`outbox`(`status`, `occurredAt`, `eventId`)
 WHERE `documentType` = "outbox";
+
+CREATE INDEX IF NOT EXISTS `idx_organizations_directory`
+ON `{{BUCKET}}`.`{{SCOPE}}`.`organizations`(`name`)
+WHERE `documentType` = "organization";

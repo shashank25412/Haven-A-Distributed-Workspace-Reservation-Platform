@@ -38,6 +38,7 @@ add_library(
 
     resource.cpp
     reservation.cpp
+    organization.cpp
 )
 
 add_library(haven::domain ALIAS haven_domain)

@@ -17,6 +17,8 @@ add_executable(haven_application_tests
     resources/get_resource_calendar_handler_test.cpp
     resources/test_resource_repository_test.cpp
 
+    organizations/list_organizations_handler_test.cpp
+
     reservations/create_reservation_handler_test.cpp
     reservations/reservation_creation_store_test.cpp
     reservations/get_reservation_handler_test.cpp

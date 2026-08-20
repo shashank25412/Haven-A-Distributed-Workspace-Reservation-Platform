@@ -7,7 +7,12 @@ readonly couchbase_cli="/opt/couchbase/bin/couchbase-cli"
 readonly cbq="/opt/couchbase/bin/cbq"
 readonly index_file="${HVN_COUCHBASE_INDEX_FILE:-/opt/haven/couchbase/indexes.sql}"
 readonly resource_seed_file="${HVN_COUCHBASE_RESOURCE_SEED_FILE:-/opt/haven/couchbase/seed-resources.sql}"
+readonly secondary_resource_seed_file="${HVN_COUCHBASE_SECONDARY_RESOURCE_SEED_FILE:-/opt/haven/couchbase/seed-resources-secondary.sql}"
+readonly organization_seed_file="${HVN_COUCHBASE_ORGANIZATION_SEED_FILE:-/opt/haven/couchbase/seed-organizations.sql}"
 readonly seed_organization_id="${HVN_SEED_ORGANIZATION_ID:-organization-1}"
+readonly seed_organization_name="${HVN_SEED_ORGANIZATION_NAME:-Organization One}"
+readonly seed_secondary_organization_id="${HVN_SEED_SECONDARY_ORGANIZATION_ID:-organization-2}"
+readonly seed_secondary_organization_name="${HVN_SEED_SECONDARY_ORGANIZATION_NAME:-Organization Two}"
 readonly identity_bucket="${HVN_IDENTITY_COUCHBASE_BUCKET:-${HVN_COUCHBASE_BUCKET}_identity}"
 readonly identity_scope="${HVN_IDENTITY_COUCHBASE_SCOPE:-identity}"
 
@@ -43,6 +48,10 @@ fi
 readonly seed_organization_id_pattern='^[A-Za-z0-9_-]+$'
 if [[ ! "${seed_organization_id}" =~ ${seed_organization_id_pattern} ]]; then
     echo "HVN_SEED_ORGANIZATION_ID contains unsupported characters" >&2
+    exit 1
+fi
+if [[ ! "${seed_secondary_organization_id}" =~ ${seed_organization_id_pattern} ]]; then
+    echo "HVN_SEED_SECONDARY_ORGANIZATION_ID contains unsupported characters" >&2
     exit 1
 fi
 
@@ -99,7 +108,7 @@ if ! "${couchbase_cli}" collection-manage \
         --create-scope "${HVN_COUCHBASE_SCOPE}"
 fi
 
-for collection_name in resources reservations idempotency outbox; do
+for collection_name in resources reservations idempotency outbox organizations; do
     if ! "${couchbase_cli}" collection-manage \
         "${common_arguments[@]}" \
         --bucket "${HVN_COUCHBASE_BUCKET}" \
@@ -168,5 +177,42 @@ sed \
     --password "${HVN_COUCHBASE_PASSWORD}" \
     --exit-on-error \
     --file "${rendered_seed_file}"
+
+rendered_secondary_seed_file="$(mktemp)"
+readonly rendered_secondary_seed_file
+trap 'rm -f "${rendered_index_file}" "${rendered_seed_file}" "${rendered_secondary_seed_file}"' EXIT
+
+sed \
+    -e "s/{{BUCKET}}/${HVN_COUCHBASE_BUCKET}/g" \
+    -e "s/{{SCOPE}}/${HVN_COUCHBASE_SCOPE}/g" \
+    -e "s/{{SEED_SECONDARY_ORGANIZATION_ID}}/${seed_secondary_organization_id}/g" \
+    "${secondary_resource_seed_file}" >"${rendered_secondary_seed_file}"
+
+"${cbq}" \
+    --engine "http://${couchbase_host}:8093" \
+    --user "${HVN_COUCHBASE_USERNAME}" \
+    --password "${HVN_COUCHBASE_PASSWORD}" \
+    --exit-on-error \
+    --file "${rendered_secondary_seed_file}"
+
+rendered_organization_seed_file="$(mktemp)"
+readonly rendered_organization_seed_file
+trap 'rm -f "${rendered_index_file}" "${rendered_seed_file}" "${rendered_secondary_seed_file}" "${rendered_organization_seed_file}"' EXIT
+
+sed \
+    -e "s/{{BUCKET}}/${HVN_COUCHBASE_BUCKET}/g" \
+    -e "s/{{SCOPE}}/${HVN_COUCHBASE_SCOPE}/g" \
+    -e "s/{{SEED_ORGANIZATION_ID}}/${seed_organization_id}/g" \
+    -e "s/{{SEED_ORGANIZATION_NAME}}/${seed_organization_name}/g" \
+    -e "s/{{SEED_SECONDARY_ORGANIZATION_ID}}/${seed_secondary_organization_id}/g" \
+    -e "s/{{SEED_SECONDARY_ORGANIZATION_NAME}}/${seed_secondary_organization_name}/g" \
+    "${organization_seed_file}" >"${rendered_organization_seed_file}"
+
+"${cbq}" \
+    --engine "http://${couchbase_host}:8093" \
+    --user "${HVN_COUCHBASE_USERNAME}" \
+    --password "${HVN_COUCHBASE_PASSWORD}" \
+    --exit-on-error \
+    --file "${rendered_organization_seed_file}"
 
 echo "Haven reservation and identity buckets, collections, indexes, and local resource seed data are ready"

@@ -24,6 +24,19 @@ void validate_document_type(const tao::json::value& json) {
     }
 }
 
+// Older seed documents may predate these fields; default to "no image" / lowest priority.
+std::string image_url_from_json(const tao::json::value& json) {
+    const auto& object = json.get_object();
+    const auto found = object.find("imageUrl");
+    return found == object.end() ? std::string{} : found->second.get_string();
+}
+
+int rank_from_json(const tao::json::value& json) {
+    const auto& object = json.get_object();
+    const auto found = object.find("rank");
+    return found == object.end() ? 0 : static_cast<int>(found->second.get_unsigned());
+}
+
 }  // namespace
 
 tao::json::value organization_document_to_json(const OrganizationDocument& document) {
@@ -36,6 +49,8 @@ tao::json::value organization_document_to_json(const OrganizationDocument& docum
         {"schemaVersion", document.schema_version},
         {"organizationId", document.organization_id},
         {"name", document.name},
+        {"imageUrl", document.image_url},
+        {"rank", document.rank},
     };
 }
 
@@ -48,6 +63,8 @@ OrganizationDocument organization_document_from_json(const tao::json::value& jso
         .schema_version = json.at("schemaVersion").get_unsigned(),
         .organization_id = json.at("organizationId").get_string(),
         .name = json.at("name").get_string(),
+        .image_url = image_url_from_json(json),
+        .rank = rank_from_json(json),
     };
 
     validate_organization_document(document);

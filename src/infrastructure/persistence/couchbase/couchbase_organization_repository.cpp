@@ -87,7 +87,9 @@ std::vector<haven::domain::Organization> CouchbaseOrganizationRepository::find_a
                               "Couchbase organization listing returned an invalid document"};
     }
 
+    // Rank is backend/DB-controlled display priority: lower ranks surface first, ties break by name.
     std::sort(organizations.begin(), organizations.end(), [](const auto& left, const auto& right) {
+        if (left.rank() != right.rank()) return left.rank() < right.rank();
         return left.name() < right.name();
     });
 

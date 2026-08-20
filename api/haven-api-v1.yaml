@@ -1247,10 +1247,14 @@ components:
           type: string
           minLength: 1
           maxLength: 255
+        imageUrl:
+          type: string
+          description: Optional display image for the organization. Omitted when none is configured.
       required:
       - organizationId
       - name
-      description: An organization's display name paired with its opaque tenant identifier.
+      description: An organization's display name paired with its opaque tenant identifier. Listings
+        are returned in backend-controlled display priority order.
     OrganizationListResponse:
       type: object
       properties:

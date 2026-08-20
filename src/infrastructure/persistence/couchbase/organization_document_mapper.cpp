@@ -18,6 +18,8 @@ OrganizationDocument to_organization_document(const domain::Organization& organi
         .schema_version = kOrganizationDocumentSchemaVersion,
         .organization_id = organization.organization_id().value(),
         .name = organization.name(),
+        .image_url = organization.image_url(),
+        .rank = organization.rank(),
     };
 
     validate_organization_document(document);
@@ -29,7 +31,8 @@ domain::Organization to_domain_organization(const OrganizationDocument& document
 
     validate_organization_document(document);
 
-    return domain::Organization{domain::OrganizationId{document.organization_id}, document.name};
+    return domain::Organization{domain::OrganizationId{document.organization_id}, document.name,
+                                document.image_url, document.rank};
 }
 
 }  // namespace haven::infrastructure::persistence::couchbase

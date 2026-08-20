@@ -25,6 +25,8 @@ struct OrganizationDocument {
     std::uint64_t schema_version;
     std::string organization_id;
     std::string name;
+    std::string image_url;
+    int rank{0};
 };
 
 /**

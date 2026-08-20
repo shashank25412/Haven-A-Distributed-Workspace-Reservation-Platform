@@ -10,6 +10,9 @@ namespace haven::presentation::organizations {
 OrganizationResponse::OrganizationResponse(const haven::domain::Organization& organization) {
     response_["organizationId"] = organization.organization_id().value();
     response_["name"] = organization.name();
+    if (!organization.image_url().empty()) {
+        response_["imageUrl"] = organization.image_url();
+    }
 }
 
 Json::Value OrganizationResponse::to_json() const {

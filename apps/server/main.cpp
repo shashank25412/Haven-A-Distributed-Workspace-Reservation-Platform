@@ -14,6 +14,7 @@
 #include "haven/application/reservations/approve_reservation_handler.hpp"
 #include "haven/application/reservations/cancel_reservation_handler.hpp"
 #include "haven/application/reservations/create_reservation_handler.hpp"
+#include "haven/application/reservations/get_reservation_handler.hpp"
 #include "haven/application/reservations/list_all_reservations_handler.hpp"
 #include "haven/application/reservations/list_caller_reservations_handler.hpp"
 #include "haven/application/reservations/list_decided_approvals_handler.hpp"
@@ -57,6 +58,7 @@
 #include "haven/presentation/observability/metrics/metrics_controller.hpp"
 #include "haven/presentation/organizations/list_organizations_controller.hpp"
 #include "haven/presentation/reservations/create_reservation_controller.hpp"
+#include "haven/presentation/reservations/get_reservation_controller.hpp"
 #include "haven/presentation/reservations/list_my_reservations_controller.hpp"
 #include "haven/presentation/resources/get_resource_controller.hpp"
 #include "haven/presentation/resources/search_resources_controller.hpp"
@@ -229,6 +231,9 @@ int main() {
         auto list_caller_reservations_handler =
             std::make_shared<haven::application::reservations::ListCallerReservationsHandler>(
                 *reservation_repository);
+        auto get_reservation_handler =
+            std::make_shared<haven::application::reservations::GetReservationHandler>(
+                *reservation_repository);
         auto list_all_reservations_handler =
             std::make_shared<haven::application::reservations::ListAllReservationsHandler>(
                 *reservation_repository);
@@ -280,6 +285,8 @@ int main() {
             std::move(create_reservation_handler), authentication_service);
         haven::presentation::reservations::register_list_my_reservations_route(
             std::move(list_caller_reservations_handler), resource_repository, authentication_service);
+        haven::presentation::reservations::register_get_reservation_route(
+            std::move(get_reservation_handler), resource_repository, authentication_service);
         haven::presentation::approvals::register_list_pending_approvals_route(
             std::move(list_pending_approvals_handler), resource_repository, authentication_service);
         haven::presentation::approvals::register_list_decided_approvals_route(

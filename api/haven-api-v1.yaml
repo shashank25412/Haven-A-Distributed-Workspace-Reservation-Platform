@@ -1439,6 +1439,10 @@ components:
           minimum: 0
           description: Units still bookable for the interval used to produce this result. Only
             present when the resource was returned from a time-scoped availability search.
+        address:
+          type: string
+          description: Physical street address of the resource, used to provide driving/walking
+            directions. Empty when not recorded for this resource.
       required:
       - organizationId
       - resourceId
@@ -1518,6 +1522,10 @@ components:
           type: string
         resourceType:
           $ref: '#/components/schemas/ResourceType'
+        address:
+          type: string
+          description: Physical street address of the resource, used to provide driving/walking
+            directions. Empty when not recorded.
       required:
       - resourceId
       - name

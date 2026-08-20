@@ -24,6 +24,7 @@ ResourceResponse::ResourceResponse(const haven::domain::Resource& resource) {
     response_["requiresApproval"] = resource.requires_approval();
     response_["version"] = Json::UInt64{resource.version().value()};
     response_["totalUnits"] = Json::UInt64{resource.total_units()};
+    response_["address"] = resource.address();
 }
 
 Json::Value ResourceResponse::to_json() const {

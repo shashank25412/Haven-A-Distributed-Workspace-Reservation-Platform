@@ -20,7 +20,11 @@ SELECT
         "capacity": seed.capacity,
         "location": seed.location,
         "features": seed.features,
-        "tags": seed.tags
+        "tags": seed.tags,
+        "address": CASE seed.location.building
+            WHEN "Riverside Campus" THEN "1 Riverside Campus Dr, Rivertown, ST 20001"
+            ELSE ""
+        END
     } AS resource_document
 FROM [
     {"id":"meeting-room-birch","name":"Birch Conference Room","description":"Bright conference room for cross-team syncs.","resourceType":"MEETING_ROOM","status":"ACTIVE","requiresApproval":false,"capacity":10,"location":{"building":"Riverside Campus","floor":"3","zone":"East"},"features":["VIDEO_CONFERENCING","WHITEBOARD"],"tags":["TEAM"]},

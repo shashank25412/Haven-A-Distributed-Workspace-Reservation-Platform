@@ -37,7 +37,9 @@ TEST(ResourceResponseTest, ToJson_ShouldSerializeEveryPublicResourceField) {
     EXPECT_EQ(response["status"].asString(), "ACTIVE");
     EXPECT_TRUE(response["requiresApproval"].asBool());
     EXPECT_EQ(response["version"].asUInt64(), 7U);
-    EXPECT_EQ(response.size(), 8U);
+    EXPECT_EQ(response["totalUnits"].asUInt64(), 1U);
+    EXPECT_EQ(response["address"].asString(), "");
+    EXPECT_EQ(response.size(), 10U);
     EXPECT_FALSE(response.isMember("persistenceToken"));
     EXPECT_FALSE(response.isMember("cas"));
 }

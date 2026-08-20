@@ -17,7 +17,8 @@ Resource::Resource(OrganizationId organization_id,
                    const ResourceType type,
                    const ResourceStatus status,
                    const bool requires_approval,
-                   const std::uint32_t total_units)
+                   const std::uint32_t total_units,
+                   std::string address)
     : organization_id_(std::move(organization_id)),
       resource_id_(std::move(resource_id)),
       name_(),
@@ -26,7 +27,8 @@ Resource::Resource(OrganizationId organization_id,
       status_(status),
       requires_approval_(requires_approval),
       version_(Version{1}),
-      total_units_(total_units == 0 ? 1 : total_units) {}
+      total_units_(total_units == 0 ? 1 : total_units),
+      address_(std::move(address)) {}
 
 Resource Resource::rehydrate(OrganizationId organization_id,
                              ResourceId resource_id,
@@ -36,7 +38,8 @@ Resource Resource::rehydrate(OrganizationId organization_id,
                              const ResourceStatus status,
                              const bool requires_approval,
                              const Version version,
-                             const std::uint32_t total_units) {
+                             const std::uint32_t total_units,
+                             std::string address) {
     HVN_TRACE_SCOPE();
 
     if (name.empty()) {
@@ -54,7 +57,8 @@ Resource Resource::rehydrate(OrganizationId organization_id,
                     status,
                     requires_approval,
                     version,
-                    total_units == 0 ? 1 : total_units};
+                    total_units == 0 ? 1 : total_units,
+                    std::move(address)};
 }
 
 Resource::Resource(OrganizationId organization_id,
@@ -65,7 +69,8 @@ Resource::Resource(OrganizationId organization_id,
                    const ResourceStatus status,
                    const bool requires_approval,
                    const Version version,
-                   const std::uint32_t total_units)
+                   const std::uint32_t total_units,
+                   std::string address)
     : organization_id_(std::move(organization_id)),
       resource_id_(std::move(resource_id)),
       name_(std::move(name)),
@@ -74,7 +79,8 @@ Resource::Resource(OrganizationId organization_id,
       status_(status),
       requires_approval_(requires_approval),
       version_(version),
-      total_units_(total_units) {}
+      total_units_(total_units),
+      address_(std::move(address)) {}
 
 const OrganizationId& Resource::organization_id() const noexcept {
     return organization_id_;
@@ -114,6 +120,10 @@ Version Resource::version() const noexcept {
 
 std::uint32_t Resource::total_units() const noexcept {
     return total_units_;
+}
+
+const std::string& Resource::address() const noexcept {
+    return address_;
 }
 
 void Resource::activate() noexcept {

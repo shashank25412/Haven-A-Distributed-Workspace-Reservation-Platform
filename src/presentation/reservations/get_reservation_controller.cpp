@@ -1,13 +1,13 @@
 /**
- * @file list_my_reservations_controller.cpp
- * @brief Implements the caller reservation listing HTTP route.
+ * @file get_reservation_controller.cpp
+ * @brief Implements the caller-owned single reservation retrieval HTTP route.
  */
 
-#include "haven/presentation/reservations/list_my_reservations_controller.hpp"
+#include "haven/presentation/reservations/get_reservation_controller.hpp"
 
-#include "haven/application/repository_error.hpp"
-#include "haven/application/reservations/list_caller_reservations_query.hpp"
+#include "haven/application/reservations/get_reservation_query.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
+#include "haven/domain/value_objects/reservation_id.hpp"
 #include "haven/domain/value_objects/reservation_status.hpp"
 #include "haven/domain/value_objects/resource_id.hpp"
 #include "haven/domain/value_objects/resource_type.hpp"
@@ -30,7 +30,15 @@
 namespace haven::presentation::reservations {
 namespace {
 
-constexpr char kRoute[]{"/api/v1/reservations/me"};
+constexpr char kRoute[]{"/api/v1/reservations/{reservationId}"};
+constexpr std::size_t kMaximumPathIdentifierLength{255};
+
+bool is_invalid_identifier(const std::string& value) {
+    return value.empty() || value.size() > kMaximumPathIdentifierLength ||
+           std::any_of(value.begin(), value.end(), [](const unsigned char character) {
+               return std::iscntrl(character) != 0 || std::isspace(character) != 0;
+           });
+}
 
 std::optional<std::string> bearer_token(const drogon::HttpRequestPtr& request) {
     constexpr std::string_view prefix{"Bearer "};
@@ -79,12 +87,21 @@ Json::Value resource_reference(
 }
 
 void handle(
-    const std::shared_ptr<haven::application::reservations::ListCallerReservationsHandler>& handler,
+    const std::shared_ptr<haven::application::reservations::GetReservationHandler>& handler,
     const std::shared_ptr<haven::application::resources::ResourceRepository>& resource_repository,
     const std::shared_ptr<haven::application::auth::AuthenticationService>& authentication,
     const drogon::HttpRequestPtr& request,
-    std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
+    std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+    std::string reservation_id) {
     HVN_TRACE_SCOPE();
+
+    if (is_invalid_identifier(reservation_id)) {
+        callback(error(request,
+                       drogon::k400BadRequest,
+                       "INVALID_REQUEST",
+                       "The reservation identifier is invalid."));
+        return;
+    }
 
     const auto token = bearer_token(request);
     if (!token) {
@@ -111,46 +128,37 @@ void handle(
 
     try {
         const auto organization_id = haven::domain::OrganizationId{account.organization_id};
-        const auto query = haven::application::reservations::ListCallerReservationsQuery{
-            organization_id, haven::domain::UserId{account.user_id}};
-        const auto reservations = handler->handle(query);
+        const auto query = haven::application::reservations::GetReservationQuery{
+            organization_id, haven::domain::ReservationId{reservation_id}};
+        const auto reservation = handler->handle(query);
+
+        // A reservation owned by another caller is reported the same way as a missing one, so
+        // its existence can't be inferred by callers who aren't its owner.
+        if (!reservation.has_value() ||
+            reservation->created_by() != haven::domain::UserId{account.user_id}) {
+            callback(error(request,
+                           drogon::k404NotFound,
+                           "RESERVATION_NOT_FOUND",
+                           "The reservation was not found."));
+            return;
+        }
 
         Json::Value body;
-        body["items"] = Json::arrayValue;
-        for (const auto& reservation : reservations) {
-            Json::Value item;
-            item["reservationId"] = reservation.reservation_id().value();
-            item["resource"] =
-                resource_reference(*resource_repository, organization_id, reservation.resource_id());
-            item["startTime"] = reservation_http_timestamp(reservation.interval().start());
-            item["endTime"] = reservation_http_timestamp(reservation.interval().end());
-            item["purpose"] = reservation.purpose().value();
-            item["status"] = std::string{haven::domain::to_string(reservation.status())};
-            if (reservation.cancellation_info().has_value() &&
-                reservation.cancellation_info()->reason().has_value()) {
-                item["cancellationReason"] = *reservation.cancellation_info()->reason();
-            }
-            body["items"].append(std::move(item));
+        body["reservationId"] = reservation->reservation_id().value();
+        body["resource"] =
+            resource_reference(*resource_repository, organization_id, reservation->resource_id());
+        body["startTime"] = reservation_http_timestamp(reservation->interval().start());
+        body["endTime"] = reservation_http_timestamp(reservation->interval().end());
+        body["purpose"] = reservation->purpose().value();
+        body["status"] = std::string{haven::domain::to_string(reservation->status())};
+        if (reservation->cancellation_info().has_value() &&
+            reservation->cancellation_info()->reason().has_value()) {
+            body["cancellationReason"] = *reservation->cancellation_info()->reason();
         }
-        body["pagination"]["page"] = 1;
-        body["pagination"]["pageSize"] = static_cast<int>(reservations.size());
-        body["pagination"]["totalItems"] = Json::UInt64{reservations.size()};
-        body["pagination"]["totalPages"] = 1;
 
         callback(drogon::HttpResponse::newHttpJsonResponse(body));
-    } catch (const haven::application::RepositoryError& repository_error) {
-        using haven::application::RepositoryErrorCode;
-        const auto unavailable = repository_error.code() == RepositoryErrorCode::Timeout ||
-                                 repository_error.code() == RepositoryErrorCode::Authentication ||
-                                 repository_error.code() == RepositoryErrorCode::Authorization;
-        callback(
-            error(request,
-                  unavailable ? drogon::k503ServiceUnavailable : drogon::k500InternalServerError,
-                  unavailable ? "SERVICE_UNAVAILABLE" : "INTERNAL_ERROR",
-                  unavailable ? "A required service is temporarily unavailable."
-                              : "The request could not be completed."));
     } catch (const std::exception&) {
-        HVN_ERROR_LOG("Caller reservation listing request failed unexpectedly");
+        HVN_ERROR_LOG("Get reservation request failed unexpectedly");
         callback(error(request,
                        drogon::k500InternalServerError,
                        "INTERNAL_ERROR",
@@ -165,16 +173,16 @@ void handle(
 
 }  // namespace
 
-void register_list_my_reservations_route(
-    std::shared_ptr<haven::application::reservations::ListCallerReservationsHandler> handler,
+void register_get_reservation_route(
+    std::shared_ptr<haven::application::reservations::GetReservationHandler> handler,
     std::shared_ptr<haven::application::resources::ResourceRepository> resource_repository,
     std::shared_ptr<haven::application::auth::AuthenticationService> authentication) {
     if (!handler)
-        throw std::invalid_argument("List My Reservations route handler must not be null");
+        throw std::invalid_argument("Get Reservation route handler must not be null");
     if (!resource_repository)
-        throw std::invalid_argument("List My Reservations resource repository must not be null");
+        throw std::invalid_argument("Get Reservation resource repository must not be null");
     if (!authentication)
-        throw std::invalid_argument("List My Reservations authentication service must not be null");
+        throw std::invalid_argument("Get Reservation authentication service must not be null");
 
     drogon::app().registerHandler(
         kRoute,
@@ -182,8 +190,10 @@ void register_list_my_reservations_route(
          resource_repository = std::move(resource_repository),
          authentication = std::move(authentication)](
             const drogon::HttpRequestPtr& request,
-            std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-            handle(handler, resource_repository, authentication, request, std::move(callback));
+            std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+            std::string reservation_id) {
+            handle(handler, resource_repository, authentication, request, std::move(callback),
+                   std::move(reservation_id));
         },
         {drogon::Get});
 }

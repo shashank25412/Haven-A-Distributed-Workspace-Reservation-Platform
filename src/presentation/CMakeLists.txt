@@ -38,6 +38,7 @@ add_library(
     reservations/create_reservation_request.cpp
     reservations/create_reservation_response.cpp
     reservations/list_my_reservations_controller.cpp
+    reservations/get_reservation_controller.cpp
 
     admin/list_all_reservations_controller.cpp
     admin/admin_cancel_reservation_controller.cpp

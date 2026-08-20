@@ -45,6 +45,7 @@ tao::json::value resource_document_to_json(
         {"requiresApproval", document.requires_approval},
         {"version", document.version},
         {"totalUnits", document.total_units},
+        {"address", document.address},
     };
 }
 
@@ -71,6 +72,10 @@ ResourceDocument resource_document_from_json(
     if (total_units_field != object.end()) {
         document.total_units =
             static_cast<std::uint32_t>(total_units_field->second.get_unsigned());
+    }
+    const auto address_field = object.find("address");
+    if (address_field != object.end()) {
+        document.address = address_field->second.get_string();
     }
 
     validate_resource_document(document);

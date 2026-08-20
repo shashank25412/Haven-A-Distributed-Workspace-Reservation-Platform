@@ -20,7 +20,17 @@ SELECT
         "capacity": seed.capacity,
         "location": seed.location,
         "features": seed.features,
-        "tags": seed.tags
+        "tags": seed.tags,
+        "address": CASE seed.location.building
+            WHEN "North Tower" THEN "100 North Tower Ave, Springfield, ST 10001"
+            WHEN "Central Plaza" THEN "200 Central Plaza Blvd, Springfield, ST 10002"
+            WHEN "Garden Block" THEN "300 Garden Block Ln, Springfield, ST 10003"
+            WHEN "Innovation Hub" THEN "400 Innovation Hub Way, Springfield, ST 10004"
+            WHEN "Residence House" THEN "500 Residence House Dr, Springfield, ST 10005"
+            WHEN "Recreation Center" THEN "600 Recreation Center Rd, Springfield, ST 10006"
+            WHEN "Sports Hall" THEN "700 Sports Hall Cir, Springfield, ST 10007"
+            ELSE ""
+        END
     } AS resource_document
 FROM [
     {"id":"meeting-room-atlas","name":"Atlas Boardroom","description":"Executive boardroom with a panoramic city view and hybrid meeting setup.","resourceType":"MEETING_ROOM","status":"ACTIVE","requiresApproval":true,"capacity":16,"location":{"building":"North Tower","floor":"12","zone":"East"},"features":["VIDEO_CONFERENCING","DISPLAY","WHITEBOARD"],"tags":["EXECUTIVE","QUIET"]},

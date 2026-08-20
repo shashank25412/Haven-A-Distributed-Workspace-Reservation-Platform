@@ -42,7 +42,8 @@ public:
         ResourceType type,
         ResourceStatus status,
         bool requires_approval,
-        std::uint32_t total_units = 1);
+        std::uint32_t total_units = 1,
+        std::string address = "");
 
     /**
      * @brief Restores a resource from previously persisted state.
@@ -69,7 +70,8 @@ public:
         ResourceStatus status,
         bool requires_approval,
         Version version,
-        std::uint32_t total_units = 1);
+        std::uint32_t total_units = 1,
+        std::string address = "");
 
     /**
      * @brief Returns the organization that owns the resource.
@@ -132,6 +134,9 @@ public:
      */
     [[nodiscard]] std::uint32_t total_units() const noexcept;
 
+    /** @brief Returns the physical street address, or empty when not recorded. */
+    [[nodiscard]] const std::string& address() const noexcept;
+
     /**
      * @brief Activates the resource.
      */
@@ -154,7 +159,8 @@ private:
         ResourceStatus status,
         bool requires_approval,
         Version version,
-        std::uint32_t total_units);
+        std::uint32_t total_units,
+        std::string address);
 
     OrganizationId organization_id_;
     ResourceId resource_id_;
@@ -165,6 +171,7 @@ private:
     bool requires_approval_;
     Version version_;
     std::uint32_t total_units_;
+    std::string address_;
 };
 
 }  // namespace haven::domain

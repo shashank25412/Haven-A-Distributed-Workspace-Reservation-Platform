@@ -31,6 +31,7 @@ ResourceDocument to_resource_document(const domain::Resource& resource) {
         .requires_approval = resource.requires_approval(),
         .version = resource.version().value(),
         .total_units = resource.total_units(),
+        .address = resource.address(),
     };
 
     validate_resource_document(document);
@@ -51,7 +52,8 @@ domain::Resource to_domain_resource(const ResourceDocument& document) {
         domain::resource_status_from_string(document.status),
         document.requires_approval,
         domain::Version{document.version},
-        document.total_units);
+        document.total_units,
+        document.address);
 }
 
 }  // namespace haven::infrastructure::persistence::couchbase

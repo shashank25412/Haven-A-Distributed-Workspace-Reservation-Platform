@@ -40,6 +40,8 @@ struct ResourceDocument {
     std::uint64_t version;
     /** Interchangeable unit capacity; older documents without this field default to 1. */
     std::uint32_t total_units{1};
+    /** Physical street address; older documents without this field default to empty. */
+    std::string address{};
 };
 
 /**

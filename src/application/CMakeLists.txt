@@ -33,6 +33,7 @@ add_library(haven_application
     reservations/metrics/reservation_creation_metrics.cpp
     reservations/get_reservation_handler.cpp
     reservations/list_caller_reservations_handler.cpp
+    reservations/list_all_reservations_handler.cpp
     reservations/cancel_reservation_handler.cpp
     reservations/extend_reservation_handler.cpp
     reservations/list_pending_approvals_handler.cpp

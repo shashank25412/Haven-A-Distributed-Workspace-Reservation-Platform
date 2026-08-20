@@ -284,6 +284,24 @@ TEST(ReservationTest, Cancel_ShouldRecordPendingStatus_WhenPendingReservationIsC
     EXPECT_EQ(event.previous_status(), ReservationStatus::PendingApproval);
 }
 
+TEST(ReservationTest, Cancel_ShouldRecordComment_WhenReasonIsProvided) {
+    Reservation reservation = create_confirmed_reservation();
+    static_cast<void>(reservation.release_domain_events());
+
+    reservation.cancel(UserId{"user-123"},
+                       Reservation::TimePoint{} + 1h,
+                       EventId{"event-cancelled-123"},
+                       std::string{"Requested by facilities"});
+
+    const std::vector<ReservationDomainEvent> events = reservation.release_domain_events();
+
+    ASSERT_EQ(events.size(), 1U);
+    const ReservationCancelledEvent& event = std::get<ReservationCancelledEvent>(events.front());
+
+    ASSERT_TRUE(event.reason().has_value());
+    EXPECT_EQ(*event.reason(), "Requested by facilities");
+}
+
 TEST(ReservationTest, Cancel_ShouldThrow_WhenReservationIsTerminal) {
     Reservation reservation = create_pending_reservation();
 

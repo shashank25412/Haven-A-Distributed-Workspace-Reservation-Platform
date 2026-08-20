@@ -55,10 +55,13 @@ namespace {
 }
 
 [[nodiscard]] tao::json::value payload_for(const haven::domain::ReservationCancelledEvent& event) {
-    return tao::json::value{
+    auto payload = tao::json::value{
         {"resourceId", event.resource_id().value()},
         {"cancelledBy", event.cancelled_by().value()},
         {"previousStatus", std::string{haven::domain::to_string(event.previous_status())}}};
+    if (event.reason().has_value())
+        payload["reason"] = *event.reason();
+    return payload;
 }
 
 [[nodiscard]] tao::json::value payload_for(const haven::domain::ReservationExtendedEvent& event) {

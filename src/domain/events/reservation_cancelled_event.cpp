@@ -17,14 +17,16 @@ ReservationCancelledEvent::ReservationCancelledEvent(
     ReservationId reservation_id,
     ResourceId resource_id,
     UserId cancelled_by,
-    const ReservationStatus previous_status)
+    const ReservationStatus previous_status,
+    std::optional<std::string> reason)
     : event_id_(std::move(event_id)),
       occurred_at_(occurred_at),
       organization_id_(std::move(organization_id)),
       reservation_id_(std::move(reservation_id)),
       resource_id_(std::move(resource_id)),
       cancelled_by_(std::move(cancelled_by)),
-      previous_status_(previous_status) {
+      previous_status_(previous_status),
+      reason_(std::move(reason)) {
     if (previous_status_ != ReservationStatus::PendingApproval && previous_status_ != ReservationStatus::Confirmed) {
         throw std::invalid_argument("Reservation-cancelled event requires a cancellable previous status.");
     }
@@ -56,6 +58,10 @@ const UserId& ReservationCancelledEvent::cancelled_by() const noexcept {
 
 ReservationStatus ReservationCancelledEvent::previous_status() const noexcept {
     return previous_status_;
+}
+
+const std::optional<std::string>& ReservationCancelledEvent::reason() const noexcept {
+    return reason_;
 }
 
 }  // namespace haven::domain

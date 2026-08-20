@@ -66,6 +66,11 @@ public:
         return {};
     }
 
+    [[nodiscard]] ReservationListResult find_all(
+        const haven::domain::OrganizationId&) const override {
+        return {};
+    }
+
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
         const haven::domain::OrganizationId&,
         const haven::domain::ResourceId&,
@@ -140,12 +145,16 @@ private:
 [[nodiscard]] CancelReservationCommand make_command(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::ReservationId& reservation_id,
-    const haven::domain::UserId& caller_id) {
+    const haven::domain::UserId& caller_id,
+    const bool bypass_owner_check = false,
+    std::optional<std::string> comment = std::nullopt) {
     return CancelReservationCommand{organization_id,
                                     reservation_id,
                                     caller_id,
                                     haven::domain::EventId{"event-cancelled-100"},
-                                    make_time_point(9)};
+                                    make_time_point(9),
+                                    bypass_owner_check,
+                                    std::move(comment)};
 }
 
 TEST(CancelReservationHandlerTest, Handle_ShouldCancelReservation_WhenCallerOwnsReservation) {
@@ -244,6 +253,71 @@ TEST(CancelReservationHandlerTest,
     EXPECT_EQ(result.status(), CancelReservationStatus::INVALID_STATE);
     EXPECT_FALSE(result.reservation().has_value());
     EXPECT_FALSE(repository.saved_reservation().has_value());
+}
+
+TEST(CancelReservationHandlerTest,
+     Handle_ShouldCancelAnyReservation_WhenAdminBypassesOwnerCheck) {
+    const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
+    const auto reservation_id = haven::domain::ReservationId{"reservation-100"};
+    const auto creator_id = haven::domain::UserId{"user-100"};
+    const auto admin_id = haven::domain::UserId{"user-admin"};
+    auto repository = InMemoryReservationRepository{};
+    repository.add(make_confirmed_reservation(reservation_id,
+                                              organization_id,
+                                              haven::domain::ResourceId{"resource-boardroom"},
+                                              creator_id));
+    const auto handler = CancelReservationHandler{repository};
+
+    const auto result = handler.handle(
+        make_command(organization_id, reservation_id, admin_id, /*bypass_owner_check=*/true));
+
+    ASSERT_EQ(result.status(), CancelReservationStatus::CANCELLED);
+    ASSERT_TRUE(repository.saved_reservation().has_value());
+    EXPECT_EQ(repository.saved_reservation()->status(),
+              haven::domain::ReservationStatus::Cancelled);
+}
+
+TEST(CancelReservationHandlerTest,
+     Handle_ShouldRejectAdminCancellation_WhenReservationIsAlreadyCompleted) {
+    const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
+    const auto reservation_id = haven::domain::ReservationId{"reservation-100"};
+    const auto creator_id = haven::domain::UserId{"user-100"};
+    const auto admin_id = haven::domain::UserId{"user-admin"};
+    auto reservation = make_confirmed_reservation(
+        reservation_id, organization_id, haven::domain::ResourceId{"resource-boardroom"}, creator_id);
+    reservation.complete(make_time_point(12), haven::domain::EventId{"event-completed-original"});
+    auto repository = InMemoryReservationRepository{};
+    repository.add(std::move(reservation));
+    const auto handler = CancelReservationHandler{repository};
+
+    const auto result = handler.handle(
+        make_command(organization_id, reservation_id, admin_id, /*bypass_owner_check=*/true));
+
+    EXPECT_EQ(result.status(), CancelReservationStatus::INVALID_STATE);
+    EXPECT_FALSE(result.reservation().has_value());
+    EXPECT_FALSE(repository.saved_reservation().has_value());
+}
+
+TEST(CancelReservationHandlerTest, Handle_ShouldRecordComment_WhenAdminProvidesOne) {
+    const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
+    const auto reservation_id = haven::domain::ReservationId{"reservation-100"};
+    const auto creator_id = haven::domain::UserId{"user-100"};
+    const auto admin_id = haven::domain::UserId{"user-admin"};
+    auto repository = InMemoryReservationRepository{};
+    repository.add(make_confirmed_reservation(reservation_id,
+                                              organization_id,
+                                              haven::domain::ResourceId{"resource-boardroom"},
+                                              creator_id));
+    const auto handler = CancelReservationHandler{repository};
+
+    const auto result = handler.handle(make_command(organization_id,
+                                                     reservation_id,
+                                                     admin_id,
+                                                     /*bypass_owner_check=*/true,
+                                                     std::string{"Double-booked by mistake"}));
+
+    ASSERT_EQ(result.status(), CancelReservationStatus::CANCELLED);
+    ASSERT_TRUE(repository.saved_reservation().has_value());
 }
 
 }  // namespace

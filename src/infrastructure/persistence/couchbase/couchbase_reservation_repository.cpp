@@ -236,6 +236,27 @@ ReservationListResult CouchbaseReservationRepository::find_decided_approvals(
         });
 }
 
+ReservationListResult CouchbaseReservationRepository::find_all(
+    const haven::domain::OrganizationId& organization_id) const {
+    return metrics_.record(
+        metrics::Repository::reservation, metrics::Operation::find_all, [&] {
+            HVN_TRACE_SCOPE();
+            auto options = readonly_options();
+            options.named_parameters(std::make_pair("organizationId", organization_id.value()));
+            const auto statement =
+                select_prefix() + "AND reservation.organizationId = $organizationId";
+            auto [error, result] = connection_->scope().query(statement, options).get();
+            if (error) {
+                HVN_ERROR_LOG("Couchbase reservation listing query failed for organization ",
+                              organization_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase reservation listing query");
+            }
+            return map_rows(result, organization_id, "Couchbase reservation listing query");
+        });
+}
+
 ReservationListResult CouchbaseReservationRepository::find_by_resource_and_interval(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::ResourceId& resource_id,

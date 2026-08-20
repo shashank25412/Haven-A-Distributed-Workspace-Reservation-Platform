@@ -27,7 +27,7 @@ CancelReservationResult CancelReservationHandler::handle(
     }
 
     auto& reservation = loaded->aggregate();
-    if (reservation.created_by() != command.caller_id()) {
+    if (!command.bypass_owner_check() && reservation.created_by() != command.caller_id()) {
         HVN_WARN_LOG("Reservation cancellation rejected because the caller is not authorized");
         return CancelReservationResult::rejected(CancelReservationStatus::CALLER_NOT_AUTHORIZED);
     }
@@ -37,7 +37,10 @@ CancelReservationResult CancelReservationHandler::handle(
         return CancelReservationResult::rejected(CancelReservationStatus::INVALID_STATE);
     }
 
-    reservation.cancel(command.caller_id(), command.occurred_at(), command.cancellation_event_id());
+    reservation.cancel(command.caller_id(),
+                       command.occurred_at(),
+                       command.cancellation_event_id(),
+                       command.comment());
 
     static_cast<void>(reservation_repository_.update(
         command.organization_id(), reservation, loaded->persistence_token()));

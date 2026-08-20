@@ -91,6 +91,17 @@ public:
         const haven::domain::OrganizationId& organization_id) const = 0;
 
     /**
+     * @brief Finds every reservation within an organization, regardless of status.
+     *
+     * Intended for administrative visibility across the entire booking history.
+     *
+     * @param organization_id Organization used to scope the query.
+     * @return All reservations belonging to the organization.
+     */
+    [[nodiscard]] virtual ReservationListResult find_all(
+        const haven::domain::OrganizationId& organization_id) const = 0;
+
+    /**
      * @brief Finds reservations for a resource that overlap a requested interval.
      *
      * Calendar views are derived from reservations rather than persisted as a

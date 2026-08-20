@@ -179,8 +179,13 @@ public:
 
     /**
      * @brief Cancels a pending or confirmed reservation.
+     *
+     * @param reason Optional free-form comment supplied by the canceller.
      */
-    void cancel(UserId cancelled_by, TimePoint cancelled_at, EventId cancelled_event_id);
+    void cancel(UserId cancelled_by,
+                TimePoint cancelled_at,
+                EventId cancelled_event_id,
+                std::optional<std::string> reason = std::nullopt);
 
     /**
      * @brief Extends a confirmed reservation to a later end time.

@@ -12,7 +12,9 @@
 #include "haven/application/outbox/outbox_publisher.hpp"
 #include "haven/application/outbox/system_outbox_publisher_clock.hpp"
 #include "haven/application/reservations/approve_reservation_handler.hpp"
+#include "haven/application/reservations/cancel_reservation_handler.hpp"
 #include "haven/application/reservations/create_reservation_handler.hpp"
+#include "haven/application/reservations/list_all_reservations_handler.hpp"
 #include "haven/application/reservations/list_caller_reservations_handler.hpp"
 #include "haven/application/reservations/list_decided_approvals_handler.hpp"
 #include "haven/application/reservations/list_pending_approvals_handler.hpp"
@@ -40,6 +42,8 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_reservation_repository.hpp"
 #include "haven/infrastructure/persistence/couchbase/couchbase_resource_repository.hpp"
 #include "haven/logging/logging.hpp"
+#include "haven/presentation/admin/admin_cancel_reservation_controller.hpp"
+#include "haven/presentation/admin/list_all_reservations_controller.hpp"
 #include "haven/presentation/approvals/approve_reservation_controller.hpp"
 #include "haven/presentation/approvals/list_pending_approvals_controller.hpp"
 #include "haven/presentation/approvals/list_decided_approvals_controller.hpp"
@@ -213,6 +217,9 @@ int main() {
         auto list_caller_reservations_handler =
             std::make_shared<haven::application::reservations::ListCallerReservationsHandler>(
                 *reservation_repository);
+        auto list_all_reservations_handler =
+            std::make_shared<haven::application::reservations::ListAllReservationsHandler>(
+                *reservation_repository);
         auto list_pending_approvals_handler =
             std::make_shared<haven::application::reservations::ListPendingApprovalsHandler>(
                 *reservation_repository);
@@ -224,6 +231,9 @@ int main() {
                 *reservation_repository);
         auto reject_reservation_handler =
             std::make_shared<haven::application::reservations::RejectReservationHandler>(
+                *reservation_repository);
+        auto admin_cancel_reservation_handler =
+            std::make_shared<haven::application::reservations::CancelReservationHandler>(
                 *reservation_repository);
 
         namespace app_health = haven::application::health;
@@ -264,6 +274,10 @@ int main() {
             std::move(approve_reservation_handler), authentication_service);
         haven::presentation::approvals::register_reject_reservation_route(
             std::move(reject_reservation_handler), authentication_service);
+        haven::presentation::admin::register_list_all_reservations_route(
+            std::move(list_all_reservations_handler), resource_repository, authentication_service);
+        haven::presentation::admin::register_admin_cancel_reservation_route(
+            std::move(admin_cancel_reservation_handler), authentication_service);
         HVN_INFO_LOG("HTTP routes registered");
 
         HVN_INFO_LOG("Starting Haven API on ",

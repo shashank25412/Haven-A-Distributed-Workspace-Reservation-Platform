@@ -14,6 +14,8 @@
 
 #include <chrono>
 #include <compare>
+#include <optional>
+#include <string>
 
 namespace haven::domain {
 
@@ -38,6 +40,7 @@ public:
      * @param resource_id Reserved resource identifier.
      * @param cancelled_by User who cancelled the reservation.
      * @param previous_status Status immediately before cancellation.
+     * @param reason Optional free-form comment supplied by the canceller.
      *
      * @throws std::invalid_argument when the previous status is neither
      * PendingApproval nor Confirmed.
@@ -49,7 +52,8 @@ public:
         ReservationId reservation_id,
         ResourceId resource_id,
         UserId cancelled_by,
-        ReservationStatus previous_status);
+        ReservationStatus previous_status,
+        std::optional<std::string> reason = std::nullopt);
 
     /**
      * @brief Returns the unique event identifier.
@@ -86,6 +90,11 @@ public:
      */
     [[nodiscard]] ReservationStatus previous_status() const noexcept;
 
+    /**
+     * @brief Returns the optional free-form comment supplied by the canceller.
+     */
+    [[nodiscard]] const std::optional<std::string>& reason() const noexcept;
+
     auto operator<=>(const ReservationCancelledEvent&) const = default;
 
 private:
@@ -96,6 +105,7 @@ private:
     ResourceId resource_id_;
     UserId cancelled_by_;
     ReservationStatus previous_status_;
+    std::optional<std::string> reason_;
 };
 
 }  // namespace haven::domain

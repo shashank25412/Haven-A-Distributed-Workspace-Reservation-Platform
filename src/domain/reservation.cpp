@@ -271,7 +271,8 @@ void Reservation::reject(UserId rejected_by,
 
 void Reservation::cancel(UserId cancelled_by,
                          const TimePoint cancelled_at,
-                         EventId cancelled_event_id) {
+                         EventId cancelled_event_id,
+                         std::optional<std::string> reason) {
     HVN_TRACE_SCOPE();
 
     if (is_terminal(status_)) {
@@ -290,7 +291,8 @@ void Reservation::cancel(UserId cancelled_by,
                                                           reservation_id_,
                                                           resource_id_,
                                                           std::move(cancelled_by),
-                                                          previous_status});
+                                                          previous_status,
+                                                          std::move(reason)});
 
     HVN_DEBUG_LOG("Reservation transitioned to cancelled.");
 }

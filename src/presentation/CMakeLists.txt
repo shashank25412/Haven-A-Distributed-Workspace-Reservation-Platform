@@ -39,6 +39,9 @@ add_library(
     reservations/create_reservation_response.cpp
     reservations/list_my_reservations_controller.cpp
 
+    admin/list_all_reservations_controller.cpp
+    admin/admin_cancel_reservation_controller.cpp
+
     resources/get_resource_controller.cpp
     resources/search_resources_controller.cpp
     resources/resource_error_response.cpp

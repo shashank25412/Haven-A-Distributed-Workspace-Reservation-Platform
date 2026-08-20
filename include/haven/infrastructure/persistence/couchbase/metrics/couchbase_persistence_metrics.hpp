@@ -28,6 +28,7 @@ enum class Operation {
     find_by_creator,
     find_pending_approvals,
     find_decided_approvals,
+    find_all,
     find_by_resource_and_interval,
     has_conflict,
     has_conflict_excluding,

@@ -59,6 +59,27 @@ TEST(ReservationCancelledEventTest, Constructor_ShouldStoreOccurrenceTime_WhenEv
     EXPECT_EQ(event.occurred_at(), ReservationCancelledEvent::TimePoint{} + 30min);
 }
 
+TEST(ReservationCancelledEventTest, Constructor_ShouldStoreNoReason_ByDefault) {
+    const ReservationCancelledEvent event = create_cancelled_event(ReservationStatus::Confirmed);
+
+    EXPECT_FALSE(event.reason().has_value());
+}
+
+TEST(ReservationCancelledEventTest, Constructor_ShouldStoreReason_WhenProvided) {
+    const ReservationCancelledEvent event{
+        EventId{"event-123"},
+        ReservationCancelledEvent::TimePoint{} + 30min,
+        OrganizationId{"organization-123"},
+        ReservationId{"reservation-123"},
+        ResourceId{"resource-123"},
+        UserId{"user-123"},
+        ReservationStatus::Confirmed,
+        std::string{"Resource needed for maintenance"}};
+
+    ASSERT_TRUE(event.reason().has_value());
+    EXPECT_EQ(*event.reason(), "Resource needed for maintenance");
+}
+
 TEST(ReservationCancelledEventTest, Constructor_ShouldThrow_WhenPreviousStatusIsTerminal) {
     EXPECT_THROW(create_cancelled_event(ReservationStatus::Rejected), std::invalid_argument);
 }

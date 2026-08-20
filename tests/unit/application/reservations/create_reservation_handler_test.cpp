@@ -194,6 +194,10 @@ public:
         return {};
     }
 
+    [[nodiscard]] ReservationListResult find_all(const OrganizationId&) const override {
+        return {};
+    }
+
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
         const OrganizationId&, const ResourceId&, const TimeInterval&) const override {
         return {};

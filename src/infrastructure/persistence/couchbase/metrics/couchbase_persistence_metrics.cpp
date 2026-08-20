@@ -68,6 +68,8 @@ std::string_view value(const Operation v) noexcept {
             return "has_conflict";
         case Operation::has_conflict_excluding:
             return "has_conflict_excluding";
+        case Operation::reserved_unit_count:
+            return "reserved_unit_count";
         case Operation::insert:
             return "insert";
         case Operation::update:

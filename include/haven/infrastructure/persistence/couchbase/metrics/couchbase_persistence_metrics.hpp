@@ -32,6 +32,7 @@ enum class Operation {
     find_by_resource_and_interval,
     has_conflict,
     has_conflict_excluding,
+    reserved_unit_count,
     insert,
     update,
     claim,

@@ -366,6 +366,47 @@ bool CouchbaseReservationRepository::has_conflict_excluding(
         });
 }
 
+int CouchbaseReservationRepository::reserved_unit_count(
+    const haven::domain::OrganizationId& organization_id,
+    const haven::domain::ResourceId& resource_id,
+    const haven::domain::TimeInterval& interval) const {
+    return metrics_.record(
+        metrics::Repository::reservation, metrics::Operation::reserved_unit_count, [&] {
+            HVN_TRACE_SCOPE();
+            auto options = readonly_options();
+            options.named_parameters(
+                std::make_pair("organizationId", organization_id.value()),
+                std::make_pair("resourceId", resource_id.value()),
+                std::make_pair(
+                    "requestedStart", reservation_timestamp_to_string(interval.start())),
+                std::make_pair("requestedEnd", reservation_timestamp_to_string(interval.end())),
+                std::make_pair("status",
+                               std::string{haven::domain::to_string(
+                                   haven::domain::ReservationStatus::Confirmed)}));
+            const auto statement =
+                "SELECT COUNT(*) AS reservedCount FROM `" +
+                std::string{CouchbaseCollections::reservations} +
+                "` AS reservation WHERE reservation.documentType = \"reservation\" "
+                "AND reservation.organizationId = $organizationId " +
+                overlap_predicate() + "AND reservation.status = $status";
+            auto [error, result] = connection_->scope().query(statement, options).get();
+            if (error) {
+                HVN_ERROR_LOG("Couchbase reserved-unit count query failed for organization ",
+                              organization_id.value(),
+                              " and resource ",
+                              resource_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase reserved-unit count query");
+            }
+            const auto rows = result.rows_as();
+            if (rows.empty()) {
+                return 0;
+            }
+            return static_cast<int>(rows.front().at("reservedCount").get_unsigned());
+        });
+}
+
 haven::application::persistence::PersistenceToken CouchbaseReservationRepository::insert(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::Reservation& reservation) {

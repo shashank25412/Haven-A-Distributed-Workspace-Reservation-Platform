@@ -124,19 +124,23 @@ void handle_search(
         auto resources = handler->handle(query);
         const auto normalized_query = lowercase(query_text);
         if (!normalized_query.empty()) {
-            std::erase_if(resources, [&normalized_query](const haven::domain::Resource& resource) {
-                return lowercase(resource.name()).find(normalized_query) == std::string::npos &&
-                       lowercase(resource.description()).find(normalized_query) == std::string::npos;
+            std::erase_if(resources, [&normalized_query](const auto& entry) {
+                return lowercase(entry.resource.name()).find(normalized_query) ==
+                           std::string::npos &&
+                       lowercase(entry.resource.description()).find(normalized_query) ==
+                           std::string::npos;
             });
         }
         std::sort(resources.begin(), resources.end(), [](const auto& left, const auto& right) {
-            return left.name() < right.name();
+            return left.resource.name() < right.resource.name();
         });
 
         Json::Value body;
         body["items"] = Json::arrayValue;
-        for (const auto& resource : resources) {
-            body["items"].append(ResourceResponse{resource}.to_json());
+        for (const auto& entry : resources) {
+            auto item = ResourceResponse{entry.resource}.to_json();
+            item["availableUnits"] = Json::UInt64{entry.available_units};
+            body["items"].append(item);
         }
         body["searchContext"]["startTime"] = start_time;
         body["searchContext"]["endTime"] = end_time;

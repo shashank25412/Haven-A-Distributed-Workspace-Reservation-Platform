@@ -38,6 +38,8 @@ struct ResourceDocument {
     std::string status;
     bool requires_approval;
     std::uint64_t version;
+    /** Interchangeable unit capacity; older documents without this field default to 1. */
+    std::uint32_t total_units{1};
 };
 
 /**

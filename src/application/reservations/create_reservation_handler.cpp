@@ -268,8 +268,9 @@ CreateReservationResult CreateReservationHandler::handle_core(
         HVN_WARN_LOG("Reservation creation rejected by domain policy");
         return reject(CreateReservationStatus::POLICY_REJECTED);
     }
-    if (reservation_repository_.has_conflict(
-            command.organization_id(), command.resource_id(), command.interval())) {
+    if (reservation_repository_.reserved_unit_count(
+            command.organization_id(), command.resource_id(), command.interval()) >=
+        static_cast<int>(aggregate.total_units())) {
         HVN_WARN_LOG("Reservation creation rejected because the schedule conflicts");
         return reject(CreateReservationStatus::SCHEDULE_CONFLICT);
     }

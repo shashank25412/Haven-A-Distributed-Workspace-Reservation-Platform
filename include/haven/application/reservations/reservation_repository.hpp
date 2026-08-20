@@ -133,6 +133,31 @@ public:
                                             const haven::domain::TimeInterval& interval) const = 0;
 
     /**
+     * @brief Counts confirmed reservations that overlap an interval for a resource.
+     *
+     * Used to support bulk/pooled resources (e.g. a parking lot or a block of
+     * shared desks) that can be held by several concurrent reservations up to
+     * their total unit capacity, unlike single-unit resources where any
+     * overlap is a conflict.
+     *
+     * The default implementation preserves single-unit semantics by deferring
+     * to has_conflict(), so existing implementations do not need to override
+     * this method unless they back a repository that actually stores more
+     * than one concurrent reservation per resource.
+     *
+     * @param organization_id Organization used to scope the count.
+     * @param resource_id Resource whose schedule is being checked.
+     * @param interval Requested reservation interval.
+     * @return Number of confirmed reservations overlapping the interval.
+     */
+    [[nodiscard]] virtual int reserved_unit_count(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::ResourceId& resource_id,
+        const haven::domain::TimeInterval& interval) const {
+        return has_conflict(organization_id, resource_id, interval) ? 1 : 0;
+    }
+
+    /**
      * @brief Determines whether an interval conflicts with another reservation.
      *
      * The excluded reservation is ignored so an existing reservation can safely

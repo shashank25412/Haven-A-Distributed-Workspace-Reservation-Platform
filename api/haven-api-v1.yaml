@@ -1428,6 +1428,17 @@ components:
           type: integer
           format: uint64
           minimum: 1
+        totalUnits:
+          type: integer
+          minimum: 1
+          description: Interchangeable unit capacity. Most resources have exactly 1; bulk/pooled
+            resources (e.g. a parking lot or a block of shared desks) advertise more so several
+            reservations can hold the resource concurrently.
+        availableUnits:
+          type: integer
+          minimum: 0
+          description: Units still bookable for the interval used to produce this result. Only
+            present when the resource was returned from a time-scoped availability search.
       required:
       - organizationId
       - resourceId
@@ -1437,6 +1448,7 @@ components:
       - status
       - requiresApproval
       - version
+      - totalUnits
       description: Resource metadata. It does not assert availability for an unspecified interval.
     ResourceSearchResponse:
       type: object

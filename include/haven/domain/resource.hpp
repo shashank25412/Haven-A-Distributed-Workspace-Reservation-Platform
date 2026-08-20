@@ -12,6 +12,7 @@
 #include "haven/domain/value_objects/version.hpp"
 
 #include <compare>
+#include <cstdint>
 #include <string>
 
 namespace haven::domain {
@@ -40,7 +41,8 @@ public:
         ResourceId resource_id,
         ResourceType type,
         ResourceStatus status,
-        bool requires_approval);
+        bool requires_approval,
+        std::uint32_t total_units = 1);
 
     /**
      * @brief Restores a resource from previously persisted state.
@@ -66,7 +68,8 @@ public:
         ResourceType type,
         ResourceStatus status,
         bool requires_approval,
-        Version version);
+        Version version,
+        std::uint32_t total_units = 1);
 
     /**
      * @brief Returns the organization that owns the resource.
@@ -120,6 +123,16 @@ public:
     [[nodiscard]] Version version() const noexcept;
 
     /**
+     * @brief Returns how many interchangeable units this resource represents.
+     *
+     * Most resources (a single meeting room, a single desk) have exactly one
+     * unit. Bulk/pooled resources (a parking lot, a block of shared desks, a
+     * dining hall's tables) advertise more than one so several reservations
+     * can hold the same resource concurrently up to this capacity.
+     */
+    [[nodiscard]] std::uint32_t total_units() const noexcept;
+
+    /**
      * @brief Activates the resource.
      */
     void activate() noexcept;
@@ -140,7 +153,8 @@ private:
         ResourceType type,
         ResourceStatus status,
         bool requires_approval,
-        Version version);
+        Version version,
+        std::uint32_t total_units);
 
     OrganizationId organization_id_;
     ResourceId resource_id_;
@@ -150,6 +164,7 @@ private:
     ResourceStatus status_;
     bool requires_approval_;
     Version version_;
+    std::uint32_t total_units_;
 };
 
 }  // namespace haven::domain

@@ -37,8 +37,7 @@ using haven::tests::util::application::TestResourceRepository;
     const haven::domain::ResourceId& resource_id,
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::ResourceType resource_type,
-    const haven::domain::ResourceStatus resource_status = haven::domain::ResourceStatus::Active) {
-    return haven::domain::Resource{
+    const haven::domain::ResourceStatus resource_status = haven::domain::ResourceStatus::Active) {    return haven::domain::Resource{
         organization_id, resource_id, resource_type, resource_status, false};
 }
 
@@ -61,8 +60,8 @@ TEST(SearchAvailableResourcesHandlerTest,
         organization_id, haven::domain::ResourceType::MeetingRoom, make_interval()});
 
     ASSERT_EQ(result.size(), 2U);
-    EXPECT_EQ(result.at(0).resource_id(), first_resource_id);
-    EXPECT_EQ(result.at(1).resource_id(), second_resource_id);
+    EXPECT_EQ(result.at(0).resource.resource_id(), first_resource_id);
+    EXPECT_EQ(result.at(1).resource.resource_id(), second_resource_id);
     ASSERT_EQ(reservation_repository.conflict_resource_ids().size(), 2U);
     EXPECT_EQ(reservation_repository.conflict_organization_ids().at(0), organization_id);
     EXPECT_EQ(reservation_repository.conflict_organization_ids().at(1), organization_id);
@@ -89,7 +88,7 @@ TEST(SearchAvailableResourcesHandlerTest, Handle_ShouldExcludeResourcesWithSched
         organization_id, haven::domain::ResourceType::MeetingRoom, make_interval()});
 
     ASSERT_EQ(result.size(), 1U);
-    EXPECT_EQ(result.front().resource_id(), available_resource_id);
+    EXPECT_EQ(result.front().resource.resource_id(), available_resource_id);
 }
 
 TEST(SearchAvailableResourcesHandlerTest, Handle_ShouldReturnEmpty_WhenAllResourcesConflict) {
@@ -147,7 +146,7 @@ TEST(SearchAvailableResourcesHandlerTest,
         organization_id, haven::domain::ResourceType::MeetingRoom, make_interval()});
 
     ASSERT_EQ(result.size(), 1U);
-    EXPECT_EQ(result.front().resource_id(), visible_resource_id);
+    EXPECT_EQ(result.front().resource.resource_id(), visible_resource_id);
     ASSERT_EQ(reservation_repository.conflict_resource_ids().size(), 1U);
     EXPECT_EQ(reservation_repository.conflict_resource_ids().front(), visible_resource_id);
 }
@@ -171,7 +170,7 @@ TEST(SearchAvailableResourcesHandlerTest,
         organization_id, haven::domain::ResourceType::MeetingRoom, make_interval()});
 
     ASSERT_EQ(result.size(), 1U);
-    EXPECT_EQ(result.front().resource_id(), visible_resource_id);
+    EXPECT_EQ(result.front().resource.resource_id(), visible_resource_id);
     ASSERT_EQ(reservation_repository.conflict_resource_ids().size(), 1U);
     EXPECT_EQ(reservation_repository.conflict_resource_ids().front(), visible_resource_id);
 }
@@ -196,9 +195,36 @@ TEST(SearchAvailableResourcesHandlerTest,
         organization_id, haven::domain::ResourceType::MeetingRoom, make_interval()});
 
     ASSERT_EQ(result.size(), 1U);
-    EXPECT_EQ(result.front().resource_id(), visible_resource_id);
+    EXPECT_EQ(result.front().resource.resource_id(), visible_resource_id);
     ASSERT_EQ(reservation_repository.conflict_resource_ids().size(), 1U);
     EXPECT_EQ(reservation_repository.conflict_resource_ids().front(), visible_resource_id);
+}
+
+TEST(SearchAvailableResourcesHandlerTest,
+     Handle_ShouldReportRemainingUnits_ForBulkResources) {
+    const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
+    const auto resource_id = haven::domain::ResourceId{"resource-parking-100"};
+    auto resource_repository = TestResourceRepository{};
+    auto reservation_repository = TestReservationRepository{};
+    resource_repository.set_search_result({haven::domain::Resource::rehydrate(
+        organization_id,
+        resource_id,
+        "North Deck",
+        "Bulk parking lot",
+        haven::domain::ResourceType::ParkingSlot,
+        haven::domain::ResourceStatus::Active,
+        false,
+        haven::domain::Version{1},
+        5U)});
+    reservation_repository.set_conflict(true);
+    const auto handler =
+        SearchAvailableResourcesHandler{resource_repository, reservation_repository};
+
+    const auto result = handler.handle(SearchAvailableResourcesQuery{
+        organization_id, haven::domain::ResourceType::ParkingSlot, make_interval()});
+
+    ASSERT_EQ(result.size(), 1U);
+    EXPECT_EQ(result.front().available_units, 4U);
 }
 
 }  // namespace

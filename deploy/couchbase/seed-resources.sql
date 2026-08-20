@@ -16,6 +16,7 @@ SELECT
         "status": seed.status,
         "requiresApproval": seed.requiresApproval,
         "version": 1,
+        "totalUnits": seed.totalUnits,
         "capacity": seed.capacity,
         "location": seed.location,
         "features": seed.features,
@@ -125,5 +126,8 @@ FROM [
     {"id":"game-zone-badminton-b","name":"Badminton Court B","description":"Indoor doubles court beside spectator seating.","resourceType":"GAME_ZONE","status":"ACTIVE","requiresApproval":false,"capacity":4,"location":{"building":"Sports Hall","floor":"G","zone":"Court Hall"},"features":["BADMINTON_COURT","EQUIPMENT"],"tags":["ACTIVE"]},
     {"id":"game-zone-multipurpose","name":"Multipurpose Activity Court","description":"Markable indoor court for volleyball, dodgeball, and team activities.","resourceType":"GAME_ZONE","status":"ACTIVE","requiresApproval":true,"capacity":20,"location":{"building":"Sports Hall","floor":"G","zone":"Main Court"},"features":["SPORTS_COURT","EQUIPMENT_STORAGE"],"tags":["TEAM_SPORT","PRIORITY"]},
     {"id":"game-zone-vr-c","name":"VR Studio C","description":"Immersive studio temporarily closed for headset replacement.","resourceType":"GAME_ZONE","status":"INACTIVE","requiresApproval":true,"capacity":4,"location":{"building":"Recreation Center","floor":"2","zone":"Immersive Lab"},"features":["VR_HEADSETS","ROOM_SCALE"],"tags":["VR","MAINTENANCE"]},
-    {"id":"game-zone-bowling","name":"Mini Bowling Lane","description":"Compact bowling lane closed for scheduled resurfacing.","resourceType":"GAME_ZONE","status":"INACTIVE","requiresApproval":true,"capacity":8,"location":{"building":"Recreation Center","floor":"B1","zone":"Bowling"},"features":["BOWLING_LANE","AUTOMATIC_SCORING"],"tags":["MAINTENANCE"]}
+    {"id":"game-zone-bowling","name":"Mini Bowling Lane","description":"Compact bowling lane closed for scheduled resurfacing.","resourceType":"GAME_ZONE","status":"INACTIVE","requiresApproval":true,"capacity":8,"location":{"building":"Recreation Center","floor":"B1","zone":"Bowling"},"features":["BOWLING_LANE","AUTOMATIC_SCORING"],"tags":["MAINTENANCE"]},
+
+    {"id":"parking-pool-general","name":"General Parking Pool","description":"Unassigned first-come parking pool shared by every visitor to the North Tower garage. Booking reserves one space out of the pool; the remaining count updates live as spaces are booked.","resourceType":"PARKING_SLOT","status":"ACTIVE","requiresApproval":false,"capacity":1,"totalUnits":25,"location":{"building":"North Tower","floor":"B1","zone":"General Pool"},"features":["COVERED","CCTV"],"tags":["POOL","STANDARD"]},
+    {"id":"desk-pool-coworking","name":"Coworking Desk Pool","description":"Open-plan drop-in desks in the coworking commons. Any of the 15 desks in the pool may be booked; each booking reduces the pool's remaining count by one.","resourceType":"OFFICE_DESK","status":"ACTIVE","requiresApproval":false,"capacity":1,"totalUnits":15,"location":{"building":"Innovation Hub","floor":"1","zone":"Coworking Commons"},"features":["MONITOR","DOCK"],"tags":["POOL","HOT_DESK"]}
 ] AS seed;

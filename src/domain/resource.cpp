@@ -16,7 +16,8 @@ Resource::Resource(OrganizationId organization_id,
                    ResourceId resource_id,
                    const ResourceType type,
                    const ResourceStatus status,
-                   const bool requires_approval)
+                   const bool requires_approval,
+                   const std::uint32_t total_units)
     : organization_id_(std::move(organization_id)),
       resource_id_(std::move(resource_id)),
       name_(),
@@ -24,7 +25,8 @@ Resource::Resource(OrganizationId organization_id,
       type_(type),
       status_(status),
       requires_approval_(requires_approval),
-      version_(Version{1}) {}
+      version_(Version{1}),
+      total_units_(total_units == 0 ? 1 : total_units) {}
 
 Resource Resource::rehydrate(OrganizationId organization_id,
                              ResourceId resource_id,
@@ -33,7 +35,8 @@ Resource Resource::rehydrate(OrganizationId organization_id,
                              const ResourceType type,
                              const ResourceStatus status,
                              const bool requires_approval,
-                             const Version version) {
+                             const Version version,
+                             const std::uint32_t total_units) {
     HVN_TRACE_SCOPE();
 
     if (name.empty()) {
@@ -50,7 +53,8 @@ Resource Resource::rehydrate(OrganizationId organization_id,
                     type,
                     status,
                     requires_approval,
-                    version};
+                    version,
+                    total_units == 0 ? 1 : total_units};
 }
 
 Resource::Resource(OrganizationId organization_id,
@@ -60,7 +64,8 @@ Resource::Resource(OrganizationId organization_id,
                    const ResourceType type,
                    const ResourceStatus status,
                    const bool requires_approval,
-                   const Version version)
+                   const Version version,
+                   const std::uint32_t total_units)
     : organization_id_(std::move(organization_id)),
       resource_id_(std::move(resource_id)),
       name_(std::move(name)),
@@ -68,7 +73,8 @@ Resource::Resource(OrganizationId organization_id,
       type_(type),
       status_(status),
       requires_approval_(requires_approval),
-      version_(version) {}
+      version_(version),
+      total_units_(total_units) {}
 
 const OrganizationId& Resource::organization_id() const noexcept {
     return organization_id_;
@@ -104,6 +110,10 @@ bool Resource::requires_approval() const noexcept {
 
 Version Resource::version() const noexcept {
     return version_;
+}
+
+std::uint32_t Resource::total_units() const noexcept {
+    return total_units_;
 }
 
 void Resource::activate() noexcept {

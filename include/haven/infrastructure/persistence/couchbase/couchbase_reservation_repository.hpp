@@ -66,6 +66,11 @@ public:
         const haven::domain::TimeInterval& interval,
         const haven::domain::ReservationId& excluded_reservation_id) const override;
 
+    [[nodiscard]] int reserved_unit_count(
+        const haven::domain::OrganizationId& organization_id,
+        const haven::domain::ResourceId& resource_id,
+        const haven::domain::TimeInterval& interval) const override;
+
     [[nodiscard]] haven::application::persistence::PersistenceToken insert(
         const haven::domain::OrganizationId& organization_id,
         const haven::domain::Reservation& reservation) override;

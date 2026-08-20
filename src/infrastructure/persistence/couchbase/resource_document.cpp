@@ -44,6 +44,7 @@ tao::json::value resource_document_to_json(
         {"status", document.status},
         {"requiresApproval", document.requires_approval},
         {"version", document.version},
+        {"totalUnits", document.total_units},
     };
 }
 
@@ -64,6 +65,13 @@ ResourceDocument resource_document_from_json(
         .requires_approval = json.at("requiresApproval").get_boolean(),
         .version = json.at("version").get_unsigned(),
     };
+
+    const auto& object = json.get_object();
+    const auto total_units_field = object.find("totalUnits");
+    if (total_units_field != object.end()) {
+        document.total_units =
+            static_cast<std::uint32_t>(total_units_field->second.get_unsigned());
+    }
 
     validate_resource_document(document);
 

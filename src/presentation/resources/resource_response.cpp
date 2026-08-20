@@ -23,6 +23,7 @@ ResourceResponse::ResourceResponse(const haven::domain::Resource& resource) {
     response_["status"] = std::string{haven::domain::to_string(resource.status())};
     response_["requiresApproval"] = resource.requires_approval();
     response_["version"] = Json::UInt64{resource.version().value()};
+    response_["totalUnits"] = Json::UInt64{resource.total_units()};
 }
 
 Json::Value ResourceResponse::to_json() const {

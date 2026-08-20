@@ -16,6 +16,7 @@ SELECT
         "status": seed.status,
         "requiresApproval": seed.requiresApproval,
         "version": 1,
+        "totalUnits": seed.totalUnits,
         "capacity": seed.capacity,
         "location": seed.location,
         "features": seed.features,
@@ -27,5 +28,6 @@ FROM [
     {"id":"office-desk-r01","name":"Riverside Desk R01","description":"Standing desk with dual monitors near the atrium.","resourceType":"OFFICE_DESK","status":"ACTIVE","requiresApproval":false,"capacity":1,"location":{"building":"Riverside Campus","floor":"2","zone":"Atrium"},"features":["STANDING_DESK","DUAL_MONITOR"],"tags":["WINDOW"]},
     {"id":"office-desk-r02","name":"Riverside Desk R02","description":"Quiet desk in the design neighborhood.","resourceType":"OFFICE_DESK","status":"ACTIVE","requiresApproval":false,"capacity":1,"location":{"building":"Riverside Campus","floor":"2","zone":"Design"},"features":["DUAL_MONITOR","DOCK"],"tags":["QUIET"]},
     {"id":"parking-slot-r01","name":"Riverside Parking R01","description":"Covered parking spot near the main entrance.","resourceType":"PARKING_SLOT","status":"ACTIVE","requiresApproval":false,"capacity":1,"location":{"building":"Riverside Campus","floor":"G","zone":"Main Entrance"},"features":["COVERED"],"tags":["ACCESSIBLE"]},
-    {"id":"game-zone-r01","name":"Riverside Game Zone","description":"Recreation room with table tennis and a lounge area.","resourceType":"GAME_ZONE","status":"ACTIVE","requiresApproval":false,"capacity":8,"location":{"building":"Riverside Campus","floor":"1","zone":"Recreation"},"features":["TABLE_TENNIS","LOUNGE"],"tags":["RECREATION"]}
+    {"id":"game-zone-r01","name":"Riverside Game Zone","description":"Recreation room with table tennis and a lounge area.","resourceType":"GAME_ZONE","status":"ACTIVE","requiresApproval":false,"capacity":8,"location":{"building":"Riverside Campus","floor":"1","zone":"Recreation"},"features":["TABLE_TENNIS","LOUNGE"],"tags":["RECREATION"]},
+    {"id":"parking-pool-riverside","name":"Riverside Parking Pool","description":"Unassigned overflow parking pool shared by every visitor to the Riverside Campus lot.","resourceType":"PARKING_SLOT","status":"ACTIVE","requiresApproval":false,"capacity":1,"totalUnits":12,"location":{"building":"Riverside Campus","floor":"G","zone":"Overflow Lot"},"features":["COVERED"],"tags":["POOL","STANDARD"]}
 ] AS seed;

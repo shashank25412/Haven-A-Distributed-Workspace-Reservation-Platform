@@ -18,7 +18,7 @@ SearchAvailableResourcesHandler::SearchAvailableResourcesHandler(
     : resource_repository_(resource_repository),
       reservation_repository_(reservation_repository) {}
 
-ResourceSearchResult SearchAvailableResourcesHandler::handle(
+ResourceAvailabilityResult SearchAvailableResourcesHandler::handle(
     const SearchAvailableResourcesQuery& query) const {
     HVN_TRACE_SCOPE();
 
@@ -26,30 +26,32 @@ ResourceSearchResult SearchAvailableResourcesHandler::handle(
         query.organization_id(),
         query.resource_type());
 
-    const auto first_unavailable_resource = std::remove_if(
-        resources.begin(),
-        resources.end(),
-        [this, &query](const haven::domain::Resource& resource) {
-            const auto outside_requested_scope =
-                resource.organization_id() != query.organization_id()
-                || resource.type() != query.resource_type()
-                || resource.status() != haven::domain::ResourceStatus::Active;
+    ResourceAvailabilityResult results;
+    results.reserve(resources.size());
+    for (auto& resource : resources) {
+        const auto outside_requested_scope =
+            resource.organization_id() != query.organization_id()
+            || resource.type() != query.resource_type()
+            || resource.status() != haven::domain::ResourceStatus::Active;
 
-            if (outside_requested_scope) {
-                HVN_WARN_LOG(
-                    "Resource repository returned an entry outside the requested search scope");
-                return true;
-            }
+        if (outside_requested_scope) {
+            HVN_WARN_LOG(
+                "Resource repository returned an entry outside the requested search scope");
+            continue;
+        }
 
-            return reservation_repository_.has_conflict(
-                query.organization_id(),
-                resource.resource_id(),
-                query.interval());
-        });
+        const auto reserved = reservation_repository_.reserved_unit_count(
+            query.organization_id(), resource.resource_id(), query.interval());
+        const auto total_units = resource.total_units();
+        if (static_cast<std::uint32_t>(std::max(reserved, 0)) >= total_units) {
+            continue;
+        }
 
-    resources.erase(first_unavailable_resource, resources.end());
+        const auto available_units = total_units - static_cast<std::uint32_t>(std::max(reserved, 0));
+        results.push_back(ResourceAvailability{std::move(resource), available_units});
+    }
 
-    return resources;
+    return results;
 }
 
 }  // namespace haven::application::resources

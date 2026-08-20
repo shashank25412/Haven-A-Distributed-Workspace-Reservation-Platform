@@ -18,7 +18,9 @@ public:
 
     [[nodiscard]] haven::application::auth::AuthenticatedAccount sign_up(
         std::string_view email,
-        std::string_view password) const override;
+        std::string_view password,
+        std::string_view name,
+        std::string_view contact_number) const override;
     [[nodiscard]] haven::application::auth::AuthenticatedAccount login(
         std::string_view email,
         std::string_view password) const override;

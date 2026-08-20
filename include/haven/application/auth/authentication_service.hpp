@@ -33,13 +33,17 @@ struct AuthenticatedAccount final {
     std::string organization_id;
     std::string role;
     std::string access_token;
+    std::string name;
+    std::string contact_number;
 };
 
 class AuthenticationService {
 public:
     virtual ~AuthenticationService() = default;
     [[nodiscard]] virtual AuthenticatedAccount sign_up(std::string_view email,
-                                                       std::string_view password) const = 0;
+                                                       std::string_view password,
+                                                       std::string_view name,
+                                                       std::string_view contact_number) const = 0;
     [[nodiscard]] virtual AuthenticatedAccount login(std::string_view email,
                                                      std::string_view password) const = 0;
     [[nodiscard]] virtual AuthenticatedAccount authenticate(

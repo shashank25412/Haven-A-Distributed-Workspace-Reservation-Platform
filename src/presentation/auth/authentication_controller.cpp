@@ -65,12 +65,20 @@ using AuthenticatedAccount =
     body["user"]["email"] = account.email;
     body["user"]["organizationId"] = account.organization_id;
     body["user"]["role"] = account.role;
+    body["user"]["name"] = account.name;
     return body;
 }
 
 struct Credentials final {
     std::string email;
     std::string password;
+};
+
+struct SignUpDetails final {
+    std::string name;
+    std::string email;
+    std::string password;
+    std::string contact_number;
 };
 
 [[nodiscard]] std::optional<Credentials> credentials_from(
@@ -83,6 +91,25 @@ struct Credentials final {
     }
     return Credentials{.email = (*json)["email"].asString(),
                        .password = (*json)["password"].asString()};
+}
+
+[[nodiscard]] std::optional<SignUpDetails> sign_up_details_from(
+    const drogon::HttpRequestPtr& request) {
+    const auto json = request->getJsonObject();
+    if (!json || !json->isObject() || !json->isMember("name") || !(*json)["name"].isString() ||
+        !json->isMember("email") || !(*json)["email"].isString() ||
+        !json->isMember("password") || !(*json)["password"].isString()) {
+        return std::nullopt;
+    }
+    if (json->isMember("contactNumber") && !(*json)["contactNumber"].isString()) {
+        return std::nullopt;
+    }
+    return SignUpDetails{
+        .name = (*json)["name"].asString(),
+        .email = (*json)["email"].asString(),
+        .password = (*json)["password"].asString(),
+        .contact_number = json->isMember("contactNumber") ? (*json)["contactNumber"].asString() : "",
+    };
 }
 
 [[nodiscard]] std::optional<std::string> bearer_token(const drogon::HttpRequestPtr& request) {
@@ -123,6 +150,33 @@ void handle_credentials(const std::shared_ptr<AuthenticationService>& service,
     }
 }
 
+void handle_sign_up(const std::shared_ptr<AuthenticationService>& service,
+                    const drogon::HttpRequestPtr& request,
+                    std::function<void(const drogon::HttpResponsePtr&)>& callback) {
+    const auto details = sign_up_details_from(request);
+    if (!details) {
+        callback(json_error(drogon::k400BadRequest,
+                            "INVALID_REQUEST",
+                            "Name, email, and password are required."));
+        return;
+    }
+    try {
+        const auto account =
+            service->sign_up(details->email, details->password, details->name, details->contact_number);
+        auto response = drogon::HttpResponse::newHttpJsonResponse(account_response(account));
+        response->setStatusCode(drogon::k201Created);
+        response->addHeader("Cache-Control", "no-store");
+        callback(response);
+    } catch (const AuthenticationError& error) {
+        callback(authentication_error(error));
+    } catch (const std::exception&) {
+        HVN_ERROR_LOG("Authentication request failed unexpectedly");
+        callback(json_error(drogon::k500InternalServerError,
+                            "INTERNAL_ERROR",
+                            "Authentication could not be completed."));
+    }
+}
+
 }  // namespace
 
 void register_authentication_routes(std::shared_ptr<AuthenticationService> service) {
@@ -132,15 +186,7 @@ void register_authentication_routes(std::shared_ptr<AuthenticationService> servi
         "/api/v1/auth/signup",
         [service](const drogon::HttpRequestPtr& request,
                   std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-            handle_credentials(service,
-                               request,
-                               callback,
-                               drogon::k201Created,
-                               [](const AuthenticationService& authentication,
-                                  const std::string_view email,
-                                  const std::string_view password) {
-                                   return authentication.sign_up(email, password);
-                               });
+            handle_sign_up(service, request, callback);
         },
         {drogon::Post});
 

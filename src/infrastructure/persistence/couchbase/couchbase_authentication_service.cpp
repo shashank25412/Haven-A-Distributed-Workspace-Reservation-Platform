@@ -137,6 +137,24 @@ void validate_credentials(const std::string_view email, const std::string_view p
     }
 }
 
+void validate_profile(const std::string_view name, const std::string_view contact_number) {
+    if (name.empty() || name.size() > 128U) {
+        throw AuthenticationError{AuthenticationErrorCode::invalid_input,
+                                  "A name of up to 128 characters is required"};
+    }
+    if (contact_number.size() > 32U) {
+        throw AuthenticationError{AuthenticationErrorCode::invalid_input,
+                                  "Contact number must be at most 32 characters"};
+    }
+}
+
+[[nodiscard]] std::string optional_string_field(const tao::json::value& document,
+                                                const std::string_view key) {
+    const auto& object = document.get_object();
+    const auto found = object.find(std::string{key});
+    return found == object.end() ? std::string{} : found->second.get_string();
+}
+
 [[nodiscard]] std::string credential_key(const std::string_view email) {
     const auto digest = sha256(email);
     return "credential::" + hex_encode(digest.data(), digest.size());
@@ -160,6 +178,8 @@ void validate_credentials(const std::string_view email, const std::string_view p
         .organization_id = document.at("organizationId").get_string(),
         .role = document.at("role").get_string(),
         .access_token = {},
+        .name = optional_string_field(document, "name"),
+        .contact_number = optional_string_field(document, "contactNumber"),
     };
 }
 
@@ -207,10 +227,14 @@ CouchbaseAuthenticationService::CouchbaseAuthenticationService(
     }
 }
 
-AuthenticatedAccount CouchbaseAuthenticationService::sign_up(const std::string_view email,
-                                                              const std::string_view password) const {
+AuthenticatedAccount CouchbaseAuthenticationService::sign_up(
+    const std::string_view email,
+    const std::string_view password,
+    const std::string_view name,
+    const std::string_view contact_number) const {
     const auto normalized_email = normalize_email(email);
     validate_credentials(normalized_email, password);
+    validate_profile(name, contact_number);
     const auto salt = random_bytes<kSaltBytes>();
     const auto hash = password_hash(password, salt.data(), salt.size());
     const auto identifier = random_bytes<16U>();
@@ -221,6 +245,8 @@ AuthenticatedAccount CouchbaseAuthenticationService::sign_up(const std::string_v
         {"email", normalized_email},
         {"organizationId", default_organization_id_},
         {"role", "MEMBER"},
+        {"name", std::string{name}},
+        {"contactNumber", std::string{contact_number}},
         {"passwordAlgorithm", "scrypt"},
         {"passwordSalt", hex_encode(salt.data(), salt.size())},
         {"passwordHash", hex_encode(hash.data(), hash.size())},

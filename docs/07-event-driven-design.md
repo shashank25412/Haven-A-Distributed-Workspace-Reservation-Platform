@@ -75,16 +75,16 @@ flowchart LR
 
 ## 5. Event Catalog
 
-| Event | Trigger | Primary Consumers |
-|---|---|---|
-| `ReservationCreated` | Reservation record created | Audit, reporting |
-| `ReservationApprovalRequested` | Pending approval created | Notification, approval feed |
-| `ReservationConfirmed` | Auto-confirm or approval | Notification, reporting |
-| `ReservationRejected` | Approval rejected | Notification, reporting |
-| `ReservationCancelled` | Reservation cancelled | Notification, reporting |
-| `ReservationExtended` | End time extended | Notification, reporting |
-| `ReservationExpired` | Reservation expired | Notification, reporting |
-| `ReservationCompleted` | Reservation completed | Reporting |
+| Event                          | Trigger                    | Primary Consumers           |
+| ------------------------------ | -------------------------- | --------------------------- |
+| `ReservationCreated`           | Reservation record created | Audit, reporting            |
+| `ReservationApprovalRequested` | Pending approval created   | Notification, approval feed |
+| `ReservationConfirmed`         | Auto-confirm or approval   | Notification, reporting     |
+| `ReservationRejected`          | Approval rejected          | Notification, reporting     |
+| `ReservationCancelled`         | Reservation cancelled      | Notification, reporting     |
+| `ReservationExtended`          | End time extended          | Notification, reporting     |
+| `ReservationExpired`           | Reservation expired        | Notification, reporting     |
+| `ReservationCompleted`         | Reservation completed      | Reporting                   |
 
 ---
 
@@ -382,14 +382,14 @@ Logs include event ID, type, aggregate ID, tenant, attempt, and trace ID.
 
 ## 20. Failure Scenarios
 
-| Failure | Required Behavior |
-|---|---|
-| App crashes after atomic persist | Relay later publishes |
-| Kafka unavailable | Outbox remains pending |
+| Failure                                    | Required Behavior                          |
+| ------------------------------------------ | ------------------------------------------ |
+| App crashes after atomic persist           | Relay later publishes                      |
+| Kafka unavailable                          | Outbox remains pending                     |
 | Relay crashes after publish before marking | Event may duplicate; consumers deduplicate |
-| Consumer crashes after side effect | Duplicate delivery handled |
-| Invalid schema | Dead-letter and alert |
-| DLQ replay | Preserve original event ID |
+| Consumer crashes after side effect         | Duplicate delivery handled                 |
+| Invalid schema                             | Dead-letter and alert                      |
+| DLQ replay                                 | Preserve original event ID                 |
 
 ---
 

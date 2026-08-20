@@ -83,20 +83,20 @@ The selected datastore must support the project requirements while keeping the d
 
 ## 4. Decision Drivers
 
-| Priority | Driver | Importance |
-|---:|---|---|
-| 1 | Reservation correctness under concurrency | Critical |
-| 2 | Tenant-scoped query support | Critical |
-| 3 | Direct key-value access | High |
-| 4 | JSON document model | High |
-| 5 | Optimistic concurrency support | High |
-| 6 | Multi-document atomicity | High |
-| 7 | Secondary indexing and time-range queries | High |
-| 8 | Horizontal scalability | Medium |
-| 9 | Local development experience | Medium |
-| 10 | Operational maturity | Medium |
-| 11 | Learning value for the project owner | Medium |
-| 12 | Portability to another datastore | Medium |
+| Priority | Driver                                    | Importance |
+| -------: | ----------------------------------------- | ---------- |
+|        1 | Reservation correctness under concurrency | Critical   |
+|        2 | Tenant-scoped query support               | Critical   |
+|        3 | Direct key-value access                   | High       |
+|        4 | JSON document model                       | High       |
+|        5 | Optimistic concurrency support            | High       |
+|        6 | Multi-document atomicity                  | High       |
+|        7 | Secondary indexing and time-range queries | High       |
+|        8 | Horizontal scalability                    | Medium     |
+|        9 | Local development experience              | Medium     |
+|       10 | Operational maturity                      | Medium     |
+|       11 | Learning value for the project owner      | Medium     |
+|       12 | Portability to another datastore          | Medium     |
 
 ---
 
@@ -154,19 +154,19 @@ A key-value/document model supporting:
 
 ## 6. Evaluation
 
-| Criteria | Couchbase | PostgreSQL | MongoDB | DynamoDB-Style |
-|---|---|---|---|---|
-| Direct KV access | Excellent | Good via indexed lookup | Good | Excellent |
-| JSON document model | Excellent | Good with JSONB | Excellent | Excellent |
-| SQL-like querying | Strong | Excellent | Moderate | Limited |
-| Time-overlap queries | Good with indexes | Excellent | Good | Requires careful modeling |
-| Optimistic concurrency | CAS | Version column / locks | Version field / transactions | Conditional writes |
-| Multi-document transactions | Supported | Excellent | Supported | Limited/model-dependent |
-| Horizontal scaling | Strong | More operationally involved | Strong | Excellent |
-| Local development | Good with Docker | Excellent | Excellent | Weaker without emulator |
-| Operational maturity | Strong | Excellent | Strong | Strong in managed cloud |
-| Portfolio learning value | High | High | Medium | High |
-| Fit with selected project goal | Excellent | Excellent technically | Good | Medium |
+| Criteria                       | Couchbase         | PostgreSQL                  | MongoDB                      | DynamoDB-Style            |
+| ------------------------------ | ----------------- | --------------------------- | ---------------------------- | ------------------------- |
+| Direct KV access               | Excellent         | Good via indexed lookup     | Good                         | Excellent                 |
+| JSON document model            | Excellent         | Good with JSONB             | Excellent                    | Excellent                 |
+| SQL-like querying              | Strong            | Excellent                   | Moderate                     | Limited                   |
+| Time-overlap queries           | Good with indexes | Excellent                   | Good                         | Requires careful modeling |
+| Optimistic concurrency         | CAS               | Version column / locks      | Version field / transactions | Conditional writes        |
+| Multi-document transactions    | Supported         | Excellent                   | Supported                    | Limited/model-dependent   |
+| Horizontal scaling             | Strong            | More operationally involved | Strong                       | Excellent                 |
+| Local development              | Good with Docker  | Excellent                   | Excellent                    | Weaker without emulator   |
+| Operational maturity           | Strong            | Excellent                   | Strong                       | Strong in managed cloud   |
+| Portfolio learning value       | High              | High                        | Medium                       | High                      |
+| Fit with selected project goal | Excellent         | Excellent technically       | Good                         | Medium                    |
 
 ---
 
@@ -355,15 +355,15 @@ They do not replace Reservation as the source of truth.
 
 ## 10. Key Conventions
 
-| Document | Key Format |
-|---|---|
-| Organization | `org::<organizationId>` |
-| Resource | `resource::<organizationId>::<resourceId>` |
-| Reservation | `reservation::<organizationId>::<reservationId>` |
-| Idempotency | `idem::<organizationId>::<userId>::<operation>::<keyHash>` |
-| Schedule guard | `schedule::<organizationId>::<resourceId>::<utcDate>` |
-| Outbox | `outbox::<organizationId>::<eventId>` |
-| Consumer dedup | `consumer::<consumerName>::<eventId>` |
+| Document       | Key Format                                                 |
+| -------------- | ---------------------------------------------------------- |
+| Organization   | `org::<organizationId>`                                    |
+| Resource       | `resource::<organizationId>::<resourceId>`                 |
+| Reservation    | `reservation::<organizationId>::<reservationId>`           |
+| Idempotency    | `idem::<organizationId>::<userId>::<operation>::<keyHash>` |
+| Schedule guard | `schedule::<organizationId>::<resourceId>::<utcDate>`      |
+| Outbox         | `outbox::<organizationId>::<eventId>`                      |
+| Consumer dedup | `consumer::<consumerName>::<eventId>`                      |
 
 Key rules:
 
@@ -593,18 +593,18 @@ Haven is not ready to serve authoritative traffic when Couchbase is unavailable.
 
 ## 18. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Incorrect overlap query | Medium | Critical | Domain matrix tests and integration tests |
-| Query scans due to bad index | Medium | High | `EXPLAIN`, benchmark, index review |
-| Transaction retry amplification | Medium | High | Bounded retries and contention metrics |
-| Hot guard document | Medium | High | Daily buckets and hot-resource monitoring |
-| Index visibility misunderstood | Medium | Critical | Direct KV/guard correctness path |
-| Schema drift | Medium | Medium | Schema version and mapper validation |
-| Vendor-specific coupling | Medium | Medium | Repository/adapters and domain isolation |
-| Backup not validated | Low–Medium | High | Scheduled restore tests |
-| Large document growth | Low–Medium | High | No embedded history, bounded guards |
-| Cross-tenant query omission | Medium | Critical | Repository signatures and tests |
+| Risk                            | Likelihood | Impact   | Mitigation                                |
+| ------------------------------- | ---------- | -------- | ----------------------------------------- |
+| Incorrect overlap query         | Medium     | Critical | Domain matrix tests and integration tests |
+| Query scans due to bad index    | Medium     | High     | `EXPLAIN`, benchmark, index review        |
+| Transaction retry amplification | Medium     | High     | Bounded retries and contention metrics    |
+| Hot guard document              | Medium     | High     | Daily buckets and hot-resource monitoring |
+| Index visibility misunderstood  | Medium     | Critical | Direct KV/guard correctness path          |
+| Schema drift                    | Medium     | Medium   | Schema version and mapper validation      |
+| Vendor-specific coupling        | Medium     | Medium   | Repository/adapters and domain isolation  |
+| Backup not validated            | Low–Medium | High     | Scheduled restore tests                   |
+| Large document growth           | Low–Medium | High     | No embedded history, bounded guards       |
+| Cross-tenant query omission     | Medium     | Critical | Repository signatures and tests           |
 
 ---
 

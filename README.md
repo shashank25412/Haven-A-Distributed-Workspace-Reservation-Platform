@@ -60,46 +60,46 @@ Client → Drogon REST API → Application Use Cases → Domain Policies
 Couchbase Outbox → Outbox Relay → Kafka → Notification / Reporting Consumers
 ```
 
-| Principle | Haven's approach |
-|---|---|
-| Source of truth | Couchbase |
-| Availability | Derived from active resources minus overlapping confirmed reservations |
-| Concurrency control | Optimistic transactions with per-resource daily schedule guards |
-| Command deduplication | Scoped idempotency records with payload hashes |
-| Event reliability | Transactional outbox + at-least-once Kafka delivery |
-| Tenant isolation | Trusted caller context propagated through every repository call |
-| Failure handling | Typed errors, bounded retries, backoff, DLQs, observable degradation |
+| Principle             | Haven's approach                                                       |
+| --------------------- | ---------------------------------------------------------------------- |
+| Source of truth       | Couchbase                                                              |
+| Availability          | Derived from active resources minus overlapping confirmed reservations |
+| Concurrency control   | Optimistic transactions with per-resource daily schedule guards        |
+| Command deduplication | Scoped idempotency records with payload hashes                         |
+| Event reliability     | Transactional outbox + at-least-once Kafka delivery                    |
+| Tenant isolation      | Trusted caller context propagated through every repository call        |
+| Failure handling      | Typed errors, bounded retries, backoff, DLQs, observable degradation   |
 
 Detailed diagrams live in [`docs/diagrams`](docs/diagrams); design docs and ADRs live in
 [`docs`](docs) and [`docs/15-architecture-decisions`](docs/15-architecture-decisions).
 
 ## Technology Stack
 
-| Area | Technology |
-|---|---|
-| Language | Modern C++20 |
-| HTTP framework | Drogon |
-| Build system | CMake |
-| Primary datastore | Couchbase |
-| Cache | Redis (optional, non-authoritative) |
-| Event streaming | Apache Kafka |
-| Local environment | Docker Compose |
-| API contract | OpenAPI / Swagger ([`api/haven-api-v1.yaml`](api/haven-api-v1.yaml)) |
-| Testing | CTest (unit, integration, concurrency) |
-| Observability | Structured logging, metrics, distributed tracing |
+| Area              | Technology                                                           |
+| ----------------- | -------------------------------------------------------------------- |
+| Language          | Modern C++20                                                         |
+| HTTP framework    | Drogon                                                               |
+| Build system      | CMake                                                                |
+| Primary datastore | Couchbase                                                            |
+| Cache             | Redis (optional, non-authoritative)                                  |
+| Event streaming   | Apache Kafka                                                         |
+| Local environment | Docker Compose                                                       |
+| API contract      | OpenAPI / Swagger ([`api/haven-api-v1.yaml`](api/haven-api-v1.yaml)) |
+| Testing           | CTest (unit, integration, concurrency)                               |
+| Observability     | Structured logging, metrics, distributed tracing                     |
 
 ## API Overview
 
 Full contract: [`docs/05-api-design.md`](docs/05-api-design.md).
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/api/v1/organizations/{organizationId}/resources/{resourceId}` | Read a tenant-scoped resource |
-| `GET` | `/v1/resources/search` | Search resources and derive availability |
-| `PUT` | `/v1/reservations` | Create an idempotent reservation |
-| `POST` | `/v1/reservations/{id}/approve` \| `/reject` \| `/cancel` \| `/extend` | Reservation lifecycle transitions |
-| `GET` | `/v1/reservations/{id}` | Read a tenant-scoped reservation |
-| `GET` | `/health/live` \| `/health/ready` | Liveness / readiness |
+| Method | Endpoint                                                               | Purpose                                  |
+| ------ | ---------------------------------------------------------------------- | ---------------------------------------- |
+| `GET`  | `/api/v1/organizations/{organizationId}/resources/{resourceId}`        | Read a tenant-scoped resource            |
+| `GET`  | `/v1/resources/search`                                                 | Search resources and derive availability |
+| `PUT`  | `/v1/reservations`                                                     | Create an idempotent reservation         |
+| `POST` | `/v1/reservations/{id}/approve` \| `/reject` \| `/cancel` \| `/extend` | Reservation lifecycle transitions        |
+| `GET`  | `/v1/reservations/{id}`                                                | Read a tenant-scoped reservation         |
+| `GET`  | `/health/live` \| `/health/ready`                                      | Liveness / readiness                     |
 
 ```bash
 curl --request PUT \
@@ -160,15 +160,15 @@ Couchbase data is browsable at `http://localhost:8091`, bucket `haven`, scope `r
 
 ## Failure Behaviour
 
-| Failure | Expected behaviour |
-|---|---|
-| Redis unavailable | Bypass cache and continue through Couchbase |
-| Kafka unavailable | Commit reservation and retain event in the outbox |
-| Couchbase unavailable | Fail authoritative operations safely and mark the instance unready |
-| Duplicate client request | Return the original stored result |
-| Concurrent overlapping write | One transaction wins; the other returns a conflict |
-| Consumer crash | Kafka redelivers; consumer deduplicates by `eventId` |
-| Poison event | Retry with limits, then route to a consumer-specific DLQ |
+| Failure                      | Expected behaviour                                                 |
+| ---------------------------- | ------------------------------------------------------------------ |
+| Redis unavailable            | Bypass cache and continue through Couchbase                        |
+| Kafka unavailable            | Commit reservation and retain event in the outbox                  |
+| Couchbase unavailable        | Fail authoritative operations safely and mark the instance unready |
+| Duplicate client request     | Return the original stored result                                  |
+| Concurrent overlapping write | One transaction wins; the other returns a conflict                 |
+| Consumer crash               | Kafka redelivers; consumer deduplicates by `eventId`               |
+| Poison event                 | Retry with limits, then route to a consumer-specific DLQ           |
 
 ## Design Trade-offs
 

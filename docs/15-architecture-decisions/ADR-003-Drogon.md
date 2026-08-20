@@ -86,20 +86,20 @@ The selected framework must provide enough production capability to avoid spendi
 
 ## 4. Decision Drivers
 
-| Priority | Driver | Importance |
-|---:|---|---|
-| 1 | Production-oriented HTTP capabilities | Critical |
-| 2 | Async and high-concurrency support | High |
-| 3 | Middleware and routing maturity | High |
-| 4 | Maintainability | High |
-| 5 | Ease of presentation-layer isolation | High |
-| 6 | Testing support | High |
-| 7 | Documentation and ecosystem | Medium |
-| 8 | JSON and REST ergonomics | Medium |
-| 9 | Performance | Medium |
-| 10 | Build and dependency complexity | Medium |
-| 11 | OpenAPI integration | Medium |
-| 12 | Learning value | Medium |
+| Priority | Driver                                | Importance |
+| -------: | ------------------------------------- | ---------- |
+|        1 | Production-oriented HTTP capabilities | Critical   |
+|        2 | Async and high-concurrency support    | High       |
+|        3 | Middleware and routing maturity       | High       |
+|        4 | Maintainability                       | High       |
+|        5 | Ease of presentation-layer isolation  | High       |
+|        6 | Testing support                       | High       |
+|        7 | Documentation and ecosystem           | Medium     |
+|        8 | JSON and REST ergonomics              | Medium     |
+|        9 | Performance                           | Medium     |
+|       10 | Build and dependency complexity       | Medium     |
+|       11 | OpenAPI integration                   | Medium     |
+|       12 | Learning value                        | Medium     |
 
 ---
 
@@ -199,20 +199,20 @@ Rejected unless low-level networking itself becomes a project objective.
 
 ## 6. Evaluation
 
-| Criteria | Drogon | Crow | oat++ | Pistache | Boost.Beast |
-|---|---|---|---|---|---|
-| Production feature set | High | Medium | High | Medium | Low-level only |
-| Async support | High | Medium–High | High | Medium | High |
-| Routing and middleware | High | Medium | High | Medium | Must build |
-| OpenAPI ergonomics | Medium | Low | High | Low | Must build |
-| Testing support | Good | Basic–Good | Good | Basic | Must build |
-| Initial setup | Medium | Easy | Medium | Easy–Medium | Complex |
-| Framework isolation | Good with discipline | Good | Medium–Good | Good | Excellent |
-| Performance potential | High | High | High | Medium–High | Very high |
-| Ecosystem maturity | Strong | Moderate | Strong | Moderate | Very strong library foundation |
-| Amount of custom plumbing | Low | Medium | Low | Medium | Very high |
-| MVP suitability | High | Medium | High | Medium | Low |
-| Portfolio value | High | Medium | High | Medium | High but distracts from domain |
+| Criteria                  | Drogon               | Crow        | oat++       | Pistache    | Boost.Beast                    |
+| ------------------------- | -------------------- | ----------- | ----------- | ----------- | ------------------------------ |
+| Production feature set    | High                 | Medium      | High        | Medium      | Low-level only                 |
+| Async support             | High                 | Medium–High | High        | Medium      | High                           |
+| Routing and middleware    | High                 | Medium      | High        | Medium      | Must build                     |
+| OpenAPI ergonomics        | Medium               | Low         | High        | Low         | Must build                     |
+| Testing support           | Good                 | Basic–Good  | Good        | Basic       | Must build                     |
+| Initial setup             | Medium               | Easy        | Medium      | Easy–Medium | Complex                        |
+| Framework isolation       | Good with discipline | Good        | Medium–Good | Good        | Excellent                      |
+| Performance potential     | High                 | High        | High        | Medium–High | Very high                      |
+| Ecosystem maturity        | Strong               | Moderate    | Strong      | Moderate    | Very strong library foundation |
+| Amount of custom plumbing | Low                  | Medium      | Low         | Medium      | Very high                      |
+| MVP suitability           | High                 | Medium      | High        | Medium      | Low                            |
+| Portfolio value           | High                 | Medium      | High        | Medium      | High but distracts from domain |
 
 ---
 
@@ -496,18 +496,18 @@ Drogon exceptions and response errors must not escape inward.
 
 Application errors map outward:
 
-| Application Error | HTTP |
-|---|---:|
-| Validation | 400 |
-| Unauthenticated | 401 |
-| Forbidden | 403 |
-| Not found | 404 |
-| Reservation conflict | 409 |
-| Concurrent modification | 409 |
-| Policy violation | 422 |
-| Rate limited | 429 |
-| Dependency unavailable | 503 |
-| Unexpected | 500 |
+| Application Error       | HTTP |
+| ----------------------- | ---: |
+| Validation              |  400 |
+| Unauthenticated         |  401 |
+| Forbidden               |  403 |
+| Not found               |  404 |
+| Reservation conflict    |  409 |
+| Concurrent modification |  409 |
+| Policy violation        |  422 |
+| Rate limited            |  429 |
+| Dependency unavailable  |  503 |
+| Unexpected              |  500 |
 
 The public response uses the standard Haven error body.
 
@@ -772,16 +772,16 @@ Framework benchmark results alone do not predict reservation API latency because
 
 ## 26. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Framework leakage | Medium | High | Layer rules and build targets |
-| Blocking event loop | Medium | High | Async adapters, profiling, review |
-| Hidden plugin dependencies | Medium | Medium | Explicit bootstrap ownership |
-| Callback lifetime bug | Medium | High | RAII, safe captures, tests |
-| Framework-specific DTOs spread | Medium | Medium | Explicit mapper layer |
-| Upgrade breakage | Low–Medium | Medium | Pin version and integration tests |
-| Incomplete OpenAPI sync | Medium | Medium | Contract tests and CI diff |
-| Overusing framework features | Medium | Medium | Use only justified capabilities |
+| Risk                           | Likelihood | Impact | Mitigation                        |
+| ------------------------------ | ---------- | ------ | --------------------------------- |
+| Framework leakage              | Medium     | High   | Layer rules and build targets     |
+| Blocking event loop            | Medium     | High   | Async adapters, profiling, review |
+| Hidden plugin dependencies     | Medium     | Medium | Explicit bootstrap ownership      |
+| Callback lifetime bug          | Medium     | High   | RAII, safe captures, tests        |
+| Framework-specific DTOs spread | Medium     | Medium | Explicit mapper layer             |
+| Upgrade breakage               | Low–Medium | Medium | Pin version and integration tests |
+| Incomplete OpenAPI sync        | Medium     | Medium | Contract tests and CI diff        |
+| Overusing framework features   | Medium     | Medium | Use only justified capabilities   |
 
 ---
 

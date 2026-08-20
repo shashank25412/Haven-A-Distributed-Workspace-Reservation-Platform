@@ -472,13 +472,13 @@ Each Must requirement in `01-requirements.md` should map to one or more tests.
 
 Maintain a traceability table for critical requirements:
 
-| Requirement | Test Suite |
-|---|---|
-| No double booking | Concurrency |
-| Idempotent retry | Application + integration |
-| Tenant isolation | Security + repository |
-| Event durability | Outbox integration |
-| Redis degradation | Cache + API |
+| Requirement       | Test Suite                |
+| ----------------- | ------------------------- |
+| No double booking | Concurrency               |
+| Idempotent retry  | Application + integration |
+| Tenant isolation  | Security + repository     |
+| Event durability  | Outbox integration        |
+| Redis degradation | Cache + API               |
 | Approval conflict | Application + concurrency |
 
 ---

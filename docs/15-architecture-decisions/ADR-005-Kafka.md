@@ -90,20 +90,20 @@ The selected mechanism must decouple the reservation write path from downstream 
 
 ## 4. Decision Drivers
 
-| Priority | Driver | Importance |
-|---:|---|---|
-| 1 | No silent event loss | Critical |
-| 2 | Multiple independent consumers | Critical |
-| 3 | Durable event retention | High |
-| 4 | Replay capability | High |
-| 5 | Per-reservation ordering | High |
-| 6 | Horizontal consumer scaling | High |
-| 7 | Observable lag and backlog | High |
-| 8 | At-least-once delivery support | High |
-| 9 | Integration with outbox pattern | High |
-| 10 | Operational simplicity for local development | Medium |
-| 11 | Technology learning value | Medium |
-| 12 | Cloud independence | Medium |
+| Priority | Driver                                       | Importance |
+| -------: | -------------------------------------------- | ---------- |
+|        1 | No silent event loss                         | Critical   |
+|        2 | Multiple independent consumers               | Critical   |
+|        3 | Durable event retention                      | High       |
+|        4 | Replay capability                            | High       |
+|        5 | Per-reservation ordering                     | High       |
+|        6 | Horizontal consumer scaling                  | High       |
+|        7 | Observable lag and backlog                   | High       |
+|        8 | At-least-once delivery support               | High       |
+|        9 | Integration with outbox pattern              | High       |
+|       10 | Operational simplicity for local development | Medium     |
+|       11 | Technology learning value                    | Medium     |
+|       12 | Cloud independence                           | Medium     |
 
 ---
 
@@ -156,19 +156,19 @@ This option is operationally attractive in a specific cloud but introduces provi
 
 ## 6. Evaluation
 
-| Criteria | Kafka | RabbitMQ | Synchronous HTTP | In-Process Bus | DB Polling | Cloud Pub/Sub |
-|---|---|---|---|---|---|---|
-| Durable retention | Excellent | Good | No | No | Database-dependent | Excellent |
-| Replay | Excellent | Limited/model-dependent | No | No | Manual | Good–Excellent |
-| Multiple consumer groups | Excellent | Good | Manual fan-out | In-process only | Manual | Excellent |
-| Ordering | Partition ordering | Queue ordering | Call order only | Process order | Query order issues | Service-dependent |
-| Backpressure | Strong | Strong | Couples caller | Weak | Polling-based | Strong |
-| Consumer lag visibility | Strong | Good | No | No | Custom | Strong |
-| Local development | Medium | Medium | Easy | Easy | Easy–Medium | Weak |
-| Operational complexity | Medium–High | Medium | Low initially | Low | Medium | Low managed / high coupling |
-| Event-stream fit | Excellent | Good | Poor | Poor | Poor–Medium | Excellent |
-| Replay for reporting | Excellent | Limited | No | No | Custom | Good |
-| MVP suitability | High | High | Low | Low as sole mechanism | Low | Medium |
+| Criteria                 | Kafka              | RabbitMQ                | Synchronous HTTP | In-Process Bus        | DB Polling         | Cloud Pub/Sub               |
+| ------------------------ | ------------------ | ----------------------- | ---------------- | --------------------- | ------------------ | --------------------------- |
+| Durable retention        | Excellent          | Good                    | No               | No                    | Database-dependent | Excellent                   |
+| Replay                   | Excellent          | Limited/model-dependent | No               | No                    | Manual             | Good–Excellent              |
+| Multiple consumer groups | Excellent          | Good                    | Manual fan-out   | In-process only       | Manual             | Excellent                   |
+| Ordering                 | Partition ordering | Queue ordering          | Call order only  | Process order         | Query order issues | Service-dependent           |
+| Backpressure             | Strong             | Strong                  | Couples caller   | Weak                  | Polling-based      | Strong                      |
+| Consumer lag visibility  | Strong             | Good                    | No               | No                    | Custom             | Strong                      |
+| Local development        | Medium             | Medium                  | Easy             | Easy                  | Easy–Medium        | Weak                        |
+| Operational complexity   | Medium–High        | Medium                  | Low initially    | Low                   | Medium             | Low managed / high coupling |
+| Event-stream fit         | Excellent          | Good                    | Poor             | Poor                  | Poor–Medium        | Excellent                   |
+| Replay for reporting     | Excellent          | Limited                 | No               | No                    | Custom             | Good                        |
+| MVP suitability          | High               | High                    | Low              | Low as sole mechanism | Low                | Medium                      |
 
 ---
 
@@ -780,18 +780,18 @@ Do not expose sensitive payloads unnecessarily.
 
 ## 25. Failure Scenarios
 
-| Failure | Required Outcome |
-|---|---|
-| Application crashes after reservation commit | Outbox remains and publishes later |
-| Kafka unavailable | Outbox backlog grows; no silent loss |
-| Relay crashes before publish | Another relay retries |
-| Relay publishes then crashes before marking | Duplicate publication possible |
-| Consumer crashes before side effect | Event redelivered |
+| Failure                                          | Required Outcome                        |
+| ------------------------------------------------ | --------------------------------------- |
+| Application crashes after reservation commit     | Outbox remains and publishes later      |
+| Kafka unavailable                                | Outbox backlog grows; no silent loss    |
+| Relay crashes before publish                     | Another relay retries                   |
+| Relay publishes then crashes before marking      | Duplicate publication possible          |
+| Consumer crashes before side effect              | Event redelivered                       |
 | Consumer crashes after side effect before commit | Duplicate delivery handled idempotently |
-| Invalid schema | Dead-letter and alert |
-| Consumer offline | Kafka retains events |
-| New consumer starts later | Replays from selected offset |
-| DLQ replay | Original event ID preserved |
+| Invalid schema                                   | Dead-letter and alert                   |
+| Consumer offline                                 | Kafka retains events                    |
+| New consumer starts later                        | Replays from selected offset            |
+| DLQ replay                                       | Original event ID preserved             |
 
 ---
 
@@ -919,18 +919,18 @@ Production topic creation must be explicit and reviewed.
 
 ## 30. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Event loss from dual write | High without outbox | Critical | Transactional outbox |
-| Duplicate delivery | High | Medium–High | Consumer idempotency |
-| Poison event blocks partition | Medium | High | Retry policy and DLQ |
-| Schema incompatibility | Medium | High | Versioned schemas and contract tests |
-| Consumer lag unnoticed | Medium | High | Metrics and alerts |
-| Hot partition | Low–Medium | Medium | Reservation-based key and monitoring |
-| Sensitive data in events | Medium | High | Data minimization and review |
-| Local environment complexity | Medium | Medium | Compose profiles and scripts |
-| Outbox backlog | Medium | High | Relay scaling and age alert |
-| Replay duplicates side effects | Medium | High | Preserve event ID and deduplicate |
+| Risk                           | Likelihood          | Impact      | Mitigation                           |
+| ------------------------------ | ------------------- | ----------- | ------------------------------------ |
+| Event loss from dual write     | High without outbox | Critical    | Transactional outbox                 |
+| Duplicate delivery             | High                | Medium–High | Consumer idempotency                 |
+| Poison event blocks partition  | Medium              | High        | Retry policy and DLQ                 |
+| Schema incompatibility         | Medium              | High        | Versioned schemas and contract tests |
+| Consumer lag unnoticed         | Medium              | High        | Metrics and alerts                   |
+| Hot partition                  | Low–Medium          | Medium      | Reservation-based key and monitoring |
+| Sensitive data in events       | Medium              | High        | Data minimization and review         |
+| Local environment complexity   | Medium              | Medium      | Compose profiles and scripts         |
+| Outbox backlog                 | Medium              | High        | Relay scaling and age alert          |
+| Replay duplicates side effects | Medium              | High        | Preserve event ID and deduplicate    |
 
 ---
 

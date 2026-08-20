@@ -44,22 +44,22 @@ The domain model is technology-independent.
 
 ## 2. Ubiquitous Language
 
-| Term | Definition |
-|---|---|
-| Organization | Tenant that owns users, resources, policies, and reservations |
-| User | Authenticated actor operating within an organization |
-| Resource | A reservable asset with metadata, location, and policy |
-| Resource Type | Classification such as meeting room, desk, parking slot, hotel room, or game zone |
-| Reservation | Allocation request for one resource over a fixed time interval |
-| Time Interval | Immutable half-open interval `[start, end)` |
-| Availability | Derived answer indicating whether a resource can accept a reservation |
-| Conflict | Existing blocking allocation overlapping the requested interval |
-| Approval | Decision required before selected reservations become confirmed |
-| Policy | Business rule owned by organization or resource configuration |
-| Idempotency Key | Client-supplied token identifying one logical create request |
-| Domain Event | Immutable fact describing a completed domain state change |
-| Calendar | View over reservations, not an authoritative model |
-| Maintenance Reservation | Authorized reservation allowed to exceed standard duration up to 24 hours |
+| Term                    | Definition                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------- |
+| Organization            | Tenant that owns users, resources, policies, and reservations                     |
+| User                    | Authenticated actor operating within an organization                              |
+| Resource                | A reservable asset with metadata, location, and policy                            |
+| Resource Type           | Classification such as meeting room, desk, parking slot, hotel room, or game zone |
+| Reservation             | Allocation request for one resource over a fixed time interval                    |
+| Time Interval           | Immutable half-open interval `[start, end)`                                       |
+| Availability            | Derived answer indicating whether a resource can accept a reservation             |
+| Conflict                | Existing blocking allocation overlapping the requested interval                   |
+| Approval                | Decision required before selected reservations become confirmed                   |
+| Policy                  | Business rule owned by organization or resource configuration                     |
+| Idempotency Key         | Client-supplied token identifying one logical create request                      |
+| Domain Event            | Immutable fact describing a completed domain state change                         |
+| Calendar                | View over reservations, not an authoritative model                                |
+| Maintenance Reservation | Authorized reservation allowed to exceed standard duration up to 24 hours         |
 
 The project uses `Reservation` consistently instead of mixing booking, allocation, and slot terminology.
 
@@ -432,18 +432,18 @@ GAME_ZONE
 
 ## 10. Entity Classification
 
-| Concept | Classification | Reason |
-|---|---|---|
-| Organization | Aggregate root / entity | Stable identity and lifecycle |
-| Resource | Aggregate root / entity | Stable identity and mutable metadata |
-| Reservation | Aggregate root / entity | Stable identity and lifecycle |
-| User | External identity reference for MVP | Identity owned outside reservation domain |
-| ApprovalInfo | Value object | No independent identity in MVP |
-| TimeInterval | Value object | Equality by value |
-| Availability | Derived concept | No identity or independent lifecycle |
-| Calendar | Projection | View over reservations |
-| Notification | Separate-context entity/message | Not part of reservation aggregate |
-| Conflict | Domain result | A relationship between intervals and blocking data |
+| Concept      | Classification                      | Reason                                             |
+| ------------ | ----------------------------------- | -------------------------------------------------- |
+| Organization | Aggregate root / entity             | Stable identity and lifecycle                      |
+| Resource     | Aggregate root / entity             | Stable identity and mutable metadata               |
+| Reservation  | Aggregate root / entity             | Stable identity and lifecycle                      |
+| User         | External identity reference for MVP | Identity owned outside reservation domain          |
+| ApprovalInfo | Value object                        | No independent identity in MVP                     |
+| TimeInterval | Value object                        | Equality by value                                  |
+| Availability | Derived concept                     | No identity or independent lifecycle               |
+| Calendar     | Projection                          | View over reservations                             |
+| Notification | Separate-context entity/message     | Not part of reservation aggregate                  |
+| Conflict     | Domain result                       | A relationship between intervals and blocking data |
 
 ---
 
@@ -605,18 +605,18 @@ stateDiagram-v2
 
 ## 15. State Transition Rules
 
-| Current | Operation | Result | Notes |
-|---|---|---|---|
-| New | Create auto-confirmed | Confirmed | Conflict-free |
-| New | Create pending | Pending approval | Approval required |
-| Pending | Approve | Confirmed | Recheck conflict |
-| Pending | Reject | Rejected | Record actor and reason |
-| Pending | Cancel | Cancelled | Creator/admin |
-| Pending | Expire | Expired | Approval deadline |
-| Confirmed | Extend | Confirmed | Revalidate |
-| Confirmed | Cancel | Cancelled | Policy-dependent timing |
-| Confirmed | Complete | Completed | End reached |
-| Terminal | Any mutation | Rejected | Invalid transition |
+| Current   | Operation             | Result           | Notes                   |
+| --------- | --------------------- | ---------------- | ----------------------- |
+| New       | Create auto-confirmed | Confirmed        | Conflict-free           |
+| New       | Create pending        | Pending approval | Approval required       |
+| Pending   | Approve               | Confirmed        | Recheck conflict        |
+| Pending   | Reject                | Rejected         | Record actor and reason |
+| Pending   | Cancel                | Cancelled        | Creator/admin           |
+| Pending   | Expire                | Expired          | Approval deadline       |
+| Confirmed | Extend                | Confirmed        | Revalidate              |
+| Confirmed | Cancel                | Cancelled        | Policy-dependent timing |
+| Confirmed | Complete              | Completed        | End reached             |
+| Terminal  | Any mutation          | Rejected         | Invalid transition      |
 
 ---
 
@@ -846,16 +846,16 @@ Out of scope and likely a separate bounded context.
 
 ## 26. Domain Test Matrix
 
-| Area | Required Tests |
-|---|---|
-| TimeInterval | Invalid order, adjacency, overlap variations |
-| Reservation creation | Confirmed, pending, invalid duration |
-| Approval | Valid, conflict handled outside aggregate, duplicate decision |
-| Cancellation | Valid states, terminal states |
-| Extension | Longer interval, policy limit, terminal state |
-| Completion | Valid transition and event |
-| Tenant invariants | Mismatched organization/resource |
-| Events | Correct event after each transition |
+| Area                 | Required Tests                                                |
+| -------------------- | ------------------------------------------------------------- |
+| TimeInterval         | Invalid order, adjacency, overlap variations                  |
+| Reservation creation | Confirmed, pending, invalid duration                          |
+| Approval             | Valid, conflict handled outside aggregate, duplicate decision |
+| Cancellation         | Valid states, terminal states                                 |
+| Extension            | Longer interval, policy limit, terminal state                 |
+| Completion           | Valid transition and event                                    |
+| Tenant invariants    | Mismatched organization/resource                              |
+| Events               | Correct event after each transition                           |
 
 ---
 

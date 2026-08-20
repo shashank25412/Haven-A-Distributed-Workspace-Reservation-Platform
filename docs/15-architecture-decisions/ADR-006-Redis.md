@@ -89,20 +89,20 @@ The decision must improve latency and reduce repeated datastore work without wea
 
 ## 4. Decision Drivers
 
-| Priority | Driver | Importance |
-|---:|---|---|
-| 1 | Preserve reservation correctness | Critical |
-| 2 | Avoid a second source of truth | Critical |
-| 3 | Low-latency read caching | High |
-| 4 | Graceful degradation during cache outage | High |
-| 5 | Multi-instance rate limiting | High |
-| 6 | Tenant isolation | Critical |
-| 7 | Operational visibility | High |
-| 8 | Simple invalidation model | High |
-| 9 | Horizontal application scaling | Medium |
-| 10 | Local development support | Medium |
-| 11 | Memory efficiency | Medium |
-| 12 | Technology learning value | Medium |
+| Priority | Driver                                   | Importance |
+| -------: | ---------------------------------------- | ---------- |
+|        1 | Preserve reservation correctness         | Critical   |
+|        2 | Avoid a second source of truth           | Critical   |
+|        3 | Low-latency read caching                 | High       |
+|        4 | Graceful degradation during cache outage | High       |
+|        5 | Multi-instance rate limiting             | High       |
+|        6 | Tenant isolation                         | Critical   |
+|        7 | Operational visibility                   | High       |
+|        8 | Simple invalidation model                | High       |
+|        9 | Horizontal application scaling           | Medium     |
+|       10 | Local development support                | Medium     |
+|       11 | Memory efficiency                        | Medium     |
+|       12 | Technology learning value                | Medium     |
 
 ---
 
@@ -196,19 +196,19 @@ Useful for some future read paths, but insufficient for authenticated tenant-sco
 
 ## 6. Evaluation
 
-| Criteria | Redis Cache | In-Process Cache | Couchbase Only | Memcached | Redis Correctness Layer |
-|---|---|---|---|---|---|
-| Shared across instances | Yes | No | Yes | Yes | Yes |
-| Low-latency reads | Excellent | Excellent | Good | Excellent | Excellent |
-| Graceful fallback | Yes when designed | Yes | Native | Yes | Dangerous |
-| Distributed rate limiting | Excellent | No | Possible but poor fit | Limited | Excellent |
-| Cache data structures | Rich | Application-defined | Document/KV | Basic | Rich |
-| Operational complexity | Medium | Low | Low | Medium | High |
-| Correctness risk | Low | Low | Low | Low | High |
-| Invalidation complexity | Medium | High across instances | None | Medium | High |
-| MVP suitability | High | Medium | High initially | Medium | Rejected |
-| Horizontal application scaling | High | Medium | High | High | High |
-| Portfolio value | High | Medium | Medium | Medium | Negative if unjustified |
+| Criteria                       | Redis Cache       | In-Process Cache      | Couchbase Only        | Memcached | Redis Correctness Layer |
+| ------------------------------ | ----------------- | --------------------- | --------------------- | --------- | ----------------------- |
+| Shared across instances        | Yes               | No                    | Yes                   | Yes       | Yes                     |
+| Low-latency reads              | Excellent         | Excellent             | Good                  | Excellent | Excellent               |
+| Graceful fallback              | Yes when designed | Yes                   | Native                | Yes       | Dangerous               |
+| Distributed rate limiting      | Excellent         | No                    | Possible but poor fit | Limited   | Excellent               |
+| Cache data structures          | Rich              | Application-defined   | Document/KV           | Basic     | Rich                    |
+| Operational complexity         | Medium            | Low                   | Low                   | Medium    | High                    |
+| Correctness risk               | Low               | Low                   | Low                   | Low       | High                    |
+| Invalidation complexity        | Medium            | High across instances | None                  | Medium    | High                    |
+| MVP suitability                | High              | Medium                | High initially        | Medium    | Rejected                |
+| Horizontal application scaling | High              | Medium                | High                  | High      | High                    |
+| Portfolio value                | High              | Medium                | Medium                | Medium    | Negative if unjustified |
 
 ---
 
@@ -530,13 +530,13 @@ Rules:
 
 Illustrative initial TTLs:
 
-| Cache Entry | TTL |
-|---|---:|
-| Organization policy | 5 minutes |
-| Resource detail | 5–15 minutes |
-| Resource search | 15–60 seconds |
-| Negative resource lookup | 5–15 seconds |
-| Dynamic availability | Disabled initially |
+| Cache Entry                           |                                       TTL |
+| ------------------------------------- | ----------------------------------------: |
+| Organization policy                   |                                 5 minutes |
+| Resource detail                       |                              5–15 minutes |
+| Resource search                       |                             15–60 seconds |
+| Negative resource lookup              |                              5–15 seconds |
+| Dynamic availability                  |                        Disabled initially |
 | JWT signing keys if cached separately | Based on key metadata and security policy |
 
 Exact values must be validated through load tests and change frequency.
@@ -979,18 +979,18 @@ Local environment may use a single Redis instance.
 
 ## 34. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Redis becomes source of truth | Medium | Critical | Explicit forbidden-use rules |
-| Stale policy data | Medium | High | Invalidation, short TTL, versioning |
-| Cache stampede | Medium | High | TTL jitter and coalescing |
-| Redis latency hurts p99 | Medium | High | Short timeout and circuit breaker |
-| Cross-tenant key collision | Low–Medium | Critical | Tenant-scoped key builder and tests |
-| Eviction breaks rate limiting | Medium | Medium | Capacity planning or separate deployment |
-| Sensitive data cached | Medium | High | Data classification and review |
-| Broad invalidation cost | Medium | Medium | Short TTL or generation version |
-| Cache hit hides database issue | Low–Medium | High | Monitor Couchbase independently |
-| Fail-open abuse window | Low–Medium | Medium | Local emergency limits and alerts |
+| Risk                           | Likelihood | Impact   | Mitigation                               |
+| ------------------------------ | ---------- | -------- | ---------------------------------------- |
+| Redis becomes source of truth  | Medium     | Critical | Explicit forbidden-use rules             |
+| Stale policy data              | Medium     | High     | Invalidation, short TTL, versioning      |
+| Cache stampede                 | Medium     | High     | TTL jitter and coalescing                |
+| Redis latency hurts p99        | Medium     | High     | Short timeout and circuit breaker        |
+| Cross-tenant key collision     | Low–Medium | Critical | Tenant-scoped key builder and tests      |
+| Eviction breaks rate limiting  | Medium     | Medium   | Capacity planning or separate deployment |
+| Sensitive data cached          | Medium     | High     | Data classification and review           |
+| Broad invalidation cost        | Medium     | Medium   | Short TTL or generation version          |
+| Cache hit hides database issue | Low–Medium | High     | Monitor Couchbase independently          |
+| Fail-open abuse window         | Low–Medium | Medium   | Local emergency limits and alerts        |
 
 ---
 

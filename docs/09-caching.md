@@ -213,14 +213,14 @@ A very short final-query cache may be evaluated later, but create reservation st
 
 ## 12. Failure Behavior
 
-| Failure | Behavior |
-|---|---|
-| Redis timeout | Treat as miss |
-| Redis unavailable | Bypass |
-| Deserialization failure | Delete/ignore key and load DB |
-| Stale active resource | Write path revalidates |
-| Cache write failure | Log/metric; request succeeds |
-| High latency | Circuit-break or temporary bypass |
+| Failure                 | Behavior                          |
+| ----------------------- | --------------------------------- |
+| Redis timeout           | Treat as miss                     |
+| Redis unavailable       | Bypass                            |
+| Deserialization failure | Delete/ignore key and load DB     |
+| Stale active resource   | Write path revalidates            |
+| Cache write failure     | Log/metric; request succeeds      |
+| High latency            | Circuit-break or temporary bypass |
 
 ---
 
@@ -343,6 +343,7 @@ It never owns confirmed allocation state.
 ```text
 docs/10-security.md
 ```
+
 # Implemented Resource detail caching
 
 Haven uses Redis only as a positive, cache-aside optimization for the tenant-scoped Resource

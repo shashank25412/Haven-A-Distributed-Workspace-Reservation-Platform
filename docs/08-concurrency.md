@@ -336,12 +336,12 @@ Because reservation and idempotency completion are committed in one transaction,
 
 ## 16. Same-Key Behavior
 
-| Existing State | Same Payload | Different Payload |
-|---|---|---|
-| Completed | Return original result | 409 mismatch |
-| Processing | Wait boundedly or return retryable in-progress | 409 mismatch |
-| Failed final | Return stable failure | 409 mismatch |
-| Missing | Process | Process as new |
+| Existing State | Same Payload                                   | Different Payload |
+| -------------- | ---------------------------------------------- | ----------------- |
+| Completed      | Return original result                         | 409 mismatch      |
+| Processing     | Wait boundedly or return retryable in-progress | 409 mismatch      |
+| Failed final   | Return stable failure                          | 409 mismatch      |
+| Missing        | Process                                        | Process as new    |
 
 ---
 
@@ -453,16 +453,16 @@ This avoids relying on N1QL index visibility for correctness.
 
 ## 24. Failure Scenarios
 
-| Failure | Outcome |
-|---|---|
-| Crash before commit | No allocation |
+| Failure                            | Outcome                         |
+| ---------------------------------- | ------------------------------- |
+| Crash before commit                | No allocation                   |
 | Crash after commit before response | Retry returns idempotent result |
-| Transaction conflict | Bounded retry |
-| Guard conflict | One wins |
-| Kafka unavailable | Outbox remains pending |
-| Redis unavailable | No correctness change |
-| Duplicate event | Consumer deduplicates |
-| Reconciliation finds mismatch | Alert and repair procedure |
+| Transaction conflict               | Bounded retry                   |
+| Guard conflict                     | One wins                        |
+| Kafka unavailable                  | Outbox remains pending          |
+| Redis unavailable                  | No correctness change           |
+| Duplicate event                    | Consumer deduplicates           |
+| Reconciliation finds mismatch      | Alert and repair procedure      |
 
 ---
 

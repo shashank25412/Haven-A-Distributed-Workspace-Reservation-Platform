@@ -80,14 +80,14 @@ A separate bucket per tenant is rejected for MVP because it increases operationa
 
 ## 4. Document Key Conventions
 
-| Document | Key |
-|---|---|
-| Organization | `org::<organizationId>` |
-| Resource | `resource::<organizationId>::<resourceId>` |
-| Reservation | `reservation::<organizationId>::<reservationId>` |
-| Idempotency | `idem::<organizationId>::<userId>::<operation>::<keyHash>` |
-| Outbox event | `outbox::<organizationId>::<eventId>` |
-| Consumer dedup | `consumer::<consumerName>::<eventId>` |
+| Document       | Key                                                        |
+| -------------- | ---------------------------------------------------------- |
+| Organization   | `org::<organizationId>`                                    |
+| Resource       | `resource::<organizationId>::<resourceId>`                 |
+| Reservation    | `reservation::<organizationId>::<reservationId>`           |
+| Idempotency    | `idem::<organizationId>::<userId>::<operation>::<keyHash>` |
+| Outbox event   | `outbox::<organizationId>::<eventId>`                      |
+| Consumer dedup | `consumer::<consumerName>::<eventId>`                      |
 
 Keys must not contain raw secrets or unbounded user input.
 
@@ -142,13 +142,8 @@ Organization policy changes are infrequent and cacheable.
     "floor": "5",
     "zone": "East"
   },
-  "features": [
-    "PROJECTOR",
-    "WHITEBOARD"
-  ],
-  "tags": [
-    "PRIORITY"
-  ],
+  "features": ["PROJECTOR", "WHITEBOARD"],
+  "tags": ["PRIORITY"],
   "createdAt": "2026-07-20T05:30:00Z",
   "updatedAt": "2026-07-20T05:30:00Z"
 }
@@ -260,18 +255,18 @@ Outbox records are retained long enough for recovery and audit, then archived or
 
 ## 10. Access Patterns
 
-| Access Pattern | Collection | Key/Query |
-|---|---|---|
-| Get organization | organizations | Direct key |
-| Get resource | resources | Direct key |
-| Search resources | resources | N1QL index |
-| Get reservation | reservations | Direct key |
-| Find user reservations | reservations | Tenant + user + time/status |
-| Find pending approvals | reservations | Tenant + status + time |
-| Find blocking overlap for one resource | reservations | Tenant + resource + blocking status + time |
-| Find unavailable IDs for candidates | reservations | Tenant + candidate IDs + status + time |
-| Resolve idempotency | idempotency | Direct key |
-| Poll pending outbox | outbox | Status + next attempt |
+| Access Pattern                         | Collection    | Key/Query                                  |
+| -------------------------------------- | ------------- | ------------------------------------------ |
+| Get organization                       | organizations | Direct key                                 |
+| Get resource                           | resources     | Direct key                                 |
+| Search resources                       | resources     | N1QL index                                 |
+| Get reservation                        | reservations  | Direct key                                 |
+| Find user reservations                 | reservations  | Tenant + user + time/status                |
+| Find pending approvals                 | reservations  | Tenant + status + time                     |
+| Find blocking overlap for one resource | reservations  | Tenant + resource + blocking status + time |
+| Find unavailable IDs for candidates    | reservations  | Tenant + candidate IDs + status + time     |
+| Resolve idempotency                    | idempotency   | Direct key                                 |
+| Poll pending outbox                    | outbox        | Status + next attempt                      |
 
 ---
 

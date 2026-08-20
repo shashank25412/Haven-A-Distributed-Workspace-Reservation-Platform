@@ -85,16 +85,16 @@ This document does not promise:
 
 These values are engineering targets for a healthy initial deployment. They are not external contractual SLAs.
 
-| Operation | p50 | p95 | p99 |
-|---|---:|---:|---:|
-| Liveness | < 3 ms | < 10 ms | < 20 ms |
-| Readiness | < 20 ms | < 75 ms | < 150 ms |
-| Resource detail | < 20 ms | < 50 ms | < 100 ms |
-| Search resources | < 60 ms | < 150 ms | < 300 ms |
-| Create reservation | < 80 ms | < 200 ms | < 400 ms |
-| Get reservation | < 30 ms | < 75 ms | < 150 ms |
-| Cancel reservation | < 60 ms | < 150 ms | < 300 ms |
-| Extend reservation | < 80 ms | < 200 ms | < 400 ms |
+| Operation           |     p50 |      p95 |      p99 |
+| ------------------- | ------: | -------: | -------: |
+| Liveness            |  < 3 ms |  < 10 ms |  < 20 ms |
+| Readiness           | < 20 ms |  < 75 ms | < 150 ms |
+| Resource detail     | < 20 ms |  < 50 ms | < 100 ms |
+| Search resources    | < 60 ms | < 150 ms | < 300 ms |
+| Create reservation  | < 80 ms | < 200 ms | < 400 ms |
+| Get reservation     | < 30 ms |  < 75 ms | < 150 ms |
+| Cancel reservation  | < 60 ms | < 150 ms | < 300 ms |
+| Extend reservation  | < 80 ms | < 200 ms | < 400 ms |
 | Approve reservation | < 80 ms | < 200 ms | < 400 ms |
 
 Targets assume:
@@ -111,20 +111,20 @@ Targets assume:
 
 ## 6. Initial Workload Assumptions
 
-| Dimension | Initial Assumption |
-|---|---:|
-| Organizations | 2–3 |
-| Total resources | Up to 50,000 |
-| Reservations per day | 10,000–100,000 |
-| Daily active users | 1,000–10,000 |
-| Peak concurrent users | 500–2,000 |
-| Peak search requests/sec | 500–2,000 |
-| Peak create requests/sec | 50–200 |
-| Search-to-create ratio | Approximately 10:1 |
-| Typical page size | 20 |
-| Maximum page size | 100 |
-| Standard duration | Up to 12 hours |
-| Maintenance duration | Up to 24 hours |
+| Dimension                | Initial Assumption |
+| ------------------------ | -----------------: |
+| Organizations            |                2–3 |
+| Total resources          |       Up to 50,000 |
+| Reservations per day     |     10,000–100,000 |
+| Daily active users       |       1,000–10,000 |
+| Peak concurrent users    |          500–2,000 |
+| Peak search requests/sec |          500–2,000 |
+| Peak create requests/sec |             50–200 |
+| Search-to-create ratio   | Approximately 10:1 |
+| Typical page size        |                 20 |
+| Maximum page size        |                100 |
+| Standard duration        |     Up to 12 hours |
+| Maintenance duration     |     Up to 24 hours |
 
 The data distribution is assumed to be skewed:
 
@@ -140,14 +140,14 @@ The data distribution is assumed to be skewed:
 
 Future performance testing should model:
 
-| Profile | Resources | Reservations | Organizations | Characteristic |
-|---|---:|---:|---:|---|
-| Small | 5,000 | 100,000 | 3 | Local development |
-| Medium | 50,000 | 5,000,000 | 100 | Initial production-like |
-| Large | 1,000,000 | 100,000,000 | 10,000 | Evolution target |
-| Hot-resource | 50,000 | 5,000,000 | 100 | High contention on 1% of resources |
-| Search-heavy | 1,000,000 | 100,000,000 | 10,000 | Broad filtered discovery |
-| Event-heavy | 50,000 | 10,000,000 | 1,000 | Consumer and outbox stress |
+| Profile      | Resources | Reservations | Organizations | Characteristic                     |
+| ------------ | --------: | -----------: | ------------: | ---------------------------------- |
+| Small        |     5,000 |      100,000 |             3 | Local development                  |
+| Medium       |    50,000 |    5,000,000 |           100 | Initial production-like            |
+| Large        | 1,000,000 |  100,000,000 |        10,000 | Evolution target                   |
+| Hot-resource |    50,000 |    5,000,000 |           100 | High contention on 1% of resources |
+| Search-heavy | 1,000,000 |  100,000,000 |        10,000 | Broad filtered discovery           |
+| Event-heavy  |    50,000 |   10,000,000 |         1,000 | Consumer and outbox stress         |
 
 Large profiles do not imply the MVP is certified for that scale. They expose architectural limits.
 
@@ -251,27 +251,27 @@ A performance budget allocates approximate latency to components.
 
 ### 9.1 Create Reservation p95 Budget
 
-| Component | Budget |
-|---|---:|
-| HTTP parsing and validation | 10 ms |
-| Authentication and authorization | 15 ms |
-| Resource and policy retrieval | 30 ms |
-| Transaction and guard operations | 100 ms |
-| Serialization and response | 10 ms |
-| Retry and network margin | 35 ms |
-| **Total** | **200 ms** |
+| Component                        |     Budget |
+| -------------------------------- | ---------: |
+| HTTP parsing and validation      |      10 ms |
+| Authentication and authorization |      15 ms |
+| Resource and policy retrieval    |      30 ms |
+| Transaction and guard operations |     100 ms |
+| Serialization and response       |      10 ms |
+| Retry and network margin         |      35 ms |
+| **Total**                        | **200 ms** |
 
 ### 9.2 Search p95 Budget
 
-| Component | Budget |
-|---|---:|
-| HTTP/auth/validation | 15 ms |
-| Cache lookup | 5 ms |
-| Resource candidate query | 55 ms |
-| Blocking reservation query | 45 ms |
-| In-process filtering/pagination | 15 ms |
-| Serialization and margin | 15 ms |
-| **Total** | **150 ms** |
+| Component                       |     Budget |
+| ------------------------------- | ---------: |
+| HTTP/auth/validation            |      15 ms |
+| Cache lookup                    |       5 ms |
+| Resource candidate query        |      55 ms |
+| Blocking reservation query      |      45 ms |
+| In-process filtering/pagination |      15 ms |
+| Serialization and margin        |      15 ms |
+| **Total**                       | **150 ms** |
 
 These budgets guide diagnosis. They are revised after measurement.
 
@@ -422,13 +422,13 @@ Monitor:
 
 Potential optimization triggers:
 
-| Signal | Possible Action |
-|---|---|
-| Guard exceeds size threshold | Smaller time buckets |
-| Linear scan dominates | Sorted intervals/binary search |
-| High retry rate | Backoff tuning or queue/fairness design |
-| One resource dominates traffic | Dedicated hot-resource strategy |
-| Multi-day duration introduced | Revisit bucket model |
+| Signal                         | Possible Action                         |
+| ------------------------------ | --------------------------------------- |
+| Guard exceeds size threshold   | Smaller time buckets                    |
+| Linear scan dominates          | Sorted intervals/binary search          |
+| High retry rate                | Backoff tuning or queue/fairness design |
+| One resource dominates traffic | Dedicated hot-resource strategy         |
+| Multi-day duration introduced  | Revisit bucket model                    |
 
 ---
 
@@ -777,17 +777,17 @@ Adding application instances does not solve a single hot-resource serialization 
 
 ## 27. Performance Risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Broad search | High latency | Mandatory type, filters, pagination |
-| Offset pagination | Deep-page cost | Move to cursor if measured |
-| Hot guard | Retry amplification | Metrics, backoff, future strategy |
-| N1QL index lag | Stale search | Correctness remains in transaction |
-| Large outbox backlog | Delayed events | Scale relay, alert on age |
-| Redis timeout | Tail latency | Short timeout, circuit bypass |
-| Excessive JSON mapping | CPU/allocation | Profile, reduce copies |
-| Unbounded queues | Memory collapse | Backpressure |
-| Large metric cardinality | Telemetry cost | Low-cardinality labels |
+| Risk                     | Impact              | Mitigation                          |
+| ------------------------ | ------------------- | ----------------------------------- |
+| Broad search             | High latency        | Mandatory type, filters, pagination |
+| Offset pagination        | Deep-page cost      | Move to cursor if measured          |
+| Hot guard                | Retry amplification | Metrics, backoff, future strategy   |
+| N1QL index lag           | Stale search        | Correctness remains in transaction  |
+| Large outbox backlog     | Delayed events      | Scale relay, alert on age           |
+| Redis timeout            | Tail latency        | Short timeout, circuit bypass       |
+| Excessive JSON mapping   | CPU/allocation      | Profile, reduce copies              |
+| Unbounded queues         | Memory collapse     | Backpressure                        |
+| Large metric cardinality | Telemetry cost      | Low-cardinality labels              |
 
 ---
 

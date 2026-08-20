@@ -79,18 +79,18 @@ The chosen architecture must support:
 
 The following drivers are ranked by importance.
 
-| Priority | Driver | Importance |
-|---:|---|---|
-| 1 | Reservation correctness | Critical |
-| 2 | Maintainable module boundaries | Critical |
-| 3 | Development speed for a small team | High |
-| 4 | Testability | High |
-| 5 | Operational simplicity | High |
-| 6 | Local developer experience | High |
-| 7 | Horizontal application scaling | Medium |
-| 8 | Future service extraction | Medium |
-| 9 | Independent module deployment | Low for MVP |
-| 10 | Independent team ownership | Low for MVP |
+| Priority | Driver                             | Importance  |
+| -------: | ---------------------------------- | ----------- |
+|        1 | Reservation correctness            | Critical    |
+|        2 | Maintainable module boundaries     | Critical    |
+|        3 | Development speed for a small team | High        |
+|        4 | Testability                        | High        |
+|        5 | Operational simplicity             | High        |
+|        6 | Local developer experience         | High        |
+|        7 | Horizontal application scaling     | Medium      |
+|        8 | Future service extraction          | Medium      |
+|        9 | Independent module deployment      | Low for MVP |
+|       10 | Independent team ownership         | Low for MVP |
 
 ---
 
@@ -165,20 +165,20 @@ Characteristics:
 
 ## 6. Evaluation
 
-| Criteria | Modular Monolith | Microservices | Layered Monolith | Hybrid |
-|---|---|---|---|---|
-| Initial development speed | High | Low | High | Medium |
-| Operational simplicity | High | Low | High | Medium |
-| Domain boundary quality | High when enforced | High | Low–Medium | High |
-| Local setup complexity | Medium | High | Low | Medium–High |
-| Distributed failure modes | Low | High | Low | Medium |
-| Independent deployment | Low | High | Low | Partial |
-| Horizontal API scaling | High | High | High | High |
-| Independent module scaling | Low | High | Low | Partial |
-| Testing simplicity | High | Medium–Low | Medium | Medium |
-| Future extraction path | High | Already extracted | Low | High |
-| Portfolio value | High | High but risk of overengineering | Medium | High |
-| MVP suitability | High | Low | Medium | Medium |
+| Criteria                   | Modular Monolith   | Microservices                    | Layered Monolith | Hybrid      |
+| -------------------------- | ------------------ | -------------------------------- | ---------------- | ----------- |
+| Initial development speed  | High               | Low                              | High             | Medium      |
+| Operational simplicity     | High               | Low                              | High             | Medium      |
+| Domain boundary quality    | High when enforced | High                             | Low–Medium       | High        |
+| Local setup complexity     | Medium             | High                             | Low              | Medium–High |
+| Distributed failure modes  | Low                | High                             | Low              | Medium      |
+| Independent deployment     | Low                | High                             | Low              | Partial     |
+| Horizontal API scaling     | High               | High                             | High             | High        |
+| Independent module scaling | Low                | High                             | Low              | Partial     |
+| Testing simplicity         | High               | Medium–Low                       | Medium           | Medium      |
+| Future extraction path     | High               | Already extracted                | Low              | High        |
+| Portfolio value            | High               | High but risk of overengineering | Medium           | High        |
+| MVP suitability            | High               | Low                              | Medium           | Medium      |
 
 ---
 
@@ -487,15 +487,15 @@ The modular monolith remains horizontally scalable.
 
 ## 13. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Module boundary erosion | Medium | High | CMake targets, code review, dependency tests |
-| God service growth | Medium | High | One use-case handler per capability |
-| Shared database coupling | Medium | High | Explicit collection and repository ownership |
-| Large deployment blast radius | Medium | Medium | Canary rollout, health checks, rollback |
-| Build time growth | Medium | Medium | Incremental targets and caching |
-| Premature service extraction | Medium | Medium | Require measurable trigger and ADR |
-| Resource contention between modules | Low–Medium | Medium | Metrics and worker separation |
+| Risk                                | Likelihood | Impact | Mitigation                                   |
+| ----------------------------------- | ---------- | ------ | -------------------------------------------- |
+| Module boundary erosion             | Medium     | High   | CMake targets, code review, dependency tests |
+| God service growth                  | Medium     | High   | One use-case handler per capability          |
+| Shared database coupling            | Medium     | High   | Explicit collection and repository ownership |
+| Large deployment blast radius       | Medium     | Medium | Canary rollout, health checks, rollback      |
+| Build time growth                   | Medium     | Medium | Incremental targets and caching              |
+| Premature service extraction        | Medium     | Medium | Require measurable trigger and ADR           |
+| Resource contention between modules | Low–Medium | Medium | Metrics and worker separation                |
 
 ---
 

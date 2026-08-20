@@ -186,13 +186,13 @@ The MVP supports:
 
 The MVP domain is generic enough to represent:
 
-| Resource Type | Example Reservation |
-|---|---|
-| Meeting room | 10:00–11:00 |
-| Office desk | 09:00–17:00 |
-| Parking slot | 08:00–18:00 |
+| Resource Type    | Example Reservation                     |
+| ---------------- | --------------------------------------- |
+| Meeting room     | 10:00–11:00                             |
+| Office desk      | 09:00–17:00                             |
+| Parking slot     | 08:00–18:00                             |
 | Hotel-style room | 14:00–11:00 next day, subject to policy |
-| Game zone | 18:00–20:00 |
+| Game zone        | 18:00–20:00                             |
 
 All supported resources must use a predefined start and end time.
 
@@ -471,25 +471,25 @@ Haven will provide extension points for plausible evolution, but it will not imp
 
 ## 10. Technology Stack
 
-| Concern | Selected Technology | Purpose |
-|---|---|---|
-| Language | Modern C++20 | Performance, ownership control, backend engineering depth |
-| Web framework | Drogon | HTTP server, routing, middleware, asynchronous I/O |
-| Build | CMake | Portable project configuration and build orchestration |
-| Dependencies | vcpkg | Reproducible third-party dependency management |
-| Primary database | Couchbase | JSON document storage, indexing, CAS-based concurrency |
-| Cache | Redis | Derived and slow-changing cached data |
-| Messaging | Kafka | Durable asynchronous domain event distribution |
-| Authentication | JWT | Stateless caller identity and tenant claims |
-| Logging | spdlog | Structured, high-performance application logging |
-| Unit testing | GoogleTest | Domain and application behavior testing |
-| Benchmarking | Google Benchmark | Repeatable performance measurement |
-| Containers | Docker / Compose | Reproducible local infrastructure |
-| API documentation | OpenAPI / Swagger | Versioned public API contract |
-| Formatting | clang-format | Consistent source formatting |
-| Static analysis | clang-tidy | Defect detection and style enforcement |
-| CI | GitHub Actions | Automated build, analysis, and tests |
-| Diagrams | Mermaid / Draw.io | Architecture and behavioral documentation |
+| Concern           | Selected Technology | Purpose                                                   |
+| ----------------- | ------------------- | --------------------------------------------------------- |
+| Language          | Modern C++20        | Performance, ownership control, backend engineering depth |
+| Web framework     | Drogon              | HTTP server, routing, middleware, asynchronous I/O        |
+| Build             | CMake               | Portable project configuration and build orchestration    |
+| Dependencies      | vcpkg               | Reproducible third-party dependency management            |
+| Primary database  | Couchbase           | JSON document storage, indexing, CAS-based concurrency    |
+| Cache             | Redis               | Derived and slow-changing cached data                     |
+| Messaging         | Kafka               | Durable asynchronous domain event distribution            |
+| Authentication    | JWT                 | Stateless caller identity and tenant claims               |
+| Logging           | spdlog              | Structured, high-performance application logging          |
+| Unit testing      | GoogleTest          | Domain and application behavior testing                   |
+| Benchmarking      | Google Benchmark    | Repeatable performance measurement                        |
+| Containers        | Docker / Compose    | Reproducible local infrastructure                         |
+| API documentation | OpenAPI / Swagger   | Versioned public API contract                             |
+| Formatting        | clang-format        | Consistent source formatting                              |
+| Static analysis   | clang-tidy          | Defect detection and style enforcement                    |
+| CI                | GitHub Actions      | Automated build, analysis, and tests                      |
+| Diagrams          | Mermaid / Draw.io   | Architecture and behavioral documentation                 |
 
 Technology-specific decisions are documented through ADRs.
 
@@ -772,24 +772,24 @@ Documentation is version-controlled alongside code.
 
 The primary document set is:
 
-| Document | Purpose |
-|---|---|
-| `00-introduction.md` | Project vision, scope, philosophy, and reading guide |
-| `01-requirements.md` | Functional and non-functional requirements |
-| `02-high-level-design.md` | System context, components, flows, and deployment |
-| `03-low-level-design.md` | LLD methodology, layers, class responsibilities, and contracts |
-| `04-domain-model.md` | Ubiquitous language, aggregates, entities, value objects, invariants |
-| `05-api-design.md` | OpenAPI-level REST contracts and error model |
-| `06-database-design.md` | Couchbase document model, indexes, access patterns |
-| `07-event-driven-design.md` | Events, topics, producers, consumers, and delivery semantics |
-| `08-concurrency.md` | Conflict detection, CAS, retries, idempotency |
-| `09-caching.md` | Redis ownership, keys, TTLs, fallbacks, invalidation |
-| `10-security.md` | Authentication, authorization, isolation, abuse prevention |
-| `11-observability.md` | Logs, metrics, tracing, dashboards, alerts |
-| `12-testing.md` | Test pyramid, environments, fixtures, and failure testing |
-| `13-performance.md` | Benchmarks, workloads, bottlenecks, optimization process |
-| `14-deployment.md` | Docker Compose and future production topology |
-| `15-architecture-decisions/` | Individual Architecture Decision Records |
+| Document                     | Purpose                                                              |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `00-introduction.md`         | Project vision, scope, philosophy, and reading guide                 |
+| `01-requirements.md`         | Functional and non-functional requirements                           |
+| `02-high-level-design.md`    | System context, components, flows, and deployment                    |
+| `03-low-level-design.md`     | LLD methodology, layers, class responsibilities, and contracts       |
+| `04-domain-model.md`         | Ubiquitous language, aggregates, entities, value objects, invariants |
+| `05-api-design.md`           | OpenAPI-level REST contracts and error model                         |
+| `06-database-design.md`      | Couchbase document model, indexes, access patterns                   |
+| `07-event-driven-design.md`  | Events, topics, producers, consumers, and delivery semantics         |
+| `08-concurrency.md`          | Conflict detection, CAS, retries, idempotency                        |
+| `09-caching.md`              | Redis ownership, keys, TTLs, fallbacks, invalidation                 |
+| `10-security.md`             | Authentication, authorization, isolation, abuse prevention           |
+| `11-observability.md`        | Logs, metrics, tracing, dashboards, alerts                           |
+| `12-testing.md`              | Test pyramid, environments, fixtures, and failure testing            |
+| `13-performance.md`          | Benchmarks, workloads, bottlenecks, optimization process             |
+| `14-deployment.md`           | Docker Compose and future production topology                        |
+| `15-architecture-decisions/` | Individual Architecture Decision Records                             |
 
 Each major architectural decision should be captured in an ADR.
 
@@ -797,27 +797,27 @@ Each major architectural decision should be captured in an ADR.
 
 ## 16. Delivery Roadmap
 
-| Phase | Focus | Status |
-|---:|---|---|
-| 0 | Requirements gathering | Complete |
-| 1 | High-level design | Complete |
-| 2 | Low-level design and domain modeling | In progress |
-| 3 | Development environment setup | Planned |
-| 4 | Production project skeleton | Planned |
-| 5 | First APIs | Planned |
-| 6 | Couchbase integration | Planned |
-| 7 | Redis integration | Planned |
-| 8 | Reservation engine | Planned |
-| 9 | Conflict detection | Planned |
-| 10 | Optimistic concurrency and retry handling | Planned |
-| 11 | Asynchronous events | Planned |
-| 12 | Notifications and reporting consumers | Planned |
-| 13 | Metrics and tracing | Planned |
-| 14 | Comprehensive testing | Planned |
-| 15 | Performance benchmarking | Planned |
-| 16 | Production hardening | Planned |
-| 17 | CI/CD | Planned |
-| 18 | Documentation and portfolio polish | Planned |
+| Phase | Focus                                     | Status      |
+| ----: | ----------------------------------------- | ----------- |
+|     0 | Requirements gathering                    | Complete    |
+|     1 | High-level design                         | Complete    |
+|     2 | Low-level design and domain modeling      | In progress |
+|     3 | Development environment setup             | Planned     |
+|     4 | Production project skeleton               | Planned     |
+|     5 | First APIs                                | Planned     |
+|     6 | Couchbase integration                     | Planned     |
+|     7 | Redis integration                         | Planned     |
+|     8 | Reservation engine                        | Planned     |
+|     9 | Conflict detection                        | Planned     |
+|    10 | Optimistic concurrency and retry handling | Planned     |
+|    11 | Asynchronous events                       | Planned     |
+|    12 | Notifications and reporting consumers     | Planned     |
+|    13 | Metrics and tracing                       | Planned     |
+|    14 | Comprehensive testing                     | Planned     |
+|    15 | Performance benchmarking                  | Planned     |
+|    16 | Production hardening                      | Planned     |
+|    17 | CI/CD                                     | Planned     |
+|    18 | Documentation and portfolio polish        | Planned     |
 
 Phases may be adjusted as new evidence is discovered, but changes must be documented.
 
@@ -852,22 +852,22 @@ Haven follows these standards:
 
 The following decisions are introduced by this document and expanded in later documents or ADRs:
 
-| Decision | Summary |
-|---|---|
-| Product boundary | Fixed start/end time reservations only |
-| Tenancy | Multi-tenant system with initial support for two to three organizations |
-| Availability | Derived from reservations |
-| Calendar | Read view over reservations |
-| Source of truth | Reservation persistence |
-| Architecture | Modular monolith |
-| Dependency model | Clean and Hexagonal Architecture |
-| Concurrency | Optimistic concurrency using Couchbase CAS |
-| Cache role | Performance optimization only |
-| Messaging | Kafka for asynchronous domain events |
-| Framework | Drogon confined to presentation |
-| API style | Resource-oriented and task-oriented REST where business actions require it |
-| ID ownership | Server generates reservation IDs; client supplies resource ID and idempotency key |
-| Approval | Simple workflow for priority resources |
+| Decision         | Summary                                                                           |
+| ---------------- | --------------------------------------------------------------------------------- |
+| Product boundary | Fixed start/end time reservations only                                            |
+| Tenancy          | Multi-tenant system with initial support for two to three organizations           |
+| Availability     | Derived from reservations                                                         |
+| Calendar         | Read view over reservations                                                       |
+| Source of truth  | Reservation persistence                                                           |
+| Architecture     | Modular monolith                                                                  |
+| Dependency model | Clean and Hexagonal Architecture                                                  |
+| Concurrency      | Optimistic concurrency using Couchbase CAS                                        |
+| Cache role       | Performance optimization only                                                     |
+| Messaging        | Kafka for asynchronous domain events                                              |
+| Framework        | Drogon confined to presentation                                                   |
+| API style        | Resource-oriented and task-oriented REST where business actions require it        |
+| ID ownership     | Server generates reservation IDs; client supplies resource ID and idempotency key |
+| Approval         | Simple workflow for priority resources                                            |
 
 ---
 

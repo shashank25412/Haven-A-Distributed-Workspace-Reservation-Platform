@@ -120,20 +120,20 @@ The selected design must guarantee:
 
 ## 4. Decision Drivers
 
-| Priority | Driver | Importance |
-|---:|---|---|
-| 1 | Prevent silent event loss | Critical |
-| 2 | Preserve state/event consistency | Critical |
-| 3 | Recover after process crash | Critical |
-| 4 | Support Kafka outage | High |
-| 5 | Avoid distributed transactions | High |
-| 6 | Keep reservation write path bounded | High |
-| 7 | Support multiple application instances | High |
-| 8 | Make backlog observable | High |
-| 9 | Support at-least-once publication | High |
-| 10 | Preserve event ordering per aggregate | High |
-| 11 | Keep operational complexity reasonable | Medium |
-| 12 | Support replay and repair | Medium |
+| Priority | Driver                                 | Importance |
+| -------: | -------------------------------------- | ---------- |
+|        1 | Prevent silent event loss              | Critical   |
+|        2 | Preserve state/event consistency       | Critical   |
+|        3 | Recover after process crash            | Critical   |
+|        4 | Support Kafka outage                   | High       |
+|        5 | Avoid distributed transactions         | High       |
+|        6 | Keep reservation write path bounded    | High       |
+|        7 | Support multiple application instances | High       |
+|        8 | Make backlog observable                | High       |
+|        9 | Support at-least-once publication      | High       |
+|       10 | Preserve event ordering per aggregate  | High       |
+|       11 | Keep operational complexity reasonable | Medium     |
+|       12 | Support replay and repair              | Medium     |
 
 ---
 
@@ -173,16 +173,16 @@ Periodically inspect reservation state and infer which events should have been p
 
 ## 6. Evaluation
 
-| Criteria | Transactional Outbox | Direct Dual Write | Distributed Transaction | Kafka-First | CDC | In-Memory Retry | Reservation Scan |
-|---|---|---|---|---|---|---|---|
-| Atomic state + intent | Yes | No | Yes | Event is primary | Indirect | No | No |
-| Survives process crash | Yes | No | Yes | Yes | Yes | No | Yes, imperfect |
-| Kafka outage tolerance | Yes | Partial | Depends | Write unavailable or buffered | Yes | Limited | Yes |
-| Duplicate possibility | Yes | Yes | Lower | Yes | Yes | Yes | Yes |
-| Implementation complexity | Medium | Low | Very high | High | Medium–High | Low | High |
-| Operational clarity | High | Low | Low | Medium | Medium | Low | Low |
-| Fits current domain model | Excellent | Poor | Poor | Low | Medium | Poor | Poor |
-| MVP suitability | High | Rejected | Rejected | Rejected | Deferred | Rejected | Rejected |
+| Criteria                  | Transactional Outbox | Direct Dual Write | Distributed Transaction | Kafka-First                   | CDC         | In-Memory Retry | Reservation Scan |
+| ------------------------- | -------------------- | ----------------- | ----------------------- | ----------------------------- | ----------- | --------------- | ---------------- |
+| Atomic state + intent     | Yes                  | No                | Yes                     | Event is primary              | Indirect    | No              | No               |
+| Survives process crash    | Yes                  | No                | Yes                     | Yes                           | Yes         | No              | Yes, imperfect   |
+| Kafka outage tolerance    | Yes                  | Partial           | Depends                 | Write unavailable or buffered | Yes         | Limited         | Yes              |
+| Duplicate possibility     | Yes                  | Yes               | Lower                   | Yes                           | Yes         | Yes             | Yes              |
+| Implementation complexity | Medium               | Low               | Very high               | High                          | Medium–High | Low             | High             |
+| Operational clarity       | High                 | Low               | Low                     | Medium                        | Medium      | Low             | Low              |
+| Fits current domain model | Excellent            | Poor              | Poor                    | Low                           | Medium      | Poor            | Poor             |
+| MVP suitability           | High                 | Rejected          | Rejected                | Rejected                      | Deferred    | Rejected        | Rejected         |
 
 ---
 
@@ -726,11 +726,11 @@ The system must monitor:
 
 Operational policy may define thresholds:
 
-| Level | Example Behavior |
-|---|---|
-| Normal | Continue |
-| Warning | Alert and investigate |
-| Critical | Scale relay or repair Kafka |
+| Level         | Example Behavior                                                                       |
+| ------------- | -------------------------------------------------------------------------------------- |
+| Normal        | Continue                                                                               |
+| Warning       | Alert and investigate                                                                  |
+| Critical      | Scale relay or repair Kafka                                                            |
 | Capacity risk | Reject non-essential writes or reservation writes with `503` before storage exhaustion |
 
 Haven must not allow unbounded backlog to exhaust Couchbase silently.
@@ -802,19 +802,19 @@ Consumer idempotency is mandatory because the outbox relay provides at-least-onc
 
 ## 30. Failure Scenarios
 
-| Scenario | Outcome |
-|---|---|
-| Transaction fails before commit | No business state and no outbox |
-| Transaction commits, process crashes | Relay later publishes |
-| Kafka unavailable | Event remains pending |
-| Relay crashes before publish | Claim expires, event retried |
-| Relay publishes, crashes before mark | Event may be published again |
-| Relay marks published | Normal completion |
-| Outbox query is stale | Event discovered later |
-| Claim CAS conflict | Another relay owns candidate |
-| Poison payload | Mark failed and alert |
-| Cleanup crashes | Safe to retry |
-| Consumer crashes after side effect | Duplicate handled by consumer idempotency |
+| Scenario                             | Outcome                                   |
+| ------------------------------------ | ----------------------------------------- |
+| Transaction fails before commit      | No business state and no outbox           |
+| Transaction commits, process crashes | Relay later publishes                     |
+| Kafka unavailable                    | Event remains pending                     |
+| Relay crashes before publish         | Claim expires, event retried              |
+| Relay publishes, crashes before mark | Event may be published again              |
+| Relay marks published                | Normal completion                         |
+| Outbox query is stale                | Event discovered later                    |
+| Claim CAS conflict                   | Another relay owns candidate              |
+| Poison payload                       | Mark failed and alert                     |
+| Cleanup crashes                      | Safe to retry                             |
+| Consumer crashes after side effect   | Duplicate handled by consumer idempotency |
 
 ---
 
@@ -1112,18 +1112,18 @@ Tune:
 
 ## 40. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Published event marked pending after crash | High over time | Medium | Consumer idempotency |
-| Outbox backlog exhausts storage | Low–Medium | Critical | Capacity alert and load shedding |
-| Poison event retries forever | Medium | High | Bounded retry and FAILED state |
-| Multiple relays duplicate work | Medium | Medium | CAS claim and idempotent consumers |
-| Payload schema invalid | Low–Medium | High | Validate before transaction |
-| Event missing from transaction | Medium | Critical | Use-case tests and repository contract |
-| Cleanup deletes pending record | Low | Critical | State guard and tests |
-| Claim lease too short | Medium | Medium | Tune against publish timeout |
-| Sensitive data persisted | Medium | High | Event review and schema controls |
-| Relay affects API resources | Medium | Medium | Separate worker process |
+| Risk                                       | Likelihood     | Impact   | Mitigation                             |
+| ------------------------------------------ | -------------- | -------- | -------------------------------------- |
+| Published event marked pending after crash | High over time | Medium   | Consumer idempotency                   |
+| Outbox backlog exhausts storage            | Low–Medium     | Critical | Capacity alert and load shedding       |
+| Poison event retries forever               | Medium         | High     | Bounded retry and FAILED state         |
+| Multiple relays duplicate work             | Medium         | Medium   | CAS claim and idempotent consumers     |
+| Payload schema invalid                     | Low–Medium     | High     | Validate before transaction            |
+| Event missing from transaction             | Medium         | Critical | Use-case tests and repository contract |
+| Cleanup deletes pending record             | Low            | Critical | State guard and tests                  |
+| Claim lease too short                      | Medium         | Medium   | Tune against publish timeout           |
+| Sensitive data persisted                   | Medium         | High     | Event review and schema controls       |
+| Relay affects API resources                | Medium         | Medium   | Separate worker process                |
 
 ---
 

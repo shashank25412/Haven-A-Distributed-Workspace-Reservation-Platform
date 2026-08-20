@@ -86,20 +86,20 @@ The strategy must address both:
 
 ## 4. Decision Drivers
 
-| Priority | Driver | Importance |
-|---:|---|---|
-| 1 | Prevent double booking | Critical |
-| 2 | Prevent lost updates | Critical |
-| 3 | Work across multiple application instances | Critical |
-| 4 | Avoid cache-based correctness dependency | High |
-| 5 | Keep contention scoped to one resource/time bucket | High |
-| 6 | Support idempotent retries | High |
-| 7 | Preserve event/outbox consistency | High |
-| 8 | Provide predictable failure semantics | High |
-| 9 | Support horizontal scaling | Medium |
-| 10 | Minimize operational complexity | Medium |
-| 11 | Preserve acceptable latency | Medium |
-| 12 | Maintain clear testability | High |
+| Priority | Driver                                             | Importance |
+| -------: | -------------------------------------------------- | ---------- |
+|        1 | Prevent double booking                             | Critical   |
+|        2 | Prevent lost updates                               | Critical   |
+|        3 | Work across multiple application instances         | Critical   |
+|        4 | Avoid cache-based correctness dependency           | High       |
+|        5 | Keep contention scoped to one resource/time bucket | High       |
+|        6 | Support idempotent retries                         | High       |
+|        7 | Preserve event/outbox consistency                  | High       |
+|        8 | Provide predictable failure semantics              | High       |
+|        9 | Support horizontal scaling                         | Medium     |
+|       10 | Minimize operational complexity                    | Medium     |
+|       11 | Preserve acceptable latency                        | Medium     |
+|       12 | Maintain clear testability                         | High       |
 
 ---
 
@@ -152,18 +152,18 @@ Run overlap query and insert reservation when no conflict is found.
 
 ## 6. Evaluation
 
-| Criteria | Optimistic Couchbase | Pessimistic DB Lock | Redis Lock | In-Memory Mutex | Serialized Queue | Query Then Insert |
-|---|---|---|---|---|---|---|
-| Prevents cross-instance conflict | Yes | Yes | Potentially | No | Yes | No |
-| Prevents lost update | Yes | Yes | Only with DB checks | No | Yes | No |
-| Correctness dependency count | Couchbase | Couchbase | Couchbase + Redis | App process | Queue + DB | Couchbase |
-| Failure complexity | Medium | High | High | High at scale | High | Low but unsafe |
-| Hot-resource behavior | Retry/abort | Blocking | Lease contention | Process-local only | Queue delay | Double booking |
-| Horizontal scaling | Yes | Yes | Yes | No | Yes | Yes but unsafe |
-| Deadlock risk | Low–Medium | Medium–High | Lease risk | Low | Low | Low |
-| Operational simplicity | Medium | Medium | Low–Medium | High but incorrect | Low | High but incorrect |
-| Event/outbox atomicity | Yes | Yes | Requires DB transaction | No | Requires DB transaction | No |
-| MVP suitability | High | Medium | Low | Rejected | Medium–Low | Rejected |
+| Criteria                         | Optimistic Couchbase | Pessimistic DB Lock | Redis Lock              | In-Memory Mutex    | Serialized Queue        | Query Then Insert  |
+| -------------------------------- | -------------------- | ------------------- | ----------------------- | ------------------ | ----------------------- | ------------------ |
+| Prevents cross-instance conflict | Yes                  | Yes                 | Potentially             | No                 | Yes                     | No                 |
+| Prevents lost update             | Yes                  | Yes                 | Only with DB checks     | No                 | Yes                     | No                 |
+| Correctness dependency count     | Couchbase            | Couchbase           | Couchbase + Redis       | App process        | Queue + DB              | Couchbase          |
+| Failure complexity               | Medium               | High                | High                    | High at scale      | High                    | Low but unsafe     |
+| Hot-resource behavior            | Retry/abort          | Blocking            | Lease contention        | Process-local only | Queue delay             | Double booking     |
+| Horizontal scaling               | Yes                  | Yes                 | Yes                     | No                 | Yes                     | Yes but unsafe     |
+| Deadlock risk                    | Low–Medium           | Medium–High         | Lease risk              | Low                | Low                     | Low                |
+| Operational simplicity           | Medium               | Medium              | Low–Medium              | High but incorrect | Low                     | High but incorrect |
+| Event/outbox atomicity           | Yes                  | Yes                 | Requires DB transaction | No                 | Requires DB transaction | No                 |
+| MVP suitability                  | High                 | Medium              | Low                     | Rejected           | Medium–Low              | Rejected           |
 
 ---
 
@@ -492,12 +492,12 @@ Canonical payload includes:
 
 ### 15.3 Behavior
 
-| Existing Record | Same Payload | Different Payload |
-|---|---|---|
-| Completed | Return original response | Reject with 409 |
-| Processing | Wait boundedly or return in-progress result | Reject with 409 |
-| Final failure | Return stable failure | Reject with 409 |
-| Missing | Process request | Process request |
+| Existing Record | Same Payload                                | Different Payload |
+| --------------- | ------------------------------------------- | ----------------- |
+| Completed       | Return original response                    | Reject with 409   |
+| Processing      | Wait boundedly or return in-progress result | Reject with 409   |
+| Final failure   | Return stable failure                       | Reject with 409   |
+| Missing         | Process request                             | Process request   |
 
 ### 15.4 Atomicity
 
@@ -622,18 +622,18 @@ Normal requests must not silently ignore guard corruption.
 
 ## 20. Failure Semantics
 
-| Failure Point | Result |
-|---|---|
-| Before transaction commit | No business state committed |
-| After commit before HTTP response | Client retries and receives stored idempotent result |
-| Transaction conflict | Bounded retry |
-| Business overlap | Immediate 409 |
-| CAS mismatch | Reload/re-evaluate or 409 |
-| Redis unavailable | No correctness impact |
-| Kafka unavailable | Outbox remains pending |
-| Application instance crashes | Committed state remains in Couchbase |
-| Guard inconsistency | Fail safely and alert |
-| Retry exhausted | Retryable technical error, typically 503 or classified 409 |
+| Failure Point                     | Result                                                     |
+| --------------------------------- | ---------------------------------------------------------- |
+| Before transaction commit         | No business state committed                                |
+| After commit before HTTP response | Client retries and receives stored idempotent result       |
+| Transaction conflict              | Bounded retry                                              |
+| Business overlap                  | Immediate 409                                              |
+| CAS mismatch                      | Reload/re-evaluate or 409                                  |
+| Redis unavailable                 | No correctness impact                                      |
+| Kafka unavailable                 | Outbox remains pending                                     |
+| Application instance crashes      | Committed state remains in Couchbase                       |
+| Guard inconsistency               | Fail safely and alert                                      |
+| Retry exhausted                   | Retryable technical error, typically 503 or classified 409 |
 
 ---
 
@@ -799,18 +799,18 @@ The design accepts some transaction latency in exchange for correctness.
 
 ## 26. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Transaction implementation bug | Medium | Critical | Integration and concurrency tests |
-| Guard/reservation divergence | Low–Medium | Critical | Atomic transaction and reconciliation |
-| Hot-resource retries | Medium | High | Bounded retries and metrics |
-| Cross-day ordering bug | Medium | High | Deterministic key ordering |
-| Idempotency inconsistency | Low–Medium | High | Commit in same transaction |
-| CAS leakage into domain | Medium | Medium | Neutral Version abstraction |
-| Retrying business conflict | Medium | Medium | Explicit error taxonomy |
-| Retry storm | Medium | High | Backoff, jitter, deadline |
-| Pending approval UX surprise | Medium | Medium | Clear API status and recheck behavior |
-| Guard growth | Low–Medium | Medium | Daily buckets and retention review |
+| Risk                           | Likelihood | Impact   | Mitigation                            |
+| ------------------------------ | ---------- | -------- | ------------------------------------- |
+| Transaction implementation bug | Medium     | Critical | Integration and concurrency tests     |
+| Guard/reservation divergence   | Low–Medium | Critical | Atomic transaction and reconciliation |
+| Hot-resource retries           | Medium     | High     | Bounded retries and metrics           |
+| Cross-day ordering bug         | Medium     | High     | Deterministic key ordering            |
+| Idempotency inconsistency      | Low–Medium | High     | Commit in same transaction            |
+| CAS leakage into domain        | Medium     | Medium   | Neutral Version abstraction           |
+| Retrying business conflict     | Medium     | Medium   | Explicit error taxonomy               |
+| Retry storm                    | Medium     | High     | Backoff, jitter, deadline             |
+| Pending approval UX surprise   | Medium     | Medium   | Clear API status and recheck behavior |
+| Guard growth                   | Low–Medium | Medium   | Daily buckets and retention review    |
 
 ---
 

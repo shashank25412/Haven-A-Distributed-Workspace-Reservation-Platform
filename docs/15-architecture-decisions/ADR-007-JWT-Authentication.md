@@ -86,20 +86,20 @@ The selected model must allow Haven to validate caller identity without becoming
 
 ## 4. Decision Drivers
 
-| Priority | Driver | Importance |
-|---:|---|---|
-| 1 | Strong caller authentication | Critical |
-| 2 | Tenant isolation | Critical |
-| 3 | Stateless API scaling | High |
-| 4 | Separation from password management | High |
-| 5 | Standard protocol support | High |
-| 6 | Signing-key rotation | High |
-| 7 | Low per-request authentication latency | High |
-| 8 | Role and permission claims | High |
-| 9 | Revocation response | Medium |
-| 10 | Local development and testing | Medium |
-| 11 | Operational simplicity | Medium |
-| 12 | Provider portability | Medium |
+| Priority | Driver                                 | Importance |
+| -------: | -------------------------------------- | ---------- |
+|        1 | Strong caller authentication           | Critical   |
+|        2 | Tenant isolation                       | Critical   |
+|        3 | Stateless API scaling                  | High       |
+|        4 | Separation from password management    | High       |
+|        5 | Standard protocol support              | High       |
+|        6 | Signing-key rotation                   | High       |
+|        7 | Low per-request authentication latency | High       |
+|        8 | Role and permission claims             | High       |
+|        9 | Revocation response                    | Medium     |
+|       10 | Local development and testing          | Medium     |
+|       11 | Operational simplicity                 | Medium     |
+|       12 | Provider portability                   | Medium     |
 
 ---
 
@@ -148,18 +148,18 @@ Haven stores user credentials and implements login, password hashing, reset, and
 
 ## 6. Evaluation
 
-| Criteria | JWT | Opaque + Introspection | Sessions | API Keys | mTLS | Haven-Owned Credentials |
-|---|---|---|---|---|---|---|
-| Stateless API validation | Excellent | No | No | Good | Good | Depends |
-| Per-request latency | Low | Network-dependent | Store lookup | Low | Low | Depends |
-| Immediate revocation | Limited | Strong | Strong | Manual | Certificate revocation | Custom |
-| Standard ecosystem | Excellent | Excellent | Excellent | Good | Strong for service identity | High effort |
-| User-facing suitability | Excellent | Excellent | Excellent | Weak | Weak | Possible |
-| Tenant/role claims | Strong | Strong | Session data | Custom | Custom | Custom |
-| Key rotation | Strong | Provider-managed | Session secret rotation | Key rotation | Certificate rotation | Custom |
-| Operational burden | Medium | Medium–High | Medium | Medium | High | Very high |
-| Horizontal scaling | Excellent | Good | Requires shared state | Excellent | Excellent | Depends |
-| MVP suitability | High | Medium | Medium | Low | Low | Rejected |
+| Criteria                 | JWT       | Opaque + Introspection | Sessions                | API Keys     | mTLS                        | Haven-Owned Credentials |
+| ------------------------ | --------- | ---------------------- | ----------------------- | ------------ | --------------------------- | ----------------------- |
+| Stateless API validation | Excellent | No                     | No                      | Good         | Good                        | Depends                 |
+| Per-request latency      | Low       | Network-dependent      | Store lookup            | Low          | Low                         | Depends                 |
+| Immediate revocation     | Limited   | Strong                 | Strong                  | Manual       | Certificate revocation      | Custom                  |
+| Standard ecosystem       | Excellent | Excellent              | Excellent               | Good         | Strong for service identity | High effort             |
+| User-facing suitability  | Excellent | Excellent              | Excellent               | Weak         | Weak                        | Possible                |
+| Tenant/role claims       | Strong    | Strong                 | Session data            | Custom       | Custom                      | Custom                  |
+| Key rotation             | Strong    | Provider-managed       | Session secret rotation | Key rotation | Certificate rotation        | Custom                  |
+| Operational burden       | Medium    | Medium–High            | Medium                  | Medium       | High                        | Very high               |
+| Horizontal scaling       | Excellent | Good                   | Requires shared state   | Excellent    | Excellent                   | Depends                 |
+| MVP suitability          | High      | Medium                 | Medium                  | Low          | Low                         | Rejected                |
 
 ---
 
@@ -304,17 +304,17 @@ Rules:
 
 Illustrative required claims:
 
-| Claim | Purpose |
-|---|---|
-| `iss` | Trusted token issuer |
-| `aud` | Token intended for Haven |
-| `sub` | Stable caller identity |
-| `exp` | Expiration |
-| `iat` | Issuance time |
-| `nbf` | Optional not-before time |
-| `jti` | Optional token identifier |
-| `org_id` | Active organization context |
-| `roles` or `scope` | Authorization input |
+| Claim              | Purpose                     |
+| ------------------ | --------------------------- |
+| `iss`              | Trusted token issuer        |
+| `aud`              | Token intended for Haven    |
+| `sub`              | Stable caller identity      |
+| `exp`              | Expiration                  |
+| `iat`              | Issuance time               |
+| `nbf`              | Optional not-before time    |
+| `jti`              | Optional token identifier   |
+| `org_id`           | Active organization context |
+| `roles` or `scope` | Authorization input         |
 
 Exact claim names are configurable because identity providers differ.
 
@@ -521,16 +521,16 @@ Application permissions remain operation-specific.
 
 Examples:
 
-| Operation | Minimum Authorization |
-|---|---|
-| Search resources | Authenticated tenant member |
-| Create reservation | Authenticated tenant member |
-| View own reservation | Owner or authorized administrator |
-| Cancel own reservation | Owner subject to policy |
-| Approve priority resource | Approver for organization/resource |
-| Create resource | Resource administrator |
-| Modify organization policy | Organization administrator |
-| Cross-tenant operation | System administrator with explicit support path |
+| Operation                  | Minimum Authorization                           |
+| -------------------------- | ----------------------------------------------- |
+| Search resources           | Authenticated tenant member                     |
+| Create reservation         | Authenticated tenant member                     |
+| View own reservation       | Owner or authorized administrator               |
+| Cancel own reservation     | Owner subject to policy                         |
+| Approve priority resource  | Approver for organization/resource              |
+| Create resource            | Resource administrator                          |
+| Modify organization policy | Organization administrator                      |
+| Cross-tenant operation     | System administrator with explicit support path |
 
 System administrator access must be tightly controlled and audited.
 
@@ -928,20 +928,20 @@ Large tokens increase:
 
 ## 33. Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Algorithm confusion | Low–Medium | Critical | Explicit algorithm allow-list |
-| Wrong issuer accepted | Low | Critical | Exact issuer validation |
-| Wrong audience accepted | Low | Critical | Exact audience validation |
-| Stale revoked access | Medium | High | Short token lifetime |
-| Unknown key during rotation | Medium | Medium | On-demand refresh and overlap |
-| Raw token logged | Medium | High | Central redaction and tests |
-| Cross-tenant claim misuse | Medium | Critical | Trusted active org and repository scoping |
-| Oversized token | Low–Medium | Medium | Header-size limits |
-| Provider-specific coupling | Medium | Medium | Claim mapper adapter |
-| Clock drift | Low | High | Time synchronization and monitoring |
-| JWT role too broad | Medium | High | Application authorization checks |
-| Test bypass enabled in production | Low | Critical | Build/config guard and startup failure |
+| Risk                              | Likelihood | Impact   | Mitigation                                |
+| --------------------------------- | ---------- | -------- | ----------------------------------------- |
+| Algorithm confusion               | Low–Medium | Critical | Explicit algorithm allow-list             |
+| Wrong issuer accepted             | Low        | Critical | Exact issuer validation                   |
+| Wrong audience accepted           | Low        | Critical | Exact audience validation                 |
+| Stale revoked access              | Medium     | High     | Short token lifetime                      |
+| Unknown key during rotation       | Medium     | Medium   | On-demand refresh and overlap             |
+| Raw token logged                  | Medium     | High     | Central redaction and tests               |
+| Cross-tenant claim misuse         | Medium     | Critical | Trusted active org and repository scoping |
+| Oversized token                   | Low–Medium | Medium   | Header-size limits                        |
+| Provider-specific coupling        | Medium     | Medium   | Claim mapper adapter                      |
+| Clock drift                       | Low        | High     | Time synchronization and monitoring       |
+| JWT role too broad                | Medium     | High     | Application authorization checks          |
+| Test bypass enabled in production | Low        | Critical | Build/config guard and startup failure    |
 
 ---
 

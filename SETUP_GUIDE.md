@@ -127,19 +127,19 @@ and domain code never read the environment directly.
 cp .env.example .env
 ```
 
-| Variable | Default | Description |
-|---|---:|---|
-| `HVN_HTTP_ADDRESS` | `0.0.0.0` | HTTP bind address |
-| `HVN_HTTP_PORT` | `8080` | HTTP port |
-| `HVN_HTTP_THREADS` | `1` | Drogon worker threads |
-| `HVN_LOG_LEVEL` | `info` | `trace`\|`debug`\|`info`\|`warn`\|`error`\|`critical` |
-| `HVN_COUCHBASE_CONNECTION_STRING` | — | Required: Couchbase cluster endpoint |
-| `HVN_COUCHBASE_USERNAME` | — | Required |
-| `HVN_COUCHBASE_PASSWORD` | — | Required |
-| `HVN_COUCHBASE_BUCKET` | — | Required |
-| `HVN_COUCHBASE_SCOPE` | — | Required |
-| `HVN_IDEMPOTENCY_RETENTION_SECONDS` | `86400` | Idempotency record retention |
-| `HVN_REDIS_ENABLED` | `false` | Enables the optional resource detail cache |
+| Variable                            |   Default | Description                                           |
+| ----------------------------------- | --------: | ----------------------------------------------------- |
+| `HVN_HTTP_ADDRESS`                  | `0.0.0.0` | HTTP bind address                                     |
+| `HVN_HTTP_PORT`                     |    `8080` | HTTP port                                             |
+| `HVN_HTTP_THREADS`                  |       `1` | Drogon worker threads                                 |
+| `HVN_LOG_LEVEL`                     |    `info` | `trace`\|`debug`\|`info`\|`warn`\|`error`\|`critical` |
+| `HVN_COUCHBASE_CONNECTION_STRING`   |         — | Required: Couchbase cluster endpoint                  |
+| `HVN_COUCHBASE_USERNAME`            |         — | Required                                              |
+| `HVN_COUCHBASE_PASSWORD`            |         — | Required                                              |
+| `HVN_COUCHBASE_BUCKET`              |         — | Required                                              |
+| `HVN_COUCHBASE_SCOPE`               |         — | Required                                              |
+| `HVN_IDEMPOTENCY_RETENTION_SECONDS` |   `86400` | Idempotency record retention                          |
+| `HVN_REDIS_ENABLED`                 |   `false` | Enables the optional resource detail cache            |
 
 Couchbase variables have no production defaults — all five are required by the running process.
 Never commit secrets; use a dedicated secret manager in production.
@@ -178,10 +178,10 @@ On Homebrew LLVM installs, tools live under `$(brew --prefix llvm)/bin`.
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---|---|
-| `CMAKE_MAKE_PROGRAM is not set` | `brew install ninja` (Apple Silicon: `eval "$(/opt/homebrew/bin/brew shellenv)"`) |
-| vcpkg cannot find pkg-config | `brew install pkgconf` |
-| vcpkg HTTP/2 framing error | Presets already force HTTP/1.1 for asset downloads; check `mkdir -p .build-tools/vcpkg-downloads` and unset stray proxy variables (`env \| grep -i proxy`) |
-| Docker daemon unreachable | `open -a Docker && docker info` |
-| Stale CMake paths after moving the repo | `rm -rf build && cmake --preset dev` |
+| Symptom                                 | Fix                                                                                                                                                        |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CMAKE_MAKE_PROGRAM is not set`         | `brew install ninja` (Apple Silicon: `eval "$(/opt/homebrew/bin/brew shellenv)"`)                                                                          |
+| vcpkg cannot find pkg-config            | `brew install pkgconf`                                                                                                                                     |
+| vcpkg HTTP/2 framing error              | Presets already force HTTP/1.1 for asset downloads; check `mkdir -p .build-tools/vcpkg-downloads` and unset stray proxy variables (`env \| grep -i proxy`) |
+| Docker daemon unreachable               | `open -a Docker && docker info`                                                                                                                            |
+| Stale CMake paths after moving the repo | `rm -rf build && cmake --preset dev`                                                                                                                       |

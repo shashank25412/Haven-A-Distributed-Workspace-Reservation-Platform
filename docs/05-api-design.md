@@ -115,12 +115,12 @@ where supported.
 
 Fields:
 
-| Field | Required | Meaning |
-|---|---:|---|
-| `code` | Yes | Stable machine-readable error |
-| `message` | Yes | Safe human-readable summary |
-| `details` | No | Field or policy details |
-| `traceId` | Yes | Operational correlation |
+| Field     | Required | Meaning                       |
+| --------- | -------: | ----------------------------- |
+| `code`    |      Yes | Stable machine-readable error |
+| `message` |      Yes | Safe human-readable summary   |
+| `details` |       No | Field or policy details       |
+| `traceId` |      Yes | Operational correlation       |
 
 ---
 
@@ -167,23 +167,23 @@ GET /api/v1/resources
 
 Required query parameters:
 
-| Parameter | Type | Description |
-|---|---|---|
-| `resourceType` | enum | Required resource category |
-| `startTime` | timestamp | Requested start |
-| `endTime` | timestamp | Requested end |
+| Parameter      | Type      | Description                |
+| -------------- | --------- | -------------------------- |
+| `resourceType` | enum      | Required resource category |
+| `startTime`    | timestamp | Requested start            |
+| `endTime`      | timestamp | Requested end              |
 
 Optional:
 
-| Parameter | Type |
-|---|---|
-| `minimumCapacity` | integer |
-| `building` | string |
-| `floor` | string |
-| `features` | comma-separated strings |
-| `sort` | enum |
-| `page` | integer |
-| `pageSize` | integer |
+| Parameter         | Type                    |
+| ----------------- | ----------------------- |
+| `minimumCapacity` | integer                 |
+| `building`        | string                  |
+| `floor`           | string                  |
+| `features`        | comma-separated strings |
+| `sort`            | enum                    |
+| `page`            | integer                 |
+| `pageSize`        | integer                 |
 
 Example:
 
@@ -211,10 +211,7 @@ Success:
         "floor": "5",
         "zone": "East"
       },
-      "features": [
-        "PROJECTOR",
-        "WHITEBOARD"
-      ]
+      "features": ["PROJECTOR", "WHITEBOARD"]
     }
   ],
   "searchContext": {
@@ -261,10 +258,7 @@ Success:
     "floor": "5",
     "zone": "East"
   },
-  "features": [
-    "PROJECTOR",
-    "WHITEBOARD"
-  ]
+  "features": ["PROJECTOR", "WHITEBOARD"]
 }
 ```
 
@@ -345,17 +339,17 @@ Approval response:
 
 Errors:
 
-| Code | HTTP |
-|---|---:|
-| `VALIDATION_ERROR` | 400 |
-| `UNAUTHENTICATED` | 401 |
-| `RESOURCE_NOT_FOUND` | 404 |
-| `RESERVATION_CONFLICT` | 409 |
-| `IDEMPOTENCY_KEY_MISMATCH` | 409 |
-| `RESERVATION_DURATION_EXCEEDED` | 422 |
-| `RESOURCE_INACTIVE` | 422 |
-| `RATE_LIMITED` | 429 |
-| `DEPENDENCY_UNAVAILABLE` | 503 |
+| Code                            | HTTP |
+| ------------------------------- | ---: |
+| `VALIDATION_ERROR`              |  400 |
+| `UNAUTHENTICATED`               |  401 |
+| `RESOURCE_NOT_FOUND`            |  404 |
+| `RESERVATION_CONFLICT`          |  409 |
+| `IDEMPOTENCY_KEY_MISMATCH`      |  409 |
+| `RESERVATION_DURATION_EXCEEDED` |  422 |
+| `RESOURCE_INACTIVE`             |  422 |
+| `RATE_LIMITED`                  |  429 |
+| `DEPENDENCY_UNAVAILABLE`        |  503 |
 
 ### 6.2 Get Reservation
 

@@ -536,8 +536,7 @@ but they still enforce tenant-scoped repository access, defend against
 repository tenant leakage, check reservation ownership where applicable,
 verify resource and reservation existence, and coordinate domain lifecycle,
 conflict, policy, and aggregate-invariant enforcement. Approval and rejection
-handlers record the acting user but do not load roles or permissions in Phase
-7.
+handlers record the acting user but do not load roles or permissions in Phase 7.
 
 A dedicated authorization policy or application-owned port may be introduced
 later if authorization becomes domain-sensitive or must be shared across
@@ -605,18 +604,18 @@ SDK-specific failures are mapped to internal categories:
 
 ### 11.4 Presentation Mapping
 
-| Error | HTTP |
-|---|---:|
-| Invalid transport input | 400 |
-| Unauthenticated | 401 |
-| Forbidden | 403 |
-| Not found / hidden cross-tenant | 404 |
-| Reservation conflict | 409 |
-| Idempotency mismatch | 409 |
-| Business policy violation | 422 |
-| Rate limited | 429 |
-| Essential dependency unavailable | 503 |
-| Unexpected error | 500 |
+| Error                            | HTTP |
+| -------------------------------- | ---: |
+| Invalid transport input          |  400 |
+| Unauthenticated                  |  401 |
+| Forbidden                        |  403 |
+| Not found / hidden cross-tenant  |  404 |
+| Reservation conflict             |  409 |
+| Idempotency mismatch             |  409 |
+| Business policy violation        |  422 |
+| Rate limited                     |  429 |
+| Essential dependency unavailable |  503 |
+| Unexpected error                 |  500 |
 
 ---
 
@@ -866,18 +865,18 @@ Coordinate multiple threads/processes against real persistence adapters.
 
 ## 23. Design Patterns Used
 
-| Pattern | Use |
-|---|---|
-| Repository | Aggregate persistence abstraction |
-| Adapter | Drogon, Couchbase, Redis, Kafka integration |
-| Command | State-changing application use cases |
-| Query | Read-only application use cases |
-| Strategy/Policy | Approval and reservation policy |
-| Factory/static creation | Valid aggregate construction |
-| Specification-like criteria | Resource and reservation filtering |
-| Dependency Injection | Explicit composition |
-| Domain Events | Decoupled business facts |
-| Outbox | Reliable event publication |
+| Pattern                     | Use                                         |
+| --------------------------- | ------------------------------------------- |
+| Repository                  | Aggregate persistence abstraction           |
+| Adapter                     | Drogon, Couchbase, Redis, Kafka integration |
+| Command                     | State-changing application use cases        |
+| Query                       | Read-only application use cases             |
+| Strategy/Policy             | Approval and reservation policy             |
+| Factory/static creation     | Valid aggregate construction                |
+| Specification-like criteria | Resource and reservation filtering          |
+| Dependency Injection        | Explicit composition                        |
+| Domain Events               | Decoupled business facts                    |
+| Outbox                      | Reliable event publication                  |
 
 Patterns are introduced only where requirements justify them.
 

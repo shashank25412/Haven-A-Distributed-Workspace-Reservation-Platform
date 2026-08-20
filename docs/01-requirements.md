@@ -750,16 +750,16 @@ Operationally protected health diagnostics should identify dependency status wit
 
 ### 8.1 Time Interval Rules
 
-| Rule ID | Rule |
-|---|---|
-| BR-TIME-001 | `startTime` must be earlier than `endTime`. |
-| BR-TIME-002 | Timestamps must be valid UTC ISO-8601 values. |
+| Rule ID     | Rule                                                           |
+| ----------- | -------------------------------------------------------------- |
+| BR-TIME-001 | `startTime` must be earlier than `endTime`.                    |
+| BR-TIME-002 | Timestamps must be valid UTC ISO-8601 values.                  |
 | BR-TIME-003 | The requested start time must not be unreasonably in the past. |
-| BR-TIME-004 | Intervals use `[start, end)` semantics. |
-| BR-TIME-005 | Standard reservation duration must not exceed 12 hours. |
-| BR-TIME-006 | Authorized maintenance duration must not exceed 24 hours. |
-| BR-TIME-007 | Recurrence is unsupported. |
-| BR-TIME-008 | Open-ended intervals are unsupported. |
+| BR-TIME-004 | Intervals use `[start, end)` semantics.                        |
+| BR-TIME-005 | Standard reservation duration must not exceed 12 hours.        |
+| BR-TIME-006 | Authorized maintenance duration must not exceed 24 hours.      |
+| BR-TIME-007 | Recurrence is unsupported.                                     |
+| BR-TIME-008 | Open-ended intervals are unsupported.                          |
 
 The exact tolerance for clock skew or requests beginning moments in the past will be finalized in API and domain design.
 
@@ -871,17 +871,17 @@ stateDiagram-v2
 
 ### 9.3 Legal Transition Requirements
 
-| From | Action | To | Allowed |
-|---|---|---|---:|
-| New | Auto-confirm | `CONFIRMED` | Yes |
-| New | Require approval | `PENDING_APPROVAL` | Yes |
-| `PENDING_APPROVAL` | Approve | `CONFIRMED` | Yes |
-| `PENDING_APPROVAL` | Reject | `REJECTED` | Yes |
-| `PENDING_APPROVAL` | Cancel | `CANCELLED` | Yes |
-| `CONFIRMED` | Cancel | `CANCELLED` | Yes |
-| `CONFIRMED` | Extend | `CONFIRMED` | Yes, after revalidation |
-| `CONFIRMED` | Complete | `COMPLETED` | Yes |
-| Terminal state | Any mutation | Any | No, unless explicitly documented |
+| From               | Action           | To                 |                          Allowed |
+| ------------------ | ---------------- | ------------------ | -------------------------------: |
+| New                | Auto-confirm     | `CONFIRMED`        |                              Yes |
+| New                | Require approval | `PENDING_APPROVAL` |                              Yes |
+| `PENDING_APPROVAL` | Approve          | `CONFIRMED`        |                              Yes |
+| `PENDING_APPROVAL` | Reject           | `REJECTED`         |                              Yes |
+| `PENDING_APPROVAL` | Cancel           | `CANCELLED`        |                              Yes |
+| `CONFIRMED`        | Cancel           | `CANCELLED`        |                              Yes |
+| `CONFIRMED`        | Extend           | `CONFIRMED`        |          Yes, after revalidation |
+| `CONFIRMED`        | Complete         | `COMPLETED`        |                              Yes |
+| Terminal state     | Any mutation     | Any                | No, unless explicitly documented |
 
 ### 9.4 Terminal States
 
@@ -1020,21 +1020,21 @@ MVP APIs use:
 
 ### 13.2 Core Endpoint Surface
 
-| Capability | Method | Endpoint |
-|---|---|---|
-| Search available resources | `GET` | `/api/v1/resources` |
-| Get resource details | `GET` | `/api/v1/resources/{resourceId}` |
-| Create reservation | `POST` | `/api/v1/reservations` |
-| Get reservation | `GET` | `/api/v1/reservations/{reservationId}` |
-| List caller reservations | `GET` | `/api/v1/reservations/me` |
-| Cancel reservation | `POST` | `/api/v1/reservations/{reservationId}/cancel` |
-| Extend reservation | `POST` | `/api/v1/reservations/{reservationId}/extend` |
-| List approvals | `GET` | `/api/v1/approvals` |
-| Approve reservation | `POST` | `/api/v1/approvals/{reservationId}/approve` |
-| Reject reservation | `POST` | `/api/v1/approvals/{reservationId}/reject` |
-| Organization policies | `GET` | `/api/v1/organization/policies` |
-| Liveness | `GET` | `/health/live` |
-| Readiness | `GET` | `/health/ready` |
+| Capability                 | Method | Endpoint                                      |
+| -------------------------- | ------ | --------------------------------------------- |
+| Search available resources | `GET`  | `/api/v1/resources`                           |
+| Get resource details       | `GET`  | `/api/v1/resources/{resourceId}`              |
+| Create reservation         | `POST` | `/api/v1/reservations`                        |
+| Get reservation            | `GET`  | `/api/v1/reservations/{reservationId}`        |
+| List caller reservations   | `GET`  | `/api/v1/reservations/me`                     |
+| Cancel reservation         | `POST` | `/api/v1/reservations/{reservationId}/cancel` |
+| Extend reservation         | `POST` | `/api/v1/reservations/{reservationId}/extend` |
+| List approvals             | `GET`  | `/api/v1/approvals`                           |
+| Approve reservation        | `POST` | `/api/v1/approvals/{reservationId}/approve`   |
+| Reject reservation         | `POST` | `/api/v1/approvals/{reservationId}/reject`    |
+| Organization policies      | `GET`  | `/api/v1/organization/policies`               |
+| Liveness                   | `GET`  | `/health/live`                                |
+| Readiness                  | `GET`  | `/health/ready`                               |
 
 ### 13.3 Search Parameters
 
@@ -1070,19 +1070,19 @@ Example:
 
 ### 13.5 Status Codes
 
-| Status | Use |
-|---:|---|
-| `200 OK` | Successful read or completed action |
-| `201 Created` | Reservation record created |
-| `400 Bad Request` | Malformed input or syntax validation |
-| `401 Unauthorized` | Missing or invalid authentication |
-| `403 Forbidden` | Authenticated but not permitted |
-| `404 Not Found` | Resource not visible or does not exist |
-| `409 Conflict` | Overlap, invalid idempotency reuse, concurrent state conflict |
-| `422 Unprocessable Content` | Valid syntax but business policy violation |
-| `429 Too Many Requests` | Rate limit exceeded |
-| `500 Internal Server Error` | Unexpected failure |
-| `503 Service Unavailable` | Essential dependency unavailable or safe write processing impossible |
+|                      Status | Use                                                                  |
+| --------------------------: | -------------------------------------------------------------------- |
+|                    `200 OK` | Successful read or completed action                                  |
+|               `201 Created` | Reservation record created                                           |
+|           `400 Bad Request` | Malformed input or syntax validation                                 |
+|          `401 Unauthorized` | Missing or invalid authentication                                    |
+|             `403 Forbidden` | Authenticated but not permitted                                      |
+|             `404 Not Found` | Resource not visible or does not exist                               |
+|              `409 Conflict` | Overlap, invalid idempotency reuse, concurrent state conflict        |
+| `422 Unprocessable Content` | Valid syntax but business policy violation                           |
+|     `429 Too Many Requests` | Rate limit exceeded                                                  |
+| `500 Internal Server Error` | Unexpected failure                                                   |
+|   `503 Service Unavailable` | Essential dependency unavailable or safe write processing impossible |
 
 ### 13.6 API Contract Documentation
 
@@ -1420,28 +1420,28 @@ Scale estimates guide design; they are not contractual load guarantees.
 
 ### 17.1 Initial Deployment
 
-| Metric | Initial Assumption |
-|---|---:|
-| Organizations | 2–3 |
-| Resources | Up to 50,000 total |
-| Daily active users | 1,000–10,000 |
-| Peak concurrent users | 500–2,000 |
-| Reservations per day | 10,000–100,000 |
-| Peak create requests/sec | 50–200 |
-| Peak resource searches/sec | 500–2,000 |
-| Search-to-create ratio | Approximately 10:1 |
+| Metric                                    |              Initial Assumption |
+| ----------------------------------------- | ------------------------------: |
+| Organizations                             |                             2–3 |
+| Resources                                 |              Up to 50,000 total |
+| Daily active users                        |                    1,000–10,000 |
+| Peak concurrent users                     |                       500–2,000 |
+| Reservations per day                      |                  10,000–100,000 |
+| Peak create requests/sec                  |                          50–200 |
+| Peak resource searches/sec                |                       500–2,000 |
+| Search-to-create ratio                    |              Approximately 10:1 |
 | Typical overlapping reservations returned | Hundreds, not tens of thousands |
 
 ### 17.2 Future Design Target
 
-| Metric | Evolution Target |
-|---|---:|
-| Organizations | 10,000 |
-| Total resources | Millions |
-| Daily active users | Hundreds of thousands |
-| Reservations per day | Millions |
-| Peak create requests/sec | 500–2,000 |
-| Peak searches/sec | 5,000–20,000 |
+| Metric                   |      Evolution Target |
+| ------------------------ | --------------------: |
+| Organizations            |                10,000 |
+| Total resources          |              Millions |
+| Daily active users       | Hundreds of thousands |
+| Reservations per day     |              Millions |
+| Peak create requests/sec |             500–2,000 |
+| Peak searches/sec        |          5,000–20,000 |
 
 The MVP does not need to prove future-scale throughput, but design decisions should avoid obvious dead ends.
 
@@ -1761,15 +1761,15 @@ Initial targets are engineering objectives, not external SLAs.
 
 ### 22.1 Latency Targets
 
-| Operation | Target at Initial Scale |
-|---|---:|
-| Liveness | p95 < 10 ms |
-| Resource detail | p95 < 50 ms |
-| Resource search | p95 < 150 ms |
-| Create reservation | p95 < 200 ms |
-| Get reservation | p95 < 75 ms |
-| Cancel reservation | p95 < 150 ms |
-| Approval action | p95 < 200 ms |
+| Operation          | Target at Initial Scale |
+| ------------------ | ----------------------: |
+| Liveness           |             p95 < 10 ms |
+| Resource detail    |             p95 < 50 ms |
+| Resource search    |            p95 < 150 ms |
+| Create reservation |            p95 < 200 ms |
+| Get reservation    |             p95 < 75 ms |
+| Cancel reservation |            p95 < 150 ms |
+| Approval action    |            p95 < 200 ms |
 
 Targets exclude extreme infrastructure failure and may be revised after measurement.
 

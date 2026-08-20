@@ -149,14 +149,14 @@ flowchart LR
 
 ### 5.1 External Actors
 
-| Actor | Responsibility |
-|---|---|
-| Standard user | Search, reserve, view, cancel, extend |
-| Approver | Review, approve, reject |
-| System operator | Monitor and operate the platform |
-| Identity provider | Issue and validate identity context |
+| Actor                 | Responsibility                                        |
+| --------------------- | ----------------------------------------------------- |
+| Standard user         | Search, reserve, view, cancel, extend                 |
+| Approver              | Review, approve, reject                               |
+| System operator       | Monitor and operate the platform                      |
+| Identity provider     | Issue and validate identity context                   |
 | Notification consumer | Convert business events into email or future channels |
-| Reporting consumer | Build audit and reporting outputs |
+| Reporting consumer    | Build audit and reporting outputs                     |
 
 ---
 
@@ -243,57 +243,57 @@ Owns:
 
 ### 7.1 Presentation Components
 
-| Component | Responsibility |
-|---|---|
-| Drogon router | Route HTTP requests |
-| JWT middleware | Authenticate and create caller context |
-| Validation middleware | Validate transport-level structure |
-| Controllers | Map HTTP requests to use cases |
-| DTO mappers | Translate JSON DTOs and application commands |
-| Exception mapper | Map application errors to HTTP contracts |
-| OpenAPI adapter | Expose versioned API documentation |
+| Component             | Responsibility                               |
+| --------------------- | -------------------------------------------- |
+| Drogon router         | Route HTTP requests                          |
+| JWT middleware        | Authenticate and create caller context       |
+| Validation middleware | Validate transport-level structure           |
+| Controllers           | Map HTTP requests to use cases               |
+| DTO mappers           | Translate JSON DTOs and application commands |
+| Exception mapper      | Map application errors to HTTP contracts     |
+| OpenAPI adapter       | Expose versioned API documentation           |
 
 Presentation contains no reservation business logic.
 
 ### 7.2 Application Components
 
-| Component | Responsibility |
-|---|---|
-| CreateReservation use case | Orchestrate authoritative creation |
-| SearchResources query | Coordinate catalog and overlap lookup |
-| CancelReservation use case | Authorize and execute cancellation |
-| ExtendReservation use case | Revalidate extension |
-| ApproveReservation use case | Authorize, recheck conflict, confirm |
-| RejectReservation use case | Authorize and reject |
-| Idempotency service | Resolve duplicate client requests |
-| Transaction coordinator | Coordinate persistence and outbox where required |
+| Component                   | Responsibility                                   |
+| --------------------------- | ------------------------------------------------ |
+| CreateReservation use case  | Orchestrate authoritative creation               |
+| SearchResources query       | Coordinate catalog and overlap lookup            |
+| CancelReservation use case  | Authorize and execute cancellation               |
+| ExtendReservation use case  | Revalidate extension                             |
+| ApproveReservation use case | Authorize, recheck conflict, confirm             |
+| RejectReservation use case  | Authorize and reject                             |
+| Idempotency service         | Resolve duplicate client requests                |
+| Transaction coordinator     | Coordinate persistence and outbox where required |
 
 ### 7.3 Domain Components
 
-| Component | Responsibility |
-|---|---|
-| Reservation aggregate | Protect lifecycle and invariants |
-| Resource aggregate | Protect resource identity and reservability |
-| Organization aggregate | Own tenant policies |
-| TimeInterval value object | Validate and compare intervals |
-| Conflict policy | Define overlap semantics |
-| Approval policy evaluator | Decide whether approval is required |
-| Domain events | Record meaningful business facts |
+| Component                 | Responsibility                              |
+| ------------------------- | ------------------------------------------- |
+| Reservation aggregate     | Protect lifecycle and invariants            |
+| Resource aggregate        | Protect resource identity and reservability |
+| Organization aggregate    | Own tenant policies                         |
+| TimeInterval value object | Validate and compare intervals              |
+| Conflict policy           | Define overlap semantics                    |
+| Approval policy evaluator | Decide whether approval is required         |
+| Domain events             | Record meaningful business facts            |
 
 ### 7.4 Infrastructure Components
 
-| Component | Responsibility |
-|---|---|
-| Couchbase repositories | Persist and query aggregates |
-| Couchbase index bootstrap | Ensure required indexes |
-| Redis cache adapter | Cache derived or slow-changing data |
-| Kafka publisher | Publish durable business events |
-| Kafka consumers | Consume notification and reporting events |
-| JWT adapter | Verify tokens and map claims |
-| Clock adapter | Provide system time |
-| ID generator | Generate stable identifiers |
-| Telemetry adapters | Logging, metrics, tracing |
-| Configuration loader | Validate and expose configuration |
+| Component                 | Responsibility                            |
+| ------------------------- | ----------------------------------------- |
+| Couchbase repositories    | Persist and query aggregates              |
+| Couchbase index bootstrap | Ensure required indexes                   |
+| Redis cache adapter       | Cache derived or slow-changing data       |
+| Kafka publisher           | Publish durable business events           |
+| Kafka consumers           | Consume notification and reporting events |
+| JWT adapter               | Verify tokens and map claims              |
+| Clock adapter             | Provide system time                       |
+| ID generator              | Generate stable identifiers               |
+| Telemetry adapters        | Logging, metrics, tracing                 |
+| Configuration loader      | Validate and expose configuration         |
 
 ---
 
@@ -324,17 +324,17 @@ Rules:
 
 ## 9. Data Ownership
 
-| Data | Owner | Source of Truth |
-|---|---|---|
-| Organization policy | Organization module | Couchbase |
-| Resource metadata | Resource Catalog | Couchbase |
-| Reservation state | Reservation module | Couchbase |
-| Availability | Derived | Reservation + Resource data |
-| Idempotency result | Reservation application boundary | Durable store |
-| Cache entry | Infrastructure | Rebuildable |
-| Notification status | Notification module | Consumer store |
-| Reporting record | Reporting module | Derived projection |
-| Domain event outbox | Reservation infrastructure | Couchbase if outbox adopted |
+| Data                | Owner                            | Source of Truth             |
+| ------------------- | -------------------------------- | --------------------------- |
+| Organization policy | Organization module              | Couchbase                   |
+| Resource metadata   | Resource Catalog                 | Couchbase                   |
+| Reservation state   | Reservation module               | Couchbase                   |
+| Availability        | Derived                          | Reservation + Resource data |
+| Idempotency result  | Reservation application boundary | Durable store               |
+| Cache entry         | Infrastructure                   | Rebuildable                 |
+| Notification status | Notification module              | Consumer store              |
+| Reporting record    | Reporting module                 | Derived projection          |
+| Domain event outbox | Reservation infrastructure       | Couchbase if outbox adopted |
 
 No two modules may independently mutate the same authoritative business concept.
 
@@ -710,14 +710,14 @@ The system should:
 
 ## 20. Failure and Degradation Model
 
-| Dependency | Failure Behavior |
-|---|---|
-| Couchbase | Readiness false; authoritative reads/writes fail safely |
-| Redis | Bypass cache when possible; latency may increase |
-| Kafka | Persist events durably for later publication; no silent loss |
-| Notification consumer | Retry; dead-letter after policy limit |
-| Identity provider | Existing token validation may continue depending on local key strategy |
-| Telemetry backend | Business path should continue with bounded local logging behavior |
+| Dependency            | Failure Behavior                                                       |
+| --------------------- | ---------------------------------------------------------------------- |
+| Couchbase             | Readiness false; authoritative reads/writes fail safely                |
+| Redis                 | Bypass cache when possible; latency may increase                       |
+| Kafka                 | Persist events durably for later publication; no silent loss           |
+| Notification consumer | Retry; dead-letter after policy limit                                  |
+| Identity provider     | Existing token validation may continue depending on local key strategy |
+| Telemetry backend     | Business path should continue with bounded local logging behavior      |
 
 The system must never acknowledge an unsafe reservation success because a dependency is degraded.
 
@@ -784,17 +784,17 @@ Rejected because:
 
 ## 23. Key Architecture Decisions
 
-| Decision | Rationale |
-|---|---|
-| Modular monolith | Strong boundaries with manageable operations |
-| Clean dependency rule | Protect business logic from infrastructure |
-| Separate Resource and Reservation aggregates | Scalability and concurrency |
-| Availability derived | Single source of truth |
-| Optimistic concurrency | Avoid global locking |
-| Kafka for events | Durable asynchronous fan-out |
-| Redis as optional optimization | Preserve correctness during cache failure |
-| JWT caller context | Stateless application scaling |
-| Task-oriented endpoints for actions | Express business transitions clearly |
+| Decision                                     | Rationale                                    |
+| -------------------------------------------- | -------------------------------------------- |
+| Modular monolith                             | Strong boundaries with manageable operations |
+| Clean dependency rule                        | Protect business logic from infrastructure   |
+| Separate Resource and Reservation aggregates | Scalability and concurrency                  |
+| Availability derived                         | Single source of truth                       |
+| Optimistic concurrency                       | Avoid global locking                         |
+| Kafka for events                             | Durable asynchronous fan-out                 |
+| Redis as optional optimization               | Preserve correctness during cache failure    |
+| JWT caller context                           | Stateless application scaling                |
+| Task-oriented endpoints for actions          | Express business transitions clearly         |
 
 ---
 

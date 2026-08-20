@@ -89,14 +89,14 @@ Do not log purpose by default.
 
 ## 5. Log Levels
 
-| Level | Use |
-|---|---|
-| TRACE | Fine-grained development tracing |
-| DEBUG | Diagnostic state safe for non-production or sampled use |
-| INFO | Meaningful lifecycle and operational events |
-| WARN | Recoverable degradation or retry |
-| ERROR | Failed operation requiring investigation |
-| CRITICAL | Process cannot continue safely |
+| Level    | Use                                                     |
+| -------- | ------------------------------------------------------- |
+| TRACE    | Fine-grained development tracing                        |
+| DEBUG    | Diagnostic state safe for non-production or sampled use |
+| INFO     | Meaningful lifecycle and operational events             |
+| WARN     | Recoverable degradation or retry                        |
+| ERROR    | Failed operation requiring investigation                |
+| CRITICAL | Process cannot continue safely                          |
 
 A reservation conflict is normally INFO or a dedicated business metric, not ERROR.
 

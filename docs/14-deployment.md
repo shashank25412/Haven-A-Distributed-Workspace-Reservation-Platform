@@ -324,13 +324,13 @@ services:
 
 Suggested profiles:
 
-| Profile | Services |
-|---|---|
-| `core` | Couchbase, Redis, Kafka |
-| `app` | Core + Haven API |
-| `workers` | Event workers |
+| Profile         | Services                     |
+| --------------- | ---------------------------- |
+| `core`          | Couchbase, Redis, Kafka      |
+| `app`           | Core + Haven API             |
+| `workers`       | Event workers                |
 | `observability` | Prometheus, Grafana, tracing |
-| `full` | All services |
+| `full`          | All services                 |
 
 This keeps the minimum local environment lightweight.
 
@@ -1189,15 +1189,15 @@ The script must clearly warn about destructive actions.
 
 Illustrative local ports:
 
-| Service | Port |
-|---|---:|
-| Haven API | 8080 |
-| Couchbase UI | 8091 |
-| Redis | 6379 |
-| Kafka | 9092 |
-| Kafka UI | 8081 |
-| Prometheus | 9090 |
-| Grafana | 3000 |
+| Service            | Port |
+| ------------------ | ---: |
+| Haven API          | 8080 |
+| Couchbase UI       | 8091 |
+| Redis              | 6379 |
+| Kafka              | 9092 |
+| Kafka UI           | 8081 |
+| Prometheus         | 9090 |
+| Grafana            | 3000 |
 | OpenTelemetry gRPC | 4317 |
 
 Ports should be configurable to avoid local conflicts.
@@ -1279,16 +1279,16 @@ Rejected because temporary dependency failure would create restart loops.
 
 ## 48. Risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Heavy local stack | Developer friction | Compose profiles and minimal mode |
-| Couchbase initialization timing | Flaky startup | Explicit readiness and bootstrap |
-| In-process worker failure | API impact | Separate worker extraction path |
-| Bad migration | Data incompatibility | Expand-contract and staging rehearsal |
-| Outbox backlog | Delayed notifications | Capacity alert and relay scaling |
-| Secret leakage | Security incident | External secret supply and scanning |
-| Image drift | Non-reproducible rollout | Immutable tags and pinned builds |
-| Graceful shutdown too short | Failed requests | Measure and configure grace period |
+| Risk                            | Impact                   | Mitigation                            |
+| ------------------------------- | ------------------------ | ------------------------------------- |
+| Heavy local stack               | Developer friction       | Compose profiles and minimal mode     |
+| Couchbase initialization timing | Flaky startup            | Explicit readiness and bootstrap      |
+| In-process worker failure       | API impact               | Separate worker extraction path       |
+| Bad migration                   | Data incompatibility     | Expand-contract and staging rehearsal |
+| Outbox backlog                  | Delayed notifications    | Capacity alert and relay scaling      |
+| Secret leakage                  | Security incident        | External secret supply and scanning   |
+| Image drift                     | Non-reproducible rollout | Immutable tags and pinned builds      |
+| Graceful shutdown too short     | Failed requests          | Measure and configure grace period    |
 
 ---
 

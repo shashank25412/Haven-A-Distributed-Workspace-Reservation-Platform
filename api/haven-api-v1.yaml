@@ -953,6 +953,67 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/approvals/history:
+    get:
+      tags:
+      - Approvals
+      summary: List decided approvals
+      description: Returns reservations previously approved or rejected within the caller's tenant and authorization
+        scope, so administrators can review past decisions.
+      operationId: listDecidedApprovals
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated decision history.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            Traceparent:
+              $ref: '#/components/headers/Traceparent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecidedApprovalListResponse'
+              example:
+                items:
+                - reservationId: rsv_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                  resource:
+                    resourceId: res_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                    name: Executive Boardroom
+                    resourceType: MEETING_ROOM
+                  creator:
+                    userId: usr_01J2H6M5J5W7P3C7Q9R8T6V4B2
+                    displayName: User Name
+                  startTime: '2026-08-01T10:00:00Z'
+                  endTime: '2026-08-01T11:00:00Z'
+                  purpose: Quarterly review
+                  status: REJECTED
+                  decidedBy:
+                    userId: usr_02J2H6M5J5W7P3C7Q9R8T6V4B2
+                    displayName: Approver Name
+                  decidedAt: '2026-07-21T09:00:00Z'
+                  reason: Reserved for an executive event.
+                pagination:
+                  page: 1
+                  pageSize: 20
+                  totalItems: 1
+                  totalPages: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/v1/organization/policies:
     get:
       tags:
@@ -1588,6 +1649,58 @@ components:
       required:
       - items
       - pagination
+    DecidedApprovalItem:
+      type: object
+      properties:
+        reservationId:
+          $ref: '#/components/schemas/ReservationId'
+        resource:
+          $ref: '#/components/schemas/ResourceReference'
+        creator:
+          $ref: '#/components/schemas/CreatorSummary'
+        startTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        endTime:
+          $ref: '#/components/schemas/UtcDateTime'
+        purpose:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+          enum: [APPROVED, REJECTED]
+        decidedBy:
+          $ref: '#/components/schemas/CreatorSummary'
+        decidedAt:
+          $ref: '#/components/schemas/UtcDateTime'
+        reason:
+          type:
+          - string
+          - 'null'
+          description: Rejection reason, when the decision was a rejection and one was provided.
+      required:
+      - reservationId
+      - resource
+      - creator
+      - startTime
+      - endTime
+      - purpose
+      - status
+      - decidedBy
+      - decidedAt
+      - reason
+    DecidedApprovalListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecidedApprovalItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+      - items
+      - pagination
     ApproveReservationRequest:
       type: object
       properties:
@@ -1613,8 +1726,8 @@ components:
       properties:
         reason:
           type: string
-          description: Rejection reason. The design documentation leaves mandatory enforcement for final policy
-            resolution; clients should provide it.
+          description: Optional free-form rejection reason. When provided, it is persisted with the reservation
+            and surfaced in the decision history.
     RejectReservationResponse:
       type: object
       properties:

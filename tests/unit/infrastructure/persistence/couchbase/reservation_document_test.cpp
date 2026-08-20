@@ -65,6 +65,37 @@ TEST(ReservationDocumentTest, SupportsAbsentApproval) {
     EXPECT_EQ(reservation_document_from_json(json), expected);
 }
 
+TEST(ReservationDocumentTest, RoundTripsRejectionWithReason) {
+    auto expected = document();
+    expected.approval.reset();
+    expected.status = "REJECTED";
+    expected.rejection = ReservationRejectionDocument{
+        .rejected_by = "approver-123",
+        .rejected_at = "2026-07-28T03:00:00.000000001Z",
+        .reason = std::string{"Reserved for maintenance."},
+    };
+    const auto json = reservation_document_to_json(expected);
+
+    EXPECT_EQ(json.at("rejection").at("rejectedBy").get_string(), "approver-123");
+    EXPECT_EQ(json.at("rejection").at("reason").get_string(), "Reserved for maintenance.");
+    EXPECT_EQ(reservation_document_from_json(json), expected);
+}
+
+TEST(ReservationDocumentTest, RoundTripsRejectionWithoutReason) {
+    auto expected = document();
+    expected.approval.reset();
+    expected.status = "REJECTED";
+    expected.rejection = ReservationRejectionDocument{
+        .rejected_by = "approver-123",
+        .rejected_at = "2026-07-28T03:00:00.000000001Z",
+        .reason = std::nullopt,
+    };
+    const auto json = reservation_document_to_json(expected);
+
+    EXPECT_EQ(json.at("rejection").get_object().count("reason"), 0U);
+    EXPECT_EQ(reservation_document_from_json(json), expected);
+}
+
 TEST(ReservationDocumentTest, RejectsIncorrectAndMissingDocumentType) {
     auto incorrect = reservation_document_to_json(document());
     incorrect["documentType"] = "resource";

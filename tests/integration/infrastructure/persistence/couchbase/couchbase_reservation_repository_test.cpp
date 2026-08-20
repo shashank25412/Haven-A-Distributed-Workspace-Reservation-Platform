@@ -117,6 +117,7 @@ protected:
                                                      kind,
                                                      status,
                                                      std::move(approval),
+                                                     std::nullopt,
                                                      haven::domain::Version{version});
     }
 
@@ -495,6 +496,31 @@ TEST_F(CouchbaseReservationRepositoryIntegrationTest, QueriesCreatorAndPendingAp
     ASSERT_EQ(approvals.size(), 1U);
     EXPECT_EQ(by_creator.front().reservation_id(), pending.reservation_id());
     EXPECT_EQ(approvals.front().reservation_id(), pending.reservation_id());
+}
+
+TEST_F(CouchbaseReservationRepositoryIntegrationTest, QueriesDecidedApprovalsByTenant) {
+    const auto suffix = unique_suffix();
+    const auto organization = haven::domain::OrganizationId{"organization-" + suffix};
+    const auto creator = haven::domain::UserId{"creator-" + suffix};
+    const auto approver = haven::domain::UserId{"approver-" + suffix};
+    auto rejected = make_reservation(organization,
+                                     haven::domain::ReservationId{"rejected-" + suffix},
+                                     haven::domain::ResourceId{"resource-" + suffix},
+                                     creator,
+                                     haven::domain::TimeInterval{at(900), at(1'000)},
+                                     "pending",
+                                     haven::domain::ReservationStatus::PendingApproval);
+    static_cast<void>(repository_->insert(organization, rejected));
+    rejected.reject(approver, at(1'050), haven::domain::EventId{"rejected-" + suffix});
+    const auto loaded = repository_->find_by_id(organization, rejected.reservation_id());
+    ASSERT_TRUE(loaded);
+    static_cast<void>(
+        repository_->update(organization, rejected, loaded->persistence_token()));
+
+    const auto decided = repository_->find_decided_approvals(organization);
+    ASSERT_EQ(decided.size(), 1U);
+    EXPECT_EQ(decided.front().reservation_id(), rejected.reservation_id());
+    EXPECT_EQ(decided.front().status(), haven::domain::ReservationStatus::Rejected);
 }
 
 TEST_F(CouchbaseReservationRepositoryIntegrationTest,

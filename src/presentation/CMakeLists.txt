@@ -31,6 +31,7 @@ add_library(
 
     approvals/approve_reservation_controller.cpp
     approvals/list_pending_approvals_controller.cpp
+    approvals/list_decided_approvals_controller.cpp
     approvals/reject_reservation_controller.cpp
 
     reservations/create_reservation_controller.cpp

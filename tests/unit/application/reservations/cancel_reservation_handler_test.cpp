@@ -61,6 +61,11 @@ public:
         return {};
     }
 
+    [[nodiscard]] ReservationListResult find_decided_approvals(
+        const haven::domain::OrganizationId&) const override {
+        return {};
+    }
+
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
         const haven::domain::OrganizationId&,
         const haven::domain::ResourceId&,

@@ -78,6 +78,11 @@ public:
         return {};
     }
 
+    [[nodiscard]] ReservationListResult find_decided_approvals(
+        const OrganizationId&) const override {
+        return {};
+    }
+
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
         const OrganizationId&, const ResourceId&, const TimeInterval&) const override {
         return {};
@@ -127,6 +132,11 @@ public:
     }
 
     [[nodiscard]] ReservationListResult find_pending_approvals(
+        const OrganizationId&) const override {
+        return {};
+    }
+
+    [[nodiscard]] ReservationListResult find_decided_approvals(
         const OrganizationId&) const override {
         return {};
     }

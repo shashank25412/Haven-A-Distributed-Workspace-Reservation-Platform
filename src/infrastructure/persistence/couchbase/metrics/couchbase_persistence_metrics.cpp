@@ -58,6 +58,8 @@ std::string_view value(const Operation v) noexcept {
             return "find_by_creator";
         case Operation::find_pending_approvals:
             return "find_pending_approvals";
+        case Operation::find_decided_approvals:
+            return "find_decided_approvals";
         case Operation::find_by_resource_and_interval:
             return "find_by_resource_and_interval";
         case Operation::has_conflict:

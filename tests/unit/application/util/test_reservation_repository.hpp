@@ -48,6 +48,11 @@ public:
         pending_approvals_result_ = std::move(result);
     }
 
+    void set_decided_approvals_result(
+        haven::application::reservations::ReservationListResult result) {
+        decided_approvals_result_ = std::move(result);
+    }
+
     void set_calendar_result(haven::application::reservations::ReservationListResult result) {
         calendar_result_ = std::move(result);
     }
@@ -88,6 +93,13 @@ public:
         find_pending_approvals_called_ = true;
         pending_approvals_organization_id_ = organization_id;
         return pending_approvals_result_;
+    }
+
+    [[nodiscard]] haven::application::reservations::ReservationListResult find_decided_approvals(
+        const haven::domain::OrganizationId& organization_id) const override {
+        find_decided_approvals_called_ = true;
+        decided_approvals_organization_id_ = organization_id;
+        return decided_approvals_result_;
     }
 
     [[nodiscard]] haven::application::reservations::ReservationListResult
@@ -183,6 +195,9 @@ public:
     [[nodiscard]] bool find_pending_approvals_called() const noexcept {
         return find_pending_approvals_called_;
     }
+    [[nodiscard]] bool find_decided_approvals_called() const noexcept {
+        return find_decided_approvals_called_;
+    }
     [[nodiscard]] bool find_by_resource_and_interval_called() const noexcept {
         return find_by_resource_and_interval_called_;
     }
@@ -224,6 +239,10 @@ public:
     [[nodiscard]] const std::optional<haven::domain::OrganizationId>&
     pending_approvals_organization_id() const noexcept {
         return pending_approvals_organization_id_;
+    }
+    [[nodiscard]] const std::optional<haven::domain::OrganizationId>&
+    decided_approvals_organization_id() const noexcept {
+        return decided_approvals_organization_id_;
     }
     [[nodiscard]] const std::optional<haven::domain::OrganizationId>& calendar_organization_id()
         const noexcept {
@@ -278,6 +297,7 @@ private:
     haven::application::reservations::ReservationLookupResult lookup_result_;
     haven::application::reservations::ReservationListResult creator_result_;
     haven::application::reservations::ReservationListResult pending_approvals_result_;
+    haven::application::reservations::ReservationListResult decided_approvals_result_;
     haven::application::reservations::ReservationListResult calendar_result_;
     bool conflict_result_{false};
     std::vector<bool> conflict_results_;
@@ -285,6 +305,7 @@ private:
     mutable bool find_by_id_called_{false};
     mutable bool find_by_creator_called_{false};
     mutable bool find_pending_approvals_called_{false};
+    mutable bool find_decided_approvals_called_{false};
     mutable bool find_by_resource_and_interval_called_{false};
     mutable bool has_conflict_called_{false};
     mutable bool has_conflict_excluding_called_{false};
@@ -298,6 +319,7 @@ private:
     mutable std::optional<haven::domain::OrganizationId> creator_organization_id_;
     mutable std::optional<haven::domain::UserId> creator_caller_id_;
     mutable std::optional<haven::domain::OrganizationId> pending_approvals_organization_id_;
+    mutable std::optional<haven::domain::OrganizationId> decided_approvals_organization_id_;
     mutable std::optional<haven::domain::OrganizationId> calendar_organization_id_;
     mutable std::optional<haven::domain::ResourceId> calendar_resource_id_;
     mutable std::optional<haven::domain::TimeInterval> calendar_interval_;

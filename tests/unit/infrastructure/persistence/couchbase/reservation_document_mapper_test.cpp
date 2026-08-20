@@ -5,6 +5,7 @@
 
 #include "haven/infrastructure/persistence/couchbase/reservation_document_mapper.hpp"
 
+#include "haven/domain/value_objects/rejection_info.hpp"
 #include "haven/infrastructure/persistence/couchbase/reservation_document_validator.hpp"
 
 #include <gtest/gtest.h>
@@ -24,7 +25,8 @@ using namespace std::chrono_literals;
     const domain::ReservationStatus status,
     const domain::ReservationKind kind = domain::ReservationKind::Maintenance,
     std::optional<domain::ApprovalInfo> approval = std::nullopt,
-    std::string purpose = "  exact purpose  ") {
+    std::string purpose = "  exact purpose  ",
+    std::optional<domain::RejectionInfo> rejection = std::nullopt) {
     const auto start = domain::TimeInterval::TimePoint{} + 100h + 123456us;
     return domain::Reservation::rehydrate(domain::OrganizationId{"organization-123"},
                                           domain::ReservationId{"reservation-123"},
@@ -35,6 +37,7 @@ using namespace std::chrono_literals;
                                           kind,
                                           status,
                                           std::move(approval),
+                                          std::move(rejection),
                                           domain::Version{42});
 }
 
@@ -93,6 +96,28 @@ TEST(ReservationDocumentMapperTest, RoundTripPreservesAllPersistedState) {
     EXPECT_EQ(restored.status(), original.status());
     EXPECT_EQ(restored.approval_info(), original.approval_info());
     EXPECT_EQ(restored.version(), original.version());
+}
+
+TEST(ReservationDocumentMapperTest, MapsRejectionReasonWhenPresent) {
+    const auto rejected_at = domain::RejectionInfo::TimePoint{} + 90h + 3us;
+    const auto mapped = to_reservation_document(
+        reservation(domain::ReservationStatus::Rejected,
+                    domain::ReservationKind::Maintenance,
+                    std::nullopt,
+                    "  exact purpose  ",
+                    domain::RejectionInfo{domain::UserId{"approver-123"},
+                                         rejected_at,
+                                         std::string{"Reserved for maintenance."}}));
+
+    ASSERT_TRUE(mapped.rejection.has_value());
+    EXPECT_EQ(mapped.rejection->rejected_by, "approver-123");
+    EXPECT_EQ(reservation_timestamp_from_string(mapped.rejection->rejected_at), rejected_at);
+    ASSERT_TRUE(mapped.rejection->reason.has_value());
+    EXPECT_EQ(*mapped.rejection->reason, "Reserved for maintenance.");
+
+    const auto restored = to_domain_reservation(mapped);
+    ASSERT_TRUE(restored.rejection_info().has_value());
+    EXPECT_EQ(*restored.rejection_info()->reason(), "Reserved for maintenance.");
 }
 
 TEST(ReservationDocumentMapperTest, RejectsUnknownStatusAndKind) {

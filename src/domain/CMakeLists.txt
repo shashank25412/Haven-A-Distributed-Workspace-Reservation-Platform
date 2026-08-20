@@ -33,6 +33,7 @@ add_library(
     value_objects/reservation_status.cpp
     value_objects/reservation_kind.cpp
     value_objects/approval_info.cpp
+    value_objects/rejection_info.cpp
 
     resource.cpp
     reservation.cpp

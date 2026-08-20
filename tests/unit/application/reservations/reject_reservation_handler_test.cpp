@@ -61,6 +61,11 @@ public:
         return {};
     }
 
+    [[nodiscard]] ReservationListResult find_decided_approvals(
+        const haven::domain::OrganizationId&) const override {
+        return {};
+    }
+
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
         const haven::domain::OrganizationId&,
         const haven::domain::ResourceId&,
@@ -126,6 +131,11 @@ public:
     }
 
     [[nodiscard]] ReservationListResult find_pending_approvals(
+        const haven::domain::OrganizationId&) const override {
+        return {};
+    }
+
+    [[nodiscard]] ReservationListResult find_decided_approvals(
         const haven::domain::OrganizationId&) const override {
         return {};
     }
@@ -245,6 +255,33 @@ TEST(RejectReservationHandlerTest, Handle_ShouldRejectReservation_WhenRequestIsV
     ASSERT_TRUE(repository.saved_reservation().has_value());
     EXPECT_EQ(repository.saved_reservation()->status(), haven::domain::ReservationStatus::Rejected);
     EXPECT_EQ(repository.saved_organization_id(), organization_id);
+}
+
+TEST(RejectReservationHandlerTest, Handle_ShouldPersistRejectionReason_WhenCommandProvidesOne) {
+    const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
+    const auto reservation_id = haven::domain::ReservationId{"reservation-100"};
+    const auto rejected_by = haven::domain::UserId{"approver-100"};
+    auto repository = InMemoryReservationRepository{};
+    repository.add(make_pending_reservation(reservation_id,
+                                            organization_id,
+                                            haven::domain::ResourceId{"resource-executive-room"},
+                                            haven::domain::UserId{"user-100"}));
+    const auto handler = RejectReservationHandler{repository};
+    const auto command = RejectReservationCommand{organization_id,
+                                                   reservation_id,
+                                                   rejected_by,
+                                                   haven::domain::EventId{"event-rejected-100"},
+                                                   make_time_point(9),
+                                                   std::string{"Reserved for maintenance."}};
+
+    const auto result = handler.handle(command);
+
+    ASSERT_EQ(result.status(), RejectReservationStatus::REJECTED);
+    ASSERT_TRUE(repository.saved_reservation().has_value());
+    ASSERT_TRUE(repository.saved_reservation()->rejection_info().has_value());
+    ASSERT_TRUE(repository.saved_reservation()->rejection_info()->reason().has_value());
+    EXPECT_EQ(*repository.saved_reservation()->rejection_info()->reason(),
+             "Reserved for maintenance.");
 }
 
 TEST(RejectReservationHandlerTest, Handle_ShouldReturnNotFound_WhenReservationDoesNotExist) {

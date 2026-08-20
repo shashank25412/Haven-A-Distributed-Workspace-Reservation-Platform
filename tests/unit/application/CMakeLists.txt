@@ -24,6 +24,7 @@ add_executable(haven_application_tests
     reservations/cancel_reservation_handler_test.cpp
     reservations/extend_reservation_handler_test.cpp
     reservations/list_pending_approvals_handler_test.cpp
+    reservations/list_decided_approvals_handler_test.cpp
     reservations/approve_reservation_handler_test.cpp
     reservations/reject_reservation_handler_test.cpp
     reservations/test_reservation_repository_test.cpp

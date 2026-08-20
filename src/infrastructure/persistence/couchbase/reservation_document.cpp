@@ -36,6 +36,26 @@ void validate_document_type(const tao::json::value& json) {
     };
 }
 
+[[nodiscard]] std::optional<ReservationRejectionDocument> rejection_from_json(
+    const tao::json::value& json) {
+    const auto& object = json.get_object();
+    const auto rejection = object.find("rejection");
+    if (rejection == object.end()) {
+        return std::nullopt;
+    }
+
+    const auto& rejection_object = rejection->second.get_object();
+    const auto reason = rejection_object.find("reason");
+
+    return ReservationRejectionDocument{
+        .rejected_by = rejection->second.at("rejectedBy").get_string(),
+        .rejected_at = rejection->second.at("rejectedAt").get_string(),
+        .reason = reason == rejection_object.end()
+                      ? std::nullopt
+                      : std::optional<std::string>{reason->second.get_string()},
+    };
+}
+
 }  // namespace
 
 tao::json::value reservation_document_to_json(const ReservationDocument& document) {
@@ -62,6 +82,16 @@ tao::json::value reservation_document_to_json(const ReservationDocument& documen
             {"approvedAt", document.approval->approved_at},
         };
     }
+    if (document.rejection.has_value()) {
+        tao::json::value rejection_json{
+            {"rejectedBy", document.rejection->rejected_by},
+            {"rejectedAt", document.rejection->rejected_at},
+        };
+        if (document.rejection->reason.has_value()) {
+            rejection_json["reason"] = *document.rejection->reason;
+        }
+        json["rejection"] = std::move(rejection_json);
+    }
     return json;
 }
 
@@ -81,6 +111,7 @@ ReservationDocument reservation_document_from_json(const tao::json::value& json)
         .status = json.at("status").get_string(),
         .kind = json.at("kind").get_string(),
         .approval = approval_from_json(json),
+        .rejection = rejection_from_json(json),
         .version = json.at("version").get_unsigned(),
     };
     validate_reservation_document(document);

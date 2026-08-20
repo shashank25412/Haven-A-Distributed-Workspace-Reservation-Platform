@@ -36,6 +36,7 @@ add_library(haven_application
     reservations/cancel_reservation_handler.cpp
     reservations/extend_reservation_handler.cpp
     reservations/list_pending_approvals_handler.cpp
+    reservations/list_decided_approvals_handler.cpp
     reservations/approve_reservation_handler.cpp
     reservations/reject_reservation_handler.cpp
 )

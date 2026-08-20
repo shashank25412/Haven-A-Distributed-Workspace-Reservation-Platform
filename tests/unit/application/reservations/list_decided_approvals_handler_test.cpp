@@ -1,9 +1,9 @@
 /**
- * @file list_pending_approvals_handler_test.cpp
- * @brief Tests ListPendingApprovals application orchestration.
+ * @file list_decided_approvals_handler_test.cpp
+ * @brief Tests ListDecidedApprovals application orchestration.
  */
 
-#include "haven/application/reservations/list_pending_approvals_handler.hpp"
+#include "haven/application/reservations/list_decided_approvals_handler.hpp"
 
 #include "haven/domain/reservation.hpp"
 #include "haven/domain/value_objects/event_id.hpp"
@@ -34,21 +34,8 @@ public:
     }
 
     [[nodiscard]] ReservationLookupResult find_by_id(
-        const haven::domain::OrganizationId& organization_id,
-        const haven::domain::ReservationId& reservation_id) const override {
-        const auto reservation = std::find_if(
-            reservations_.cbegin(),
-            reservations_.cend(),
-            [&organization_id, &reservation_id](const haven::domain::Reservation& candidate) {
-                return candidate.organization_id() == organization_id &&
-                       candidate.reservation_id() == reservation_id;
-            });
-
-        if (reservation == reservations_.cend()) {
-            return std::nullopt;
-        }
-
-        return LoadedReservation{*reservation, persistence::PersistenceToken{1}};
+        const haven::domain::OrganizationId&, const haven::domain::ReservationId&) const override {
+        return std::nullopt;
     }
 
     [[nodiscard]] ReservationListResult find_by_creator(
@@ -57,22 +44,21 @@ public:
     }
 
     [[nodiscard]] ReservationListResult find_pending_approvals(
+        const haven::domain::OrganizationId&) const override {
+        return {};
+    }
+
+    [[nodiscard]] ReservationListResult find_decided_approvals(
         const haven::domain::OrganizationId& organization_id) const override {
         auto result = ReservationListResult{};
 
         for (const auto& reservation : reservations_) {
-            if (reservation.organization_id() == organization_id &&
-                reservation.status() == haven::domain::ReservationStatus::PendingApproval) {
+            if (reservation.organization_id() == organization_id) {
                 result.push_back(reservation);
             }
         }
 
         return result;
-    }
-
-    [[nodiscard]] ReservationListResult find_decided_approvals(
-        const haven::domain::OrganizationId&) const override {
-        return {};
     }
 
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
@@ -110,9 +96,9 @@ private:
     std::vector<haven::domain::Reservation> reservations_;
 };
 
-class ApprovalQueueLeakingRepository final : public ReservationRepository {
+class DecidedQueueLeakingRepository final : public ReservationRepository {
 public:
-    explicit ApprovalQueueLeakingRepository(ReservationListResult reservations)
+    explicit DecidedQueueLeakingRepository(ReservationListResult reservations)
         : reservations_(std::move(reservations)) {}
 
     [[nodiscard]] ReservationLookupResult find_by_id(
@@ -127,12 +113,12 @@ public:
 
     [[nodiscard]] ReservationListResult find_pending_approvals(
         const haven::domain::OrganizationId&) const override {
-        return reservations_;
+        return {};
     }
 
     [[nodiscard]] ReservationListResult find_decided_approvals(
         const haven::domain::OrganizationId&) const override {
-        return {};
+        return reservations_;
     }
 
     [[nodiscard]] ReservationListResult find_by_resource_and_interval(
@@ -210,91 +196,101 @@ private:
         make_time_point(9));
 }
 
-TEST(ListPendingApprovalsHandlerTest, Handle_ShouldReturnPendingReservations_WhenMatchesExist) {
+[[nodiscard]] haven::domain::Reservation make_approved_reservation(
+    const haven::domain::ReservationId& reservation_id,
+    const haven::domain::OrganizationId& organization_id,
+    const haven::domain::ResourceId& resource_id,
+    const haven::domain::UserId& creator_id) {
+    auto reservation =
+        make_pending_reservation(reservation_id, organization_id, resource_id, creator_id);
+    reservation.approve(haven::domain::UserId{"approver-100"},
+                        make_time_point(12),
+                        haven::domain::EventId{"event-confirmed-" + reservation_id.value()});
+    return reservation;
+}
+
+[[nodiscard]] haven::domain::Reservation make_rejected_reservation(
+    const haven::domain::ReservationId& reservation_id,
+    const haven::domain::OrganizationId& organization_id,
+    const haven::domain::ResourceId& resource_id,
+    const haven::domain::UserId& creator_id) {
+    auto reservation =
+        make_pending_reservation(reservation_id, organization_id, resource_id, creator_id);
+    reservation.reject(haven::domain::UserId{"approver-100"},
+                       make_time_point(12),
+                       haven::domain::EventId{"event-rejected-" + reservation_id.value()});
+    return reservation;
+}
+
+TEST(ListDecidedApprovalsHandlerTest, Handle_ShouldReturnApprovedAndRejectedReservations) {
     const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
     auto repository = InMemoryReservationRepository{};
-    repository.add(make_pending_reservation(haven::domain::ReservationId{"reservation-100"},
-                                            organization_id,
-                                            haven::domain::ResourceId{"resource-executive-room"},
-                                            haven::domain::UserId{"user-100"}));
-    repository.add(make_pending_reservation(haven::domain::ReservationId{"reservation-101"},
-                                            organization_id,
-                                            haven::domain::ResourceId{"resource-training-room"},
-                                            haven::domain::UserId{"user-200"}));
-    const auto handler = ListPendingApprovalsHandler{repository};
+    repository.add(make_approved_reservation(haven::domain::ReservationId{"reservation-100"},
+                                             organization_id,
+                                             haven::domain::ResourceId{"resource-executive-room"},
+                                             haven::domain::UserId{"user-100"}));
+    repository.add(make_rejected_reservation(haven::domain::ReservationId{"reservation-101"},
+                                             organization_id,
+                                             haven::domain::ResourceId{"resource-training-room"},
+                                             haven::domain::UserId{"user-200"}));
+    const auto handler = ListDecidedApprovalsHandler{repository};
 
-    const auto result = handler.handle(ListPendingApprovalsQuery{organization_id});
+    const auto result = handler.handle(ListDecidedApprovalsQuery{organization_id});
 
     ASSERT_EQ(result.size(), 2U);
-    EXPECT_EQ(result.at(0).organization_id(), organization_id);
-    EXPECT_EQ(result.at(0).status(), haven::domain::ReservationStatus::PendingApproval);
-    EXPECT_EQ(result.at(1).organization_id(), organization_id);
-    EXPECT_EQ(result.at(1).status(), haven::domain::ReservationStatus::PendingApproval);
 }
 
-TEST(ListPendingApprovalsHandlerTest, Handle_ShouldReturnEmpty_WhenNoPendingApprovalsExist) {
+TEST(ListDecidedApprovalsHandlerTest, Handle_ShouldExcludeStillPendingReservations) {
     const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
     auto repository = InMemoryReservationRepository{};
-    const auto handler = ListPendingApprovalsHandler{repository};
-
-    const auto result = handler.handle(ListPendingApprovalsQuery{organization_id});
-
-    EXPECT_TRUE(result.empty());
-}
-
-TEST(ListPendingApprovalsHandlerTest,
-     Handle_ShouldExcludePendingReservationsFromAnotherOrganization) {
-    const auto caller_organization_id = haven::domain::OrganizationId{"organization-alpha"};
-    const auto owner_organization_id = haven::domain::OrganizationId{"organization-beta"};
-    auto repository = InMemoryReservationRepository{};
     repository.add(make_pending_reservation(haven::domain::ReservationId{"reservation-100"},
-                                            owner_organization_id,
+                                            organization_id,
                                             haven::domain::ResourceId{"resource-executive-room"},
                                             haven::domain::UserId{"user-100"}));
-    const auto handler = ListPendingApprovalsHandler{repository};
+    const auto handler = ListDecidedApprovalsHandler{repository};
 
-    const auto result = handler.handle(ListPendingApprovalsQuery{caller_organization_id});
+    const auto result = handler.handle(ListDecidedApprovalsQuery{organization_id});
 
     EXPECT_TRUE(result.empty());
 }
 
-TEST(ListPendingApprovalsHandlerTest, Handle_ShouldExcludeConfirmedReservations) {
+TEST(ListDecidedApprovalsHandlerTest, Handle_ShouldExcludeDirectlyConfirmedReservations) {
     const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
     auto repository = InMemoryReservationRepository{};
     repository.add(make_confirmed_reservation(haven::domain::ReservationId{"reservation-100"},
                                               organization_id,
                                               haven::domain::ResourceId{"resource-boardroom"},
                                               haven::domain::UserId{"user-100"}));
-    const auto handler = ListPendingApprovalsHandler{repository};
+    const auto handler = ListDecidedApprovalsHandler{repository};
 
-    const auto result = handler.handle(ListPendingApprovalsQuery{organization_id});
+    const auto result = handler.handle(ListDecidedApprovalsQuery{organization_id});
 
     EXPECT_TRUE(result.empty());
 }
 
-TEST(ListPendingApprovalsHandlerTest,
-     Handle_ShouldRemoveEntriesOutsideApprovalScope_WhenRepositoryLeaksData) {
+TEST(ListDecidedApprovalsHandlerTest,
+     Handle_ShouldRemoveEntriesOutsideDecisionScope_WhenRepositoryLeaksData) {
     const auto organization_id = haven::domain::OrganizationId{"organization-alpha"};
-    auto repository = ApprovalQueueLeakingRepository{ReservationListResult{
-        make_pending_reservation(haven::domain::ReservationId{"reservation-100"},
+    auto repository = DecidedQueueLeakingRepository{ReservationListResult{
+        make_rejected_reservation(haven::domain::ReservationId{"reservation-100"},
+                                  organization_id,
+                                  haven::domain::ResourceId{"resource-executive-room"},
+                                  haven::domain::UserId{"user-100"}),
+        make_rejected_reservation(haven::domain::ReservationId{"reservation-101"},
+                                  haven::domain::OrganizationId{"organization-beta"},
+                                  haven::domain::ResourceId{"resource-training-room"},
+                                  haven::domain::UserId{"user-200"}),
+        make_pending_reservation(haven::domain::ReservationId{"reservation-102"},
                                  organization_id,
-                                 haven::domain::ResourceId{"resource-executive-room"},
-                                 haven::domain::UserId{"user-100"}),
-        make_pending_reservation(haven::domain::ReservationId{"reservation-101"},
-                                 haven::domain::OrganizationId{"organization-beta"},
-                                 haven::domain::ResourceId{"resource-training-room"},
-                                 haven::domain::UserId{"user-200"}),
-        make_confirmed_reservation(haven::domain::ReservationId{"reservation-102"},
-                                   organization_id,
-                                   haven::domain::ResourceId{"resource-boardroom"},
-                                   haven::domain::UserId{"user-300"})}};
-    const auto handler = ListPendingApprovalsHandler{repository};
+                                 haven::domain::ResourceId{"resource-boardroom"},
+                                 haven::domain::UserId{"user-300"})}};
+    const auto handler = ListDecidedApprovalsHandler{repository};
 
-    const auto result = handler.handle(ListPendingApprovalsQuery{organization_id});
+    const auto result = handler.handle(ListDecidedApprovalsQuery{organization_id});
 
     ASSERT_EQ(result.size(), 1U);
     EXPECT_EQ(result.front().organization_id(), organization_id);
-    EXPECT_EQ(result.front().status(), haven::domain::ReservationStatus::PendingApproval);
+    EXPECT_EQ(result.front().status(), haven::domain::ReservationStatus::Rejected);
 }
 
 }  // namespace

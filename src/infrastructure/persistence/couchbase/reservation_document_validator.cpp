@@ -129,6 +129,10 @@ void validate_reservation_document(const ReservationDocument& document) {
         require_non_empty(document.approval->approved_by, "approval.approvedBy");
         static_cast<void>(reservation_timestamp_from_string(document.approval->approved_at));
     }
+    if (document.rejection.has_value()) {
+        require_non_empty(document.rejection->rejected_by, "rejection.rejectedBy");
+        static_cast<void>(reservation_timestamp_from_string(document.rejection->rejected_at));
+    }
 }
 
 }  // namespace haven::infrastructure::persistence::couchbase

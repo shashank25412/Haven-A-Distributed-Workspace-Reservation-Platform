@@ -78,6 +78,19 @@ public:
         const haven::domain::OrganizationId& organization_id) const = 0;
 
     /**
+     * @brief Finds reservations previously decided (approved or rejected) within an organization.
+     *
+     * A reservation is "decided" once it has moved out of pending approval as
+     * a direct result of an approval decision: it is either rejected, or
+     * confirmed with recorded approval information.
+     *
+     * @param organization_id Organization used to scope the query.
+     * @return Decided reservations belonging to the organization.
+     */
+    [[nodiscard]] virtual ReservationListResult find_decided_approvals(
+        const haven::domain::OrganizationId& organization_id) const = 0;
+
+    /**
      * @brief Finds reservations for a resource that overlap a requested interval.
      *
      * Calendar views are derived from reservations rather than persisted as a

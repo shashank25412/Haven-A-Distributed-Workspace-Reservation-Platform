@@ -33,6 +33,7 @@ CreateReservationResult replay(const CreateReservationResultSnapshot& snapshot) 
                                                              *snapshot.reservation_kind(),
                                                              *snapshot.reservation_status(),
                                                              std::nullopt,
+                                                             std::nullopt,
                                                              *snapshot.initial_version());
     if (snapshot.creation_status() == CreateReservationStatus::CREATED_CONFIRMED) {
         return CreateReservationResult::confirmed(std::move(reservation), snapshot.created_at());

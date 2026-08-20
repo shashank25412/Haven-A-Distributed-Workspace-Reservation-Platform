@@ -34,6 +34,7 @@ Reservation Reservation::create_confirmed(OrganizationId organization_id,
                             kind,
                             ReservationStatus::Confirmed,
                             std::nullopt,
+                            std::nullopt,
                             Version{1}};
 
     reservation.domain_events_.emplace_back(ReservationCreatedEvent{std::move(created_event_id),
@@ -82,6 +83,7 @@ Reservation Reservation::create_pending_approval(OrganizationId organization_id,
                             kind,
                             ReservationStatus::PendingApproval,
                             std::nullopt,
+                            std::nullopt,
                             Version{1}};
 
     reservation.domain_events_.emplace_back(ReservationCreatedEvent{std::move(created_event_id),
@@ -119,6 +121,7 @@ Reservation Reservation::rehydrate(OrganizationId organization_id,
                                    const ReservationKind kind,
                                    const ReservationStatus status,
                                    std::optional<ApprovalInfo> approval_info,
+                                   std::optional<RejectionInfo> rejection_info,
                                    const Version version) {
     HVN_TRACE_SCOPE();
 
@@ -135,6 +138,7 @@ Reservation Reservation::rehydrate(OrganizationId organization_id,
                             kind,
                             status,
                             std::move(approval_info),
+                            std::move(rejection_info),
                             version};
 
     HVN_DEBUG_LOG("Rehydrated reservation without recording domain events.");
@@ -151,6 +155,7 @@ Reservation::Reservation(OrganizationId organization_id,
                          const ReservationKind kind,
                          const ReservationStatus status,
                          std::optional<ApprovalInfo> approval_info,
+                         std::optional<RejectionInfo> rejection_info,
                          const Version version)
     : organization_id_(std::move(organization_id)),
       reservation_id_(std::move(reservation_id)),
@@ -161,6 +166,7 @@ Reservation::Reservation(OrganizationId organization_id,
       kind_(kind),
       status_(status),
       approval_info_(std::move(approval_info)),
+      rejection_info_(std::move(rejection_info)),
       version_(version) {}
 
 const OrganizationId& Reservation::organization_id() const noexcept {
@@ -199,6 +205,10 @@ const std::optional<ApprovalInfo>& Reservation::approval_info() const noexcept {
     return approval_info_;
 }
 
+const std::optional<RejectionInfo>& Reservation::rejection_info() const noexcept {
+    return rejection_info_;
+}
+
 Version Reservation::version() const noexcept {
     return version_;
 }
@@ -235,7 +245,8 @@ void Reservation::approve(UserId approved_by,
 
 void Reservation::reject(UserId rejected_by,
                          const TimePoint rejected_at,
-                         EventId rejected_event_id) {
+                         EventId rejected_event_id,
+                         std::optional<std::string> reason) {
     HVN_TRACE_SCOPE();
 
     if (status_ != ReservationStatus::PendingApproval) {
@@ -244,6 +255,7 @@ void Reservation::reject(UserId rejected_by,
         throw std::logic_error("Only a pending reservation may be rejected.");
     }
 
+    rejection_info_.emplace(rejected_by, rejected_at, std::move(reason));
     status_ = ReservationStatus::Rejected;
     version_ = Version{version_.value() + 1};
 

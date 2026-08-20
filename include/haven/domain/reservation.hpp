@@ -10,6 +10,7 @@
 #include "haven/domain/value_objects/event_id.hpp"
 #include "haven/domain/value_objects/organization_id.hpp"
 #include "haven/domain/value_objects/purpose.hpp"
+#include "haven/domain/value_objects/rejection_info.hpp"
 #include "haven/domain/value_objects/reservation_id.hpp"
 #include "haven/domain/value_objects/reservation_kind.hpp"
 #include "haven/domain/value_objects/reservation_status.hpp"
@@ -20,6 +21,7 @@
 
 #include <chrono>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace haven::domain {
@@ -79,6 +81,7 @@ public:
      * @param kind Persisted reservation kind.
      * @param status Persisted lifecycle status.
      * @param approval_info Persisted approval information, when applicable.
+     * @param rejection_info Persisted rejection information, when applicable.
      * @param version Persistence-neutral optimistic concurrency version.
      *
      * @return Rehydrated reservation without uncommitted domain events.
@@ -92,6 +95,7 @@ public:
                                                ReservationKind kind,
                                                ReservationStatus status,
                                                std::optional<ApprovalInfo> approval_info,
+                                               std::optional<RejectionInfo> rejection_info,
                                                Version version);
 
     /**
@@ -140,6 +144,11 @@ public:
     [[nodiscard]] const std::optional<ApprovalInfo>& approval_info() const noexcept;
 
     /**
+     * @brief Returns rejection information when the reservation was rejected.
+     */
+    [[nodiscard]] const std::optional<RejectionInfo>& rejection_info() const noexcept;
+
+    /**
      * @brief Returns the optimistic concurrency version.
      *
      * @return Persistence-neutral reservation version.
@@ -160,8 +169,13 @@ public:
 
     /**
      * @brief Rejects a pending reservation.
+     *
+     * @param reason Optional free-form rejection reason supplied by the approver.
      */
-    void reject(UserId rejected_by, TimePoint rejected_at, EventId rejected_event_id);
+    void reject(UserId rejected_by,
+                TimePoint rejected_at,
+                EventId rejected_event_id,
+                std::optional<std::string> reason = std::nullopt);
 
     /**
      * @brief Cancels a pending or confirmed reservation.
@@ -203,6 +217,7 @@ private:
                 ReservationKind kind,
                 ReservationStatus status,
                 std::optional<ApprovalInfo> approval_info,
+                std::optional<RejectionInfo> rejection_info,
                 Version version);
 
     OrganizationId organization_id_;
@@ -214,6 +229,7 @@ private:
     ReservationKind kind_;
     ReservationStatus status_;
     std::optional<ApprovalInfo> approval_info_;
+    std::optional<RejectionInfo> rejection_info_;
     Version version_;
     std::vector<ReservationDomainEvent> domain_events_;
 };

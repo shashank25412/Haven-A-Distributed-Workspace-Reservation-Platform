@@ -36,6 +36,7 @@ add_executable(
     value_objects/reservation_status_test.cpp
     value_objects/reservation_kind_test.cpp
     value_objects/approval_info_test.cpp
+    value_objects/rejection_info_test.cpp
 
     resource_test.cpp
     reservation_test.cpp

@@ -42,6 +42,9 @@ public:
     [[nodiscard]] haven::application::reservations::ReservationListResult find_pending_approvals(
         const haven::domain::OrganizationId& organization_id) const override;
 
+    [[nodiscard]] haven::application::reservations::ReservationListResult find_decided_approvals(
+        const haven::domain::OrganizationId& organization_id) const override;
+
     /**
      * @brief Returns reservations overlapping an interval using `[start, end)` semantics.
      */

@@ -174,6 +174,30 @@ TEST(ReservationTest, Reject_ShouldRejectReservation_WhenReservationIsPending) {
     EXPECT_EQ(reservation.status(), ReservationStatus::Rejected);
 }
 
+TEST(ReservationTest, Reject_ShouldStoreRejectionInfoWithoutReason_WhenReasonIsOmitted) {
+    Reservation reservation = create_pending_reservation();
+
+    reservation.reject(
+        UserId{"approver-123"}, Reservation::TimePoint{} + 1h, EventId{"event-rejected-123"});
+
+    ASSERT_TRUE(reservation.rejection_info().has_value());
+    EXPECT_EQ(reservation.rejection_info()->rejected_by(), UserId{"approver-123"});
+    EXPECT_FALSE(reservation.rejection_info()->reason().has_value());
+}
+
+TEST(ReservationTest, Reject_ShouldStoreRejectionReason_WhenReasonIsProvided) {
+    Reservation reservation = create_pending_reservation();
+
+    reservation.reject(UserId{"approver-123"},
+                       Reservation::TimePoint{} + 1h,
+                       EventId{"event-rejected-123"},
+                       std::string{"Conflicts with maintenance."});
+
+    ASSERT_TRUE(reservation.rejection_info().has_value());
+    ASSERT_TRUE(reservation.rejection_info()->reason().has_value());
+    EXPECT_EQ(*reservation.rejection_info()->reason(), "Conflicts with maintenance.");
+}
+
 TEST(ReservationTest, Reject_ShouldRecordRejectedEvent_WhenReservationIsPending) {
     Reservation reservation = create_pending_reservation();
     static_cast<void>(reservation.release_domain_events());
@@ -514,6 +538,7 @@ TEST(ReservationTest, Rehydrate_ShouldRestorePersistedState_WhenReservationExist
                                                            ReservationKind::Standard,
                                                            ReservationStatus::Confirmed,
                                                            approval_info,
+                                                           std::nullopt,
                                                            Version{42});
 
     EXPECT_EQ(reservation.organization_id(), OrganizationId{"organization-123"});
@@ -540,6 +565,7 @@ TEST(ReservationTest, Rehydrate_ShouldNotRecordDomainEvents_WhenRestoringPersist
                                                      ReservationKind::Standard,
                                                      ReservationStatus::Cancelled,
                                                      std::nullopt,
+                                                     std::nullopt,
                                                      Version{42});
 
     EXPECT_TRUE(reservation.release_domain_events().empty());
@@ -556,6 +582,7 @@ TEST(ReservationTest, Rehydrate_ShouldRejectZeroPersistenceVersion) {
                                                           Purpose{""},
                                                           ReservationKind::Standard,
                                                           ReservationStatus::Confirmed,
+                                                          std::nullopt,
                                                           std::nullopt,
                                                           Version{0})),
                  std::invalid_argument);

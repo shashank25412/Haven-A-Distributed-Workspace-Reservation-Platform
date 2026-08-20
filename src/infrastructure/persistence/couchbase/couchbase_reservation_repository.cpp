@@ -205,6 +205,37 @@ ReservationListResult CouchbaseReservationRepository::find_pending_approvals(
         });
 }
 
+ReservationListResult CouchbaseReservationRepository::find_decided_approvals(
+    const haven::domain::OrganizationId& organization_id) const {
+    return metrics_.record(
+        metrics::Repository::reservation, metrics::Operation::find_decided_approvals, [&] {
+            HVN_TRACE_SCOPE();
+            auto options = readonly_options();
+            options.named_parameters(
+                std::make_pair("organizationId", organization_id.value()),
+                std::make_pair("rejectedStatus",
+                               std::string{haven::domain::to_string(
+                                   haven::domain::ReservationStatus::Rejected)}),
+                std::make_pair("confirmedStatus",
+                               std::string{haven::domain::to_string(
+                                   haven::domain::ReservationStatus::Confirmed)}));
+            const auto statement =
+                select_prefix() +
+                "AND reservation.organizationId = $organizationId "
+                "AND (reservation.status = $rejectedStatus "
+                "OR (reservation.status = $confirmedStatus AND reservation.approval IS NOT NULL))";
+            auto [error, result] = connection_->scope().query(statement, options).get();
+            if (error) {
+                HVN_ERROR_LOG("Couchbase decided approval query failed for organization ",
+                              organization_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase decided approval query");
+            }
+            return map_rows(result, organization_id, "Couchbase decided approval query");
+        });
+}
+
 ReservationListResult CouchbaseReservationRepository::find_by_resource_and_interval(
     const haven::domain::OrganizationId& organization_id,
     const haven::domain::ResourceId& resource_id,

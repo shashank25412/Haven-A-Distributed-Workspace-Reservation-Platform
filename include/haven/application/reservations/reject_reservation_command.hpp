@@ -11,6 +11,8 @@
 #include "haven/domain/value_objects/user_id.hpp"
 
 #include <chrono>
+#include <optional>
+#include <string>
 #include <utility>
 
 namespace haven::application::reservations {
@@ -33,18 +35,21 @@ public:
      * @param rejected_by User rejecting the reservation.
      * @param rejection_event_id Identifier for the rejection domain event.
      * @param occurred_at Timestamp applied to the rejection transition.
+     * @param reason Optional free-form explanation for the rejection.
      */
     RejectReservationCommand(
         haven::domain::OrganizationId organization_id,
         haven::domain::ReservationId reservation_id,
         haven::domain::UserId rejected_by,
         haven::domain::EventId rejection_event_id,
-        TimePoint occurred_at)
+        TimePoint occurred_at,
+        std::optional<std::string> reason = std::nullopt)
         : organization_id_(std::move(organization_id)),
           reservation_id_(std::move(reservation_id)),
           rejected_by_(std::move(rejected_by)),
           rejection_event_id_(std::move(rejection_event_id)),
-          occurred_at_(occurred_at) {}
+          occurred_at_(occurred_at),
+          reason_(std::move(reason)) {}
 
     /**
      * @brief Returns the organization used to scope the operation.
@@ -81,12 +86,20 @@ public:
         return occurred_at_;
     }
 
+    /**
+     * @brief Returns the optional rejection reason.
+     */
+    [[nodiscard]] const std::optional<std::string>& reason() const noexcept {
+        return reason_;
+    }
+
 private:
     haven::domain::OrganizationId organization_id_;
     haven::domain::ReservationId reservation_id_;
     haven::domain::UserId rejected_by_;
     haven::domain::EventId rejection_event_id_;
     TimePoint occurred_at_;
+    std::optional<std::string> reason_;
 };
 
 }  // namespace haven::application::reservations

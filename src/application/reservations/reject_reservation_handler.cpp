@@ -32,7 +32,8 @@ RejectReservationResult RejectReservationHandler::handle(
         return RejectReservationResult::failed(RejectReservationStatus::INVALID_STATE);
     }
 
-    reservation.reject(command.rejected_by(), command.occurred_at(), command.rejection_event_id());
+    reservation.reject(
+        command.rejected_by(), command.occurred_at(), command.rejection_event_id(), command.reason());
 
     static_cast<void>(reservation_repository_.update(
         command.organization_id(), reservation, loaded->persistence_token()));

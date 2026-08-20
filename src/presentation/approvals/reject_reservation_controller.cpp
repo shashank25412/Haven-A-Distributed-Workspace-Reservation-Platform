@@ -139,7 +139,8 @@ void handle(
             haven::domain::ReservationId{reservation_id},
             haven::domain::UserId{account.user_id},
             haven::domain::EventId{uuid()},
-            std::chrono::system_clock::now()};
+            std::chrono::system_clock::now(),
+            reason.empty() ? std::nullopt : std::optional<std::string>{reason}};
 
         const auto result = handler->handle(command);
         using enum haven::application::reservations::RejectReservationStatus;
@@ -149,8 +150,15 @@ void handle(
                 Json::Value body;
                 body["reservationId"] = reservation.reservation_id().value();
                 body["status"] = std::string{haven::domain::to_string(reservation.status())};
-                body["rejectedAt"] = reservations::reservation_http_timestamp(std::chrono::system_clock::now());
-                body["reason"] = reason;
+                const auto& rejection = reservation.rejection_info();
+                body["rejectedAt"] = rejection.has_value()
+                                          ? reservations::reservation_http_timestamp(rejection->rejected_at())
+                                          : reservations::reservation_http_timestamp(std::chrono::system_clock::now());
+                if (rejection.has_value() && rejection->reason().has_value()) {
+                    body["reason"] = *rejection->reason();
+                } else {
+                    body["reason"] = Json::Value::null;
+                }
                 callback(drogon::HttpResponse::newHttpJsonResponse(body));
                 return;
             }

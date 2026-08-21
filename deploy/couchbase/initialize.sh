@@ -10,9 +10,9 @@ readonly resource_seed_file="${HVN_COUCHBASE_RESOURCE_SEED_FILE:-/opt/haven/couc
 readonly secondary_resource_seed_file="${HVN_COUCHBASE_SECONDARY_RESOURCE_SEED_FILE:-/opt/haven/couchbase/seed-resources-secondary.sql}"
 readonly organization_seed_file="${HVN_COUCHBASE_ORGANIZATION_SEED_FILE:-/opt/haven/couchbase/seed-organizations.sql}"
 readonly seed_organization_id="${HVN_SEED_ORGANIZATION_ID:-organization-1}"
-readonly seed_organization_name="${HVN_SEED_ORGANIZATION_NAME:-Organization One}"
+readonly seed_organization_name="${HVN_SEED_ORGANIZATION_NAME:-Beacon Works}"
 readonly seed_secondary_organization_id="${HVN_SEED_SECONDARY_ORGANIZATION_ID:-organization-2}"
-readonly seed_secondary_organization_name="${HVN_SEED_SECONDARY_ORGANIZATION_NAME:-Organization Two}"
+readonly seed_secondary_organization_name="${HVN_SEED_SECONDARY_ORGANIZATION_NAME:-Harbor Point}"
 readonly identity_bucket="${HVN_IDENTITY_COUCHBASE_BUCKET:-${HVN_COUCHBASE_BUCKET}_identity}"
 readonly identity_scope="${HVN_IDENTITY_COUCHBASE_SCOPE:-identity}"
 

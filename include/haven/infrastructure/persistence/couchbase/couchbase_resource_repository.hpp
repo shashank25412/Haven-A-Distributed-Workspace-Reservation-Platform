@@ -38,6 +38,16 @@ public:
         const haven::domain::OrganizationId& organization_id,
         haven::domain::ResourceType resource_type) const override;
 
+    void save(const haven::domain::Resource& resource) override;
+
+    [[nodiscard]] haven::application::resources::ResourceSearchResult list_by_organization(
+        const haven::domain::OrganizationId& organization_id) const override;
+
+    void update_resource(const haven::domain::Resource& resource) override;
+
+    void remove_resource(const haven::domain::OrganizationId& organization_id,
+                         const haven::domain::ResourceId& resource_id) override;
+
 private:
     std::shared_ptr<CouchbaseConnection> connection_;
     metrics::OperationMetrics metrics_;

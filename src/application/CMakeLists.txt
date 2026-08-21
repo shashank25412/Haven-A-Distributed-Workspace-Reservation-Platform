@@ -22,6 +22,9 @@ add_library(haven_application
     idempotency/idempotency_record.cpp
 
     resources/get_resource_handler.cpp
+    resources/resource_repository.cpp
+    resources/create_resource_handler.cpp
+    resources/update_resource_handler.cpp
     resources/authoritative_resource_query_repository.cpp
     resources/cached_resource_query_repository.cpp
     resources/metrics/resource_cache_metrics.cpp

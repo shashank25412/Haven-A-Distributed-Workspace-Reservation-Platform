@@ -16,7 +16,9 @@
 #include <couchbase/codec/tao_json_serializer.hxx>
 #include <couchbase/error.hxx>
 #include <couchbase/error_codes.hxx>
+#include <couchbase/insert_options.hxx>
 #include <couchbase/query_options.hxx>
+#include <couchbase/query_scan_consistency.hxx>
 #include <couchbase/query_scan_consistency.hxx>
 #include <stdexcept>
 #include <string>
@@ -56,6 +58,12 @@ using haven::application::RepositoryErrorCode;
            "AND resource.organizationId = $organizationId "
            "AND resource.resourceType = $resourceType "
            "AND resource.status = \"ACTIVE\"";
+}
+
+[[nodiscard]] std::string all_resources_query() {
+    return "SELECT resource.* FROM `" + std::string{CouchbaseCollections::resources} +
+           "` AS resource WHERE resource.documentType = \"resource\" "
+           "AND resource.organizationId = $organizationId";
 }
 
 }  // namespace
@@ -173,6 +181,134 @@ CouchbaseResourceRepository::find_active_by_type(
 
             return resources;
         });
+}
+
+void CouchbaseResourceRepository::save(const haven::domain::Resource& resource) {
+    metrics_.record(metrics::Repository::resource, metrics::Operation::save, [&] {
+        HVN_TRACE_SCOPE();
+
+        const auto document_key =
+            resource_document_key(resource.organization_id(), resource.resource_id());
+        HVN_DEBUG_LOG("Inserting Couchbase resource document with key ", document_key);
+
+        const auto document = to_resource_document(resource);
+        const auto json = resource_document_to_json(document);
+
+        auto collection = connection_->collection(CouchbaseCollections::resources);
+        auto [error, result] =
+            collection.insert(document_key, json, ::couchbase::insert_options{}).get();
+
+        if (error.ec() == ::couchbase::errc::key_value::document_exists) {
+            throw translate_error(error, "Couchbase resource insert (duplicate key)");
+        }
+        if (error) {
+            HVN_ERROR_LOG("Couchbase resource insert failed for organization ",
+                          resource.organization_id().value(),
+                          " and resource ",
+                          resource.resource_id().value(),
+                          ": ",
+                          error.ec().message());
+            throw translate_error(error, "Couchbase resource insert");
+        }
+    });
+}
+
+haven::application::resources::ResourceSearchResult
+CouchbaseResourceRepository::list_by_organization(
+    const haven::domain::OrganizationId& organization_id) const {
+    return metrics_.record(
+        metrics::Repository::resource, metrics::Operation::list_resources, [&] {
+            HVN_TRACE_SCOPE();
+
+            auto options = ::couchbase::query_options{};
+            options.readonly(true)
+                .scan_consistency(::couchbase::query_scan_consistency::request_plus)
+                .named_parameters(std::make_pair("organizationId", organization_id.value()));
+
+            auto [error, result] =
+                connection_->scope().query(all_resources_query(), options).get();
+            if (error) {
+                HVN_ERROR_LOG("Couchbase resource list failed for organization ",
+                              organization_id.value(),
+                              ": ",
+                              error.ec().message());
+                throw translate_error(error, "Couchbase resource list");
+            }
+
+            haven::application::resources::ResourceSearchResult resources;
+            const auto rows = result.rows_as();
+            resources.reserve(rows.size());
+            try {
+                for (const auto& row : rows) {
+                    resources.push_back(to_domain_resource(resource_document_from_json(row)));
+                }
+            } catch (const std::exception& exception) {
+                HVN_ERROR_LOG("Couchbase resource list returned an invalid document for organization ",
+                              organization_id.value(),
+                              ": ",
+                              exception.what());
+                throw RepositoryError{RepositoryErrorCode::Persistence,
+                                      "Couchbase resource list returned an invalid document"};
+            }
+            return resources;
+        });
+}
+
+void CouchbaseResourceRepository::update_resource(const haven::domain::Resource& resource) {
+    metrics_.record(metrics::Repository::resource, metrics::Operation::upsert_resource, [&] {
+        HVN_TRACE_SCOPE();
+
+        const auto document_key =
+            resource_document_key(resource.organization_id(), resource.resource_id());
+        HVN_DEBUG_LOG("Upserting Couchbase resource document with key ", document_key);
+
+        const auto document = to_resource_document(resource);
+        const auto json = resource_document_to_json(document);
+
+        auto collection = connection_->collection(CouchbaseCollections::resources);
+        auto [error, result] = collection.upsert(document_key, json).get();
+
+        if (error) {
+            HVN_ERROR_LOG("Couchbase resource upsert failed for organization ",
+                          resource.organization_id().value(),
+                          " and resource ",
+                          resource.resource_id().value(),
+                          ": ",
+                          error.ec().message());
+            throw translate_error(error, "Couchbase resource upsert");
+        }
+    });
+}
+
+void CouchbaseResourceRepository::remove_resource(
+    const haven::domain::OrganizationId& organization_id,
+    const haven::domain::ResourceId& resource_id) {
+    metrics_.record(metrics::Repository::resource, metrics::Operation::remove_resource, [&] {
+        HVN_TRACE_SCOPE();
+
+        const auto document_key = resource_document_key(organization_id, resource_id);
+        HVN_DEBUG_LOG("Removing Couchbase resource document with key ", document_key);
+
+        auto collection = connection_->collection(CouchbaseCollections::resources);
+        auto [error, result] = collection.remove(document_key).get();
+
+        if (error.ec() == ::couchbase::errc::key_value::document_not_found) {
+            HVN_WARN_LOG("Resource not found for removal: organization ",
+                         organization_id.value(),
+                         ", resource ",
+                         resource_id.value());
+            return;
+        }
+        if (error) {
+            HVN_ERROR_LOG("Couchbase resource removal failed for organization ",
+                          organization_id.value(),
+                          " and resource ",
+                          resource_id.value(),
+                          ": ",
+                          error.ec().message());
+            throw translate_error(error, "Couchbase resource removal");
+        }
+    });
 }
 
 }  // namespace haven::infrastructure::persistence::couchbase

@@ -23,6 +23,8 @@
 #include "haven/application/reservations/reservation_repository.hpp"
 #include "haven/application/resources/authoritative_resource_query_repository.hpp"
 #include "haven/application/resources/cached_resource_query_repository.hpp"
+#include "haven/application/resources/create_resource_handler.hpp"
+#include "haven/application/resources/update_resource_handler.hpp"
 #include "haven/application/resources/get_resource_handler.hpp"
 #include "haven/application/resources/search_available_resources_handler.hpp"
 #include "haven/application/resources/resource_query_repository.hpp"
@@ -48,7 +50,12 @@
 #include "haven/infrastructure/persistence/couchbase/couchbase_user_directory.hpp"
 #include "haven/logging/logging.hpp"
 #include "haven/presentation/admin/admin_cancel_reservation_controller.hpp"
+#include "haven/presentation/admin/bulk_create_resources_controller.hpp"
+#include "haven/presentation/admin/create_resource_controller.hpp"
+#include "haven/presentation/admin/delete_resource_controller.hpp"
+#include "haven/presentation/admin/list_admin_resources_controller.hpp"
 #include "haven/presentation/admin/list_all_reservations_controller.hpp"
+#include "haven/presentation/admin/update_resource_controller.hpp"
 #include "haven/presentation/approvals/approve_reservation_controller.hpp"
 #include "haven/presentation/approvals/list_pending_approvals_controller.hpp"
 #include "haven/presentation/approvals/list_decided_approvals_controller.hpp"
@@ -214,6 +221,12 @@ int main() {
 
         auto get_resource_handler =
             std::make_shared<haven::application::resources::GetResourceHandler>(*resource_query);
+        auto create_resource_handler =
+            std::make_shared<haven::application::resources::CreateResourceHandler>(
+                *resource_repository);
+        auto update_resource_handler =
+            std::make_shared<haven::application::resources::UpdateResourceHandler>(
+                *resource_repository);
         auto search_resources_handler =
             std::make_shared<haven::application::resources::SearchAvailableResourcesHandler>(
                 *resource_repository, *reservation_repository);
@@ -305,6 +318,16 @@ int main() {
             user_directory);
         haven::presentation::admin::register_admin_cancel_reservation_route(
             std::move(admin_cancel_reservation_handler), authentication_service);
+        haven::presentation::admin::register_create_resource_route(
+            create_resource_handler, authentication_service);
+        haven::presentation::admin::register_bulk_create_resources_route(
+            std::move(create_resource_handler), authentication_service);
+        haven::presentation::admin::register_list_admin_resources_route(
+            resource_repository, authentication_service);
+        haven::presentation::admin::register_update_resource_route(
+            std::move(update_resource_handler), authentication_service);
+        haven::presentation::admin::register_delete_resource_route(
+            resource_repository, authentication_service);
         HVN_INFO_LOG("HTTP routes registered");
 
         HVN_INFO_LOG("Starting Haven API on ",

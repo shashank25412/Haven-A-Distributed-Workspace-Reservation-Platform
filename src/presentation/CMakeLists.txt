@@ -42,6 +42,11 @@ add_library(
 
     admin/list_all_reservations_controller.cpp
     admin/admin_cancel_reservation_controller.cpp
+    admin/create_resource_controller.cpp
+    admin/bulk_create_resources_controller.cpp
+    admin/list_admin_resources_controller.cpp
+    admin/update_resource_controller.cpp
+    admin/delete_resource_controller.cpp
 
     resources/get_resource_controller.cpp
     resources/search_resources_controller.cpp

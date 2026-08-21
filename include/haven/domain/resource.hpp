@@ -74,6 +74,21 @@ public:
         std::string address = "");
 
     /**
+     * @brief Creates a new resource that has never been persisted.
+     *
+     * @throws std::invalid_argument If name is empty.
+     */
+    [[nodiscard]] static Resource create(
+        OrganizationId organization_id,
+        ResourceId resource_id,
+        std::string name,
+        std::string description,
+        ResourceType type,
+        bool requires_approval,
+        std::uint32_t total_units = 1,
+        std::string address = "");
+
+    /**
      * @brief Returns the organization that owns the resource.
      *
      * @return Organization identifier.

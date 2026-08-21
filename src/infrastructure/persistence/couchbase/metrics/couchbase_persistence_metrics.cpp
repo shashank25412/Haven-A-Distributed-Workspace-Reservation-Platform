@@ -70,6 +70,14 @@ std::string_view value(const Operation v) noexcept {
             return "has_conflict_excluding";
         case Operation::reserved_unit_count:
             return "reserved_unit_count";
+        case Operation::save:
+            return "save";
+        case Operation::list_resources:
+            return "list_resources";
+        case Operation::upsert_resource:
+            return "upsert_resource";
+        case Operation::remove_resource:
+            return "remove_resource";
         case Operation::insert:
             return "insert";
         case Operation::update:

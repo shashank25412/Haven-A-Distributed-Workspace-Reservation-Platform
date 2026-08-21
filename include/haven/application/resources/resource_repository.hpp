@@ -64,6 +64,24 @@ public:
     [[nodiscard]] virtual ResourceSearchResult find_active_by_type(
         const haven::domain::OrganizationId& organization_id,
         haven::domain::ResourceType resource_type) const = 0;
+
+    /**
+     * @brief Persists a new resource document.
+     *
+     * Default implementation throws; only Couchbase-backed implementations override this.
+     */
+    virtual void save(const haven::domain::Resource& resource);
+
+    /** @brief Returns all resources belonging to an organization regardless of type or status. */
+    virtual ResourceSearchResult list_by_organization(
+        const haven::domain::OrganizationId& organization_id) const;
+
+    /** @brief Replaces all mutable fields of an existing resource document. */
+    virtual void update_resource(const haven::domain::Resource& resource);
+
+    /** @brief Permanently removes a resource document from persistence. */
+    virtual void remove_resource(const haven::domain::OrganizationId& organization_id,
+                                 const haven::domain::ResourceId& resource_id);
 };
 
 }  // namespace haven::application::resources

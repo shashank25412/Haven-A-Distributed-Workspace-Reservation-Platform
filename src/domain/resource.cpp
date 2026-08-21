@@ -61,6 +61,32 @@ Resource Resource::rehydrate(OrganizationId organization_id,
                     std::move(address)};
 }
 
+Resource Resource::create(OrganizationId organization_id,
+                           ResourceId resource_id,
+                           std::string name,
+                           std::string description,
+                           const ResourceType type,
+                           const bool requires_approval,
+                           const std::uint32_t total_units,
+                           std::string address) {
+    HVN_TRACE_SCOPE();
+
+    if (name.empty()) {
+        throw std::invalid_argument("Resource name must not be empty.");
+    }
+
+    return Resource{std::move(organization_id),
+                    std::move(resource_id),
+                    std::move(name),
+                    std::move(description),
+                    type,
+                    ResourceStatus::Active,
+                    requires_approval,
+                    Version{1},
+                    total_units == 0 ? 1 : total_units,
+                    std::move(address)};
+}
+
 Resource::Resource(OrganizationId organization_id,
                    ResourceId resource_id,
                    std::string name,
